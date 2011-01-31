@@ -8,6 +8,7 @@ Very simple command line todolist manager
 import inspect
 import locale
 import os
+import re
 import sys
 
 class Command:
@@ -139,9 +140,40 @@ def init():
     - initialising database access
     - initializing some global vars
     """
-    global enc, out
+    global enc, out, config
+
+    # Default encoding
     enc = locale.getpreferredencoding()
+
+    # Default output : stdout
     out = sys.stdout
+
+    # Loading configuration
+    config = {}
+    try:
+        with open(os.environ.get("HOME") + "/.yatrc", "r") as config_file:
+            for line in config_file:
+                if not (re.match(r'^\s*#.*$', line) or re.match(r'^\s*$', line)):
+                    line = re.sub(r'\s*=\s*', "=", line, 1)
+                    line = re.sub(r'\n$', r'', line)
+                    opt = line.split('=', 1)
+                    config[opt[0]] = opt[1]
+        config_file.close()
+    except IOError:
+        # No .yatrc
+        pass
+
+    # For each option, loading default if it isn't defined
+    config["yatdir"] = config.get("yatdir", "~/.yat")
+    config["default_list"] = config.get("default_list", "nolist")
+    config["default_tag"] = config.get("default_tag", "notag")
+
+    # Create yat directory
+    if config["yatdir"][0] == "~":
+        config["yatdir"] = os.environ.get("HOME") + config["yatdir"][1:]
+    if not os.path.isdir(config["yatdir"]):
+        os.makedirs(config["yatdir"], mode=0700)
+    print config
     pass
 
 def isCommand(obj):
@@ -153,11 +185,11 @@ def isCommand(obj):
     else:
         return False
 
-def output(str = u"", f = None, linebreak = True):
+def output(st = u"", f = None, linebreak = True):
     global enc, out
     if f == None:
         f = out
-    f.write(str.encode(enc))
+    f.write(st.encode(enc))
     if linebreak:
         f.write(os.linesep)
 

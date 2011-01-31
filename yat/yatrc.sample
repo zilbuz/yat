@@ -1,0 +1,9 @@
+# Folder in which the database will be stored
+yatdir = ~/.yat
+
+# Default list
+default_list = nolist
+
+# Default tag
+default_tag = notag
+
