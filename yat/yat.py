@@ -61,7 +61,7 @@ the name of a command is provided, show the specific help text for this command.
 
         if cmd.alias[0] == u"help":
             if not detailed:
-                output(str = (u"%s (Yet Another Todolist) is a very simple " %
+                output(st = (u"%s (Yet Another Todolist) is a very simple " %
                     progname), linebreak = False)
                 output(u"commandline todolist manager.")
                 output()
@@ -173,7 +173,6 @@ def init():
         config["yatdir"] = os.environ.get("HOME") + config["yatdir"][1:]
     if not os.path.isdir(config["yatdir"]):
         os.makedirs(config["yatdir"], mode=0700)
-    print config
     pass
 
 def isCommand(obj):
