@@ -5,8 +5,10 @@ u"""
 Very simple command line todolist manager
 """
 
-import sys
 import inspect
+import locale
+import os
+import sys
 
 class Command:
     u"""Abstract class for instrospection
@@ -15,7 +17,7 @@ If you wish to add a command, you have to create a class that derive from this
 one, and the docstring must have this format:
 Short description
 
-%s cmd_name [options]
+usage: %s cmd_name [options]
 
 Long description
 """
@@ -32,28 +34,69 @@ Long description
 class HelpCommand (Command):
     u"""Show this help or a command specific help if an argument is provided
 
-%s help [command]
+usage: %s help [command]
 
 Without arguments, provide a short description of the differents commands. If
 the name of a command is provided, show the specific help text for this command.
 """
 
-    alias = ["help"]
+    alias = [u"help"]
 
     def execute(self,args):
-        global progname
-        # TODO
-        print self.__doc__.split('\n\n',1)[1] % progname
+        global progname, aliases, commands
+
+        detailed = False
+        cmd = self
+
+        if len(args) > 0:
+            if args[0] in aliases:
+                cmd = aliases[args[0]]()
+                detailed = True
+
+        helptxt = cmd.__doc__.split('\n\n', 1)
+
+        if detailed:
+            output(helptxt[1] % progname)
+
+        if cmd.alias[0] == u"help":
+            if not detailed:
+                output(str = (u"%s (Yet Another Todolist) is a very simple " %
+                    progname), linebreak = False)
+                output(u"commandline todolist manager.")
+                output()
+                output(u"usage: %s [command] [arguments]" % progname)
+                output()
+
+            output(u"The different commands are:")
+            for name, cmd in commands.iteritems():
+                output(u"\t", linebreak = False)
+                output(cmd.alias[0], linebreak = False)
+                output(u"\t", linebreak = False)
+                output(cmd.__doc__.split('\n',1)[0], linebreak = False)
+                if len(cmd.alias) > 1:
+                    output(u" (alias: ", linebreak = False)
+                    for i in range(1, len(cmd.alias)):
+                        output(cmd.alias[i], linebreak = False)
+                        if i < len(cmd.alias) - 1: 
+                            output(u",", linebreak = False)
+                    output(u")", linebreak = False)
+                output()
+            output()
+            output(u"Please type \"%s help [command]\" to have" % progname, 
+                    linebreak = False)
+            output(u" detailed informations on a specific command")
+
+        output()
         pass
     pass
 
 class AddCommand (Command):
     u"""Add a task, a list or a tag
 
-%s add [task | list | tag] <informations>
+usage: %s add [task | list | tag] <informations>
 """
     
-    alias = ["add"]
+    alias = [u"add"]
 
     def execute(self,args):
         # TODO
@@ -64,10 +107,10 @@ class AddCommand (Command):
 class RemoveCommand (Command):
     u"""Remove a task, a list or a tag
 
-%s remove [task | list | tag] <informations>
+usage: %s remove [task | list | tag] <informations>
 """
 
-    alias = ["remove", "rm"]
+    alias = [u"remove", u"rm"]
 
     def execute(self,args):
         # TODO
@@ -78,10 +121,10 @@ class RemoveCommand (Command):
 class ListCommand (Command):
     u"""List the current tasks
 
-%s list
+usage: %s list
 """
 
-    alias = ["list", "show"]
+    alias = [u"list", u"show"]
 
     def execute(self,args):
         # TODO
@@ -96,7 +139,9 @@ def init():
     - initialising database access
     - initializing some global vars
     """
-    # TODO
+    global enc, out
+    enc = locale.getpreferredencoding()
+    out = sys.stdout
     pass
 
 def isCommand(obj):
@@ -108,11 +153,22 @@ def isCommand(obj):
     else:
         return False
 
+def output(str = u"", f = None, linebreak = True):
+    global enc, out
+    if f == None:
+        f = out
+    f.write(str.encode(enc))
+    if linebreak:
+        f.write(os.linesep)
+
 def main(argv):
     u"""
     Entry point of the program
     """
     global commands, aliases, progname
+
+    # Initialisation
+    init()
 
     # Getting the name of the program
     progname = argv[0]
