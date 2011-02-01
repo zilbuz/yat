@@ -278,8 +278,6 @@ whereas the regexp is compared to the name or the title.
             print self.__doc__.split('\n',1)[0]," ",args
             return
             
-        # Separate words
-
         cmd = ""
         if args[0] in [u"task", u"list", u"tag"]:
             cmd = args[0]
@@ -305,15 +303,15 @@ whereas the regexp is compared to the name or the title.
             try:
                 re.findall(a, "test")
             except Exception:
-                print "The given expression is not a valid REGEXP."
-                print "Please be aware of the difference with the usual shell expressions, especially for the *"
+                output(u"The given expression is not a valid REGEXP.")
+                output(u"Please be aware of the difference with the usual shell expressions, especially for the *")
                 raise
             if cmd == u"task":
                 identifier = cmd
             else:
                 identifier = u"name"
 
-        if cmd != u'task':
+        if cmd in [u"list", u"tag"]:
             ids = []
             if operation == u'=':
                 ids = [a, ]
