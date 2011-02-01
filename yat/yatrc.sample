@@ -7,3 +7,5 @@ default_list = nolist
 # Default tag
 default_tag = notag
 
+# Default priority
+default_priority = 1
