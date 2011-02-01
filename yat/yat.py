@@ -230,7 +230,7 @@ Adding a tag:
             # Add the task with the correct parameters
             with sql:
                 sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?)',
-                        (text, priority, date, tags, list))
+                        (text.decode('utf-8'), priority, date, tags, list))
             pass
         pass
 
