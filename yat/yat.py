@@ -259,12 +259,54 @@ class RemoveCommand (Command):
     u"""Remove a task, a list or a tag
 
 usage: %s remove [task | list | tag] <informations>
+
+The use is straightforward : every element matching the
+informations gets deleted.
+
+The informations can be either a number or a regexp. The number
+is compared to the id of the elements to delete (task, list or tag),
+whereas the regexp is compared to the name or the title.
 """
 
     alias = [u"remove", u"rm"]
 
     def execute(self,args):
         # TODO
+        global sql
+
+        # Separate words
+        args = (" ".join(args)).split(" ")
+
+        cmd = ""
+        if args[0] in [u"task", u"list", u"tag"]:
+            cmd = args[0]
+            args = args[1:]
+        else:
+            cmd = u"task"
+
+        re_number = re.compile("^[0-9]+$")
+
+        cmd += u's'     # Now we have the name of the table :)
+        operation = u""
+        identifier = u""
+        for a in args:
+            if re_number.match(a) is not None:
+                operation = u"="
+                identifier = u"id"
+            else:
+                operation = u" regexp "
+                a = u"'" + a + u"'"
+                if cmd == u"tasks":
+                    identifier = u"task"
+                else:
+                    identifier = u"name"
+            # Removes everything
+            sql_string = 'delete from {0} where {1}{2}{3}'.format(cmd, identifier, operation, a)
+            print sql_string
+            print sql.execute(sql_string).fetchall()
+            sql.execute(";")
+            #sql.execute('delete from {0} where {1}{2}?'.format(cmd, identifier, operation), (a, ))
+
         print self.__doc__.split('\n',1)[0]," ",args
         pass
     pass
@@ -366,6 +408,14 @@ def init():
             sql.execute("""insert into lists values (null, "nolist")""")
             sql.commit()
     pass
+
+    # Add support for the REGEXP() operator
+    def regexp(expr, item):
+        r = re.compile(expr)
+        return r.match(item) is not None
+
+    sql.create_function("regexp", 2, regexp)
+
 
 def isCommand(obj):
     u"""Check if the parameter is a class derived from Command, without being
