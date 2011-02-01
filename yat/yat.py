@@ -218,7 +218,7 @@ Adding a tag:
             for t in tags:
                 self.__add_tag_or_list("tags", t)
                 tags_copy.append(self.__get_id("tags", t))
-            tags = ",".join(tags_copy)
+            tags = ",".join(tags_copy) + u','   # Needed to properly remove the tags
 
             if list == "":
                 list = config["default_list"]
@@ -286,7 +286,6 @@ whereas the regexp is compared to the name or the title.
 
         re_number = re.compile("^[0-9]+$")
 
-        cmd += u's'     # Now we have the name of the table :)
         operation = u""
         identifier = u""
         for a in args:
@@ -295,21 +294,38 @@ whereas the regexp is compared to the name or the title.
                 identifier = u"id"
             else:
                 operation = u" regexp "
-                a = u"'" + a + u"'"
-                if cmd == u"tasks":
-                    identifier = u"task"
+                # a = u"'" + a + u"'"
+                if cmd == u"task":
+                    identifier = cmd
                 else:
                     identifier = u"name"
-            # Removes everything
-            sql_string = 'delete from {0} where {1}{2}{3}'.format(cmd, identifier, operation, a)
-            print sql_string
-            print sql.execute(sql_string).fetchall()
-            sql.execute(";")
-            #sql.execute('delete from {0} where {1}{2}?'.format(cmd, identifier, operation), (a, ))
 
-        print self.__doc__.split('\n',1)[0]," ",args
-        pass
-    pass
+            if cmd != u'task':
+                ids = []
+                if operation == u'=':
+                    ids = [a, ]
+                else:
+                    temp = sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
+                    for t in temp:
+                        ids.append(str(t[0]))
+
+                # Removing the tasks belonging to the list
+                if cmd == u'list':
+                    for i in ids:
+                        sql.execute(u'delete from tasks where list=?', (i, ))
+                # Updating the tag list for the concerned tags.
+                else:
+                    for i in ids:
+                        sql.execute(u'update tasks set tags = replace(tags, "{0}", "") ;'.format(i+u',' )) 
+                        sql.execute(u'update tasks set tags = "1," where tags = "" ;')      # Attributes the notag tag
+
+
+
+            # Final cleanup
+            sql.execute('delete from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a, ))
+            sql.execute(";")
+
+        # print self.__doc__.split('\n',1)[0]," ",args
 
 class ListCommand (Command):
     u"""List the current tasks
