@@ -258,7 +258,7 @@ Adding a tag:
 class RemoveCommand (Command):
     u"""Remove a task, a list or a tag
 
-usage: %s remove [task | list | tag] <informations>
+usage: %s remove [task | list | tag] [<regexp>|id=<id_nb>]
 
 The use is straightforward : every element matching the
 informations gets deleted.
@@ -274,8 +274,11 @@ whereas the regexp is compared to the name or the title.
         # TODO
         global sql
 
+        if args == []:
+            print self.__doc__.split('\n',1)[0]," ",args
+            return
+            
         # Separate words
-        args = (" ".join(args)).split(" ")
 
         cmd = ""
         if args[0] in [u"task", u"list", u"tag"]:
@@ -284,56 +287,58 @@ whereas the regexp is compared to the name or the title.
         else:
             cmd = u"task"
 
-        re_number = re.compile("^[0-9]+$")
+        re_number = re.compile("^id=([0-9]+)$")
 
         operation = u""
         identifier = u""
-        for a in args:
-            if re_number.match(a) is not None:
-                operation = u"="
-                identifier = u"id"
+       
+        a = " ".join(args)
+        res = re_number.match(a)
+        if res is not None:
+            a = res.group(1)
+            operation = u"="
+            identifier = u"id"
+        else:
+            operation = u" regexp "
+
+            # Test if this is a valid regexp
+            try:
+                re.findall(a, "test")
+            except Exception:
+                print "The given expression is not a valid REGEXP."
+                print "Please be aware of the difference with the usual shell expressions, especially for the *"
+                raise
+            if cmd == u"task":
+                identifier = cmd
             else:
-                operation = u" regexp "
+                identifier = u"name"
 
-                # Test if this is a valid regexp
-                try:
-                    re.findall(a, "test")
-                except Exception:
-                    print "The given expression is not a valid REGEXP."
-                    print "Please be aware of the difference with the usual shell expressions, especially for the *"
-                    raise
-                if cmd == u"task"w
-                    identifier = cmd
-                else:
-                    identifier = u"name"
+        if cmd != u'task':
+            ids = []
+            if operation == u'=':
+                ids = [a, ]
+            else:
+                temp = sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
+                for t in temp:
+                    ids.append(str(t[0]))
 
-            if cmd != u'task':
-                ids = []
-                if operation == u'=':
-                    ids = [a, ]
-                else:
-                    temp = sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
-                    for t in temp:
-                        ids.append(str(t[0]))
-
-                # Removing the tasks belonging to the list
-                if cmd == u'list':
-                    for i in ids:
-                        sql.execute(u'delete from tasks where list=?', (i, ))
-                # Updating the tag list for the concerned tags.
-                else:
-                    for i in ids:
-                        sql.execute(u'update tasks set tags = replace(tags, "{0}", "") ;'.format(i+u',' )) 
-                        sql.execute(u'update tasks set tags = "1," where tags = ""')      # Attributes the notag tag
-                        sql.commit()
+            # Removing the tasks belonging to the list
+            if cmd == u'list':
+                for i in ids:
+                    sql.execute(u'delete from tasks where list=?', (i, ))
+            # Updating the tag list for the concerned tags.
+            else:
+                for i in ids:
+                    sql.execute(u'update tasks set tags = replace(tags, "{0}", "") ;'.format(i+u',' )) 
+                    sql.execute(u'update tasks set tags = "1," where tags = ""')      # Attributes the notag tag
+                    sql.commit()
 
 
 
-            # Final cleanup
-            sql.execute('delete from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a, ))
-            sql.commit()
+        # Final cleanup
+        sql.execute('delete from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a, ))
+        sql.commit()
 
-        # print self.__doc__.split('\n',1)[0]," ",args
 
 class ListCommand (Command):
     u"""List the current tasks
