@@ -294,8 +294,15 @@ whereas the regexp is compared to the name or the title.
                 identifier = u"id"
             else:
                 operation = u" regexp "
-                # a = u"'" + a + u"'"
-                if cmd == u"task":
+
+                # Test if this is a valid regexp
+                try:
+                    re.findall(a, "test")
+                except Exception:
+                    print "The given expression is not a valid REGEXP."
+                    print "Please be aware of the difference with the usual shell expressions, especially for the *"
+                    raise
+                if cmd == u"task"w
                     identifier = cmd
                 else:
                     identifier = u"name"
@@ -317,13 +324,14 @@ whereas the regexp is compared to the name or the title.
                 else:
                     for i in ids:
                         sql.execute(u'update tasks set tags = replace(tags, "{0}", "") ;'.format(i+u',' )) 
-                        sql.execute(u'update tasks set tags = "1," where tags = "" ;')      # Attributes the notag tag
+                        sql.execute(u'update tasks set tags = "1," where tags = ""')      # Attributes the notag tag
+                        sql.commit()
 
 
 
             # Final cleanup
             sql.execute('delete from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a, ))
-            sql.execute(";")
+            sql.commit()
 
         # print self.__doc__.split('\n',1)[0]," ",args
 
@@ -427,9 +435,8 @@ def init():
 
     # Add support for the REGEXP() operator
     def regexp(expr, item):
-        r = re.compile(expr)
-        return r.match(item) is not None
-
+        r = re.findall(expr,item)
+        return len(r) == 1 and r[0] == item
     sql.create_function("regexp", 2, regexp)
 
 
