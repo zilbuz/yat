@@ -218,7 +218,7 @@ Adding a tag:
             for t in tags:
                 self.__add_tag_or_list("tags", t)
                 tags_copy.append(self.__get_id("tags", t))
-            tags = ",".join(tags_copy) + u','   # Needed to properly remove the tags
+            tags = ",".join(tags_copy)
 
             if list == "":
                 list = config["default_list"]
@@ -229,8 +229,8 @@ Adding a tag:
 
             # Add the task with the correct parameters
             with sql:
-                sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?)',
-                        (text.decode('utf-8'), priority, date, tags, list))
+                sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?)',
+                        (text.decode('utf-8'), priority, date, tags, list, 0))
             pass
         pass
 
@@ -326,10 +326,18 @@ whereas the regexp is compared to the name or the title.
                     sql.execute(u'delete from tasks where list=?', (i, ))
             # Updating the tag list for the concerned tags.
             else:
-                for i in ids:
-                    sql.execute(u'update tasks set tags = replace(tags, "{0}", "") ;'.format(i+u',' )) 
-                    sql.execute(u'update tasks set tags = "1," where tags = ""')      # Attributes the notag tag
-                    sql.commit()
+                for t in sql.execute(u'select * from tasks'):
+                    tags = t["tags"].split(",")
+                    tags_copy = tags[:]
+                    for i in range(len(tags_copy)):
+                        if tags_copy[i] in ids:
+                            tags.pop(i)
+                    if len(tags) == 0:
+                        tags.append("1")
+                    sql.execute(u'update tasks set tags=? where id=?',
+                            (",".join(tags), t["id"]))
+                sql.commit()
+
 
 
 
@@ -346,13 +354,25 @@ usage: %s list
 
     alias = [u"list", u"show"]
 
+    def __init__(self):
+        self.textwidth = 60
+        self.tagswidth = 20
+
     def execute(self,args):
         global sql
         # TODO
         with sql:
-            print "tasks:"
-            for r in sql.execute("""select * from tasks"""):
-                print "\t",r
+            # Print the tasks for each list
+            for l in sql.execute(u"select * from lists"):
+                text_list = l["name"] + u" (id: {id})".format(id = l["id"])
+                output(text_list)
+                length = len(text_list)
+                output(u"{s:*<{lgth}}".format(s = "*", 
+                    lgth = length))
+                tasks = sql.execute(u"select * from tasks where list=?",
+                        (l["id"],)).fetchall()
+                self.__output_tasks(tasks)
+                output()
             print "lists:"
             for r in sql.execute("""select * from lists"""):
                 print "\t",r
@@ -361,6 +381,84 @@ usage: %s list
                 print "\t",r
         pass
     pass
+
+    def __split_text(self, text, width=None):
+        u"""Split the text so each chunk isn't longer than the textwidth
+        attribute"""
+        if width == None:
+            width = self.textwidth
+        tmp = text.split(" ")
+        length = 0
+        index = 0
+        splitted_text = [[]]
+        for t in tmp:
+            length += len(t) + 1 # +1 to include spaces
+            if length > width:
+                index += 1
+                splitted_text.append([])
+                length = len(t) + 1
+            splitted_text[index].append(t)
+        for i in range(len(splitted_text)):
+            splitted_text[i] = " ".join(splitted_text[i])
+        return splitted_text
+
+    def __get_tags(self, tags_nb):
+        u"""From a comma-separated list of tags ids, get the tags name and
+        return a comma separated list of tags name"""
+        tags = tags_nb.split(",")
+        tags_name = []
+        for i in range(len(tags)):
+            if tags[i] != "1":
+                res = sql.execute(u"select name from tags where id=?",
+                        (tags[i],))
+                tags_name.append( res.fetchone()["name"] )
+        return ", ".join(tags_name)
+
+    def __output_tasks(self, tasks):
+        u"""Print the tasks. The parameter tasks have to be complete rows of
+        the tasks table."""
+        # Print header
+        output(u" _________________________{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
+            t="_", textwidth=self.textwidth, tagswidth=self.tagswidth))
+        output(u"|Priority | Due date | Id| Task{blank:<{textwidth}}| Tags{blank:<{tagswidth}}|".format( 
+            blank=" ", textwidth=(self.textwidth - 5),
+            tagswidth=(self.tagswidth - 5)))
+        output(u" -------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+            t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
+
+        for r in tasks:
+            # Split task text
+            st = self.__split_text(r["task"])
+
+            # Prepare and split tags
+            tags = self.__get_tags(r["tags"])
+            tags = self.__split_text(tags, self.tagswidth)
+
+            # Print the first line of the current task
+            output(u"|{p:^9}|{date:^10}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                p = r["priority"], date = r["due_date"], id = r["id"], 
+                task = st.pop(0), textwidth = self.textwidth, 
+                tags = tags.pop(0), tagswidth = self.tagswidth))
+
+            # Print the rest of the current task
+            for i in range(max(len(st),len(tags))):
+                if i < len(st):
+                    te = st[i]
+                else:
+                    te = u""
+                if i < len(tags):
+                    ta = tags[i]
+                else:
+                    ta = u""
+                output(u"|         |          |   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                    task = te, textwidth = self.textwidth, tags=ta,
+                    tagswidth = self.tagswidth))
+
+            # Print the separator
+            output(u" -------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+                t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
+
+
 
 
 def init():
@@ -406,6 +504,7 @@ def init():
 
     # Connect to sqlite db
     sql = sqlite3.connect(config["yatdir"] + "/yat.db")
+    sql.row_factory = sqlite3.Row
     try:
         with sql:
             sql.execute("select * from tags")
@@ -419,7 +518,8 @@ def init():
                     priority int,
                     due_date text,
                     tags text,
-                    list text
+                    list text,
+                    completed integer
                 )""")
             sql.execute("""
                 create table tags (
