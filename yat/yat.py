@@ -355,8 +355,9 @@ usage: %s list
     alias = [u"list", u"show"]
 
     def __init__(self):
-        self.textwidth = 60
-        self.tagswidth = 20
+        allowable = int(os.popen('stty size', 'r').read().split()[1]) - 28
+        self.tagswidth = allowable/4
+        self.textwidth = allowable - self.tagswidth
 
     def execute(self,args):
         global sql
