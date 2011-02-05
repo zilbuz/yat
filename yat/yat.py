@@ -28,7 +28,7 @@ Long description
     alias = []
     u"""Array containing the different aliases for this command"""
 
-    def execute(self,args):
+    def execute(self,args,alia):
         u"""Method actually doing something"""
         raise NotImplementedError
 
@@ -45,7 +45,7 @@ the name of a command is provided, show the specific help text for this command.
 
     alias = [u"help"]
 
-    def execute(self,args):
+    def execute(self,args,alias):
         global progname, aliases, commands
 
         detailed = False
@@ -158,7 +158,7 @@ Adding a tag:
         self.re_date = re.compile("^\^(\d\d/\d\d/\d{4})$")
         u"""Regex for the date"""
 
-    def execute(self,args):
+    def execute(self,args,alias):
         global sql, config
         # Separate words
         args = (" ".join(args)).split(" ")
@@ -270,7 +270,7 @@ whereas the regexp is compared to the name or the title.
 
     alias = [u"remove", u"rm"]
 
-    def execute(self,args):
+    def execute(self,args,alias):
         # TODO
         global sql
 
@@ -292,51 +292,52 @@ whereas the regexp is compared to the name or the title.
        
         a = " ".join(args)
         res = re_number.match(a)
-        if res is not None:
-            a = res.group(1)
-            operation = u"="
-            identifier = u"id"
-        else:
-            operation = u" regexp "
-
-            # Test if this is a valid regexp
-            try:
-                re.findall(a, "test")
-            except Exception:
-                output(u"The given expression is not a valid REGEXP.")
-                output(u"Please be aware of the difference with the usual shell expressions, especially for the *")
-                raise
-            if cmd == u"task":
-                identifier = cmd
+        with sql:
+            if res is not None:
+                a = res.group(1)
+                operation = u"="
+                identifier = u"id"
             else:
-                identifier = u"name"
+                operation = u" regexp "
 
-        if cmd in [u"list", u"tag"]:
-            ids = []
-            if operation == u'=':
-                ids = [a, ]
-            else:
-                temp = sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
-                for t in temp:
-                    ids.append(str(t[0]))
+                # Test if this is a valid regexp
+                try:
+                    re.findall(a, "test")
+                except Exception:
+                    output(u"The given expression is not a valid REGEXP.")
+                    output(u"Please be aware of the difference with the usual shell expressions, especially for the *")
+                    raise
+                if cmd == u"task":
+                    identifier = cmd
+                else:
+                    identifier = u"name"
 
-            # Removing the tasks belonging to the list
-            if cmd == u'list':
-                for i in ids:
-                    sql.execute(u'delete from tasks where list=?', (i, ))
-            # Updating the tag list for the concerned tags.
-            else:
-                for t in sql.execute(u'select * from tasks'):
-                    tags = t["tags"].split(",")
-                    tags_copy = tags[:]
-                    for i in range(len(tags_copy)):
-                        if tags_copy[i] in ids:
-                            tags.pop(i)
-                    if len(tags) == 0:
-                        tags.append("1")
-                    sql.execute(u'update tasks set tags=? where id=?',
-                            (",".join(tags), t["id"]))
-                sql.commit()
+            if cmd in [u"list", u"tag"]:
+                ids = []
+                if operation == u'=':
+                    ids = [a, ]
+                else:
+                    temp = sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
+                    for t in temp:
+                        ids.append(str(t[0]))
+
+                # Removing the tasks belonging to the list
+                if cmd == u'list':
+                    for i in ids:
+                        sql.execute(u'delete from tasks where list=?', (i, ))
+                # Updating the tag list for the concerned tags.
+                else:
+                    for t in sql.execute(u'select * from tasks'):
+                        tags = t["tags"].split(",")
+                        tags_copy = tags[:]
+                        for i in range(len(tags_copy)):
+                            if tags_copy[i] in ids:
+                                tags.pop(i)
+                        if len(tags) == 0:
+                            tags.append("1")
+                        sql.execute(u'update tasks set tags=? where id=?',
+                                (",".join(tags), t["id"]))
+                    sql.commit()
 
 
 
@@ -352,36 +353,45 @@ class ListCommand (Command):
 usage: %s list
 """
 
-    alias = [u"list", u"show"]
+    alias = [u"list", u"show", u"task", u"tag"]
 
     def __init__(self):
-        allowable = int(os.popen('stty size', 'r').read().split()[1]) - 28
-        self.tagswidth = allowable/4
-        self.textwidth = allowable - self.tagswidth
+        self.width = int(os.popen('stty size', 'r').read().split()[1])
 
-    def execute(self,args):
+    def execute(self,args,alias):
         global sql
         # TODO
-        with sql:
-            # Print the tasks for each list
-            for l in sql.execute(u"select * from lists"):
-                text_list = l["name"] + u" (id: {id})".format(id = l["id"])
-                output(text_list)
-                length = len(text_list)
-                output(u"{s:*<{lgth}}".format(s = "*", 
-                    lgth = length))
-                tasks = sql.execute(u"select * from tasks where list=?",
-                        (l["id"],)).fetchall()
-                self.__output_tasks(tasks)
-                output()
+        # Testing the alias used to call ListCommand
+        if alias == u'ls' or alias == u'task':
+            # I chose this value arbitrarily, but I think it fits.
+            if self.width < 36 :
+                output("The terminal is to small to print the list correctly")
+            else:
+                allowable = self.width - 28
+                self.tagswidth = allowable/4
+                self.textwidth = allowable - self.tagswidth
+            with sql:
+                # Print the tasks for each list
+                for l in sql.execute(u"select * from lists"):
+                    text_list = l["name"] + u" (id: {id})".format(id = l["id"])
+                    output(text_list)
+                    length = len(text_list)
+                    output(u"{s:*<{lgth}}".format(s = "*", 
+                        lgth = length))
+                    tasks = sql.execute(u"select * from tasks where list=?",
+                            (l["id"],)).fetchall()
+                    self.__output_tasks(tasks)
+                    output()
+        elif alias == u'list' :
             print "lists:"
-            for r in sql.execute("""select * from lists"""):
-                print "\t",r
+            with sql:
+                for r in sql.execute("""select * from lists"""):
+                    print "\t",r
+        elif alias == u'tag':
             print "tags:"
-            for r in sql.execute("""select * from tags"""):
-                print "\t",r
-        pass
-    pass
+            with sql:
+                for r in sql.execute("""select * from tags"""):
+                    print "\t",r
 
     def __split_text(self, text, width=None):
         u"""Split the text so each chunk isn't longer than the textwidth
@@ -585,16 +595,19 @@ def main(argv):
     # Determining which command to use (default list)
     cmd = ListCommand()
     cmd_args = []
+    invocated_alias = u'task'
     if len(argv) > 1:
         if argv[1] in aliases:
             cmd = aliases[argv[1]]()
             cmd_args = argv[2:]
+            invocated_alias = argv[1]
         else:
             cmd = AddCommand()
             cmd_args = argv[1:]
+            invocated_alias = u'add'
 
     # Executing command with the rest of the arguments
-    cmd.execute(cmd_args)
+    cmd.execute(cmd_args, invocated_alias)
 
 if __name__ == "__main__":
     main(sys.argv)
