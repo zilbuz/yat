@@ -3,15 +3,39 @@
 
 u"""
 Very simple command line todolist manager
+
+
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+                   Version 2, December 2004 
+
+ Copyright (C) 2010 
+    Basile Desloges <basile.desloges@gmail.com>
+    Simon Chopin <chopin.simon@gmail.com>
+
+ Everyone is permitted to copy and distribute verbatim or modified 
+ copies of this license document, and changing it is allowed as long 
+ as the name is changed. 
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
+
+  0. You just DO WHAT THE FUCK YOU WANT TO. 
+
+This program is free software. It comes without any warranty, to
+the extent permitted by applicable law. You can redistribute it
+and/or modify it under the terms of the Do What The Fuck You Want
+To Public License, Version 2, as published by Sam Hocevar. See
+http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import inspect
-import locale
 import os
 import re
 import sqlite3
 import string
 import sys
+
+from yatlib import YatLib
 
 class Command:
     u"""Abstract class for instrospection
@@ -28,8 +52,12 @@ Long description
     alias = []
     u"""Array containing the different aliases for this command"""
 
-    def execute(self,args):
-        u"""Method actually doing something"""
+    def execute(self, cmd, args):
+        u"""Method actually doing something
+        Params:
+            -cmd: alias used to invoke the command
+            -args: the rest of the command line
+        """
         raise NotImplementedError
 
     pass
@@ -45,7 +73,7 @@ the name of a command is provided, show the specific help text for this command.
 
     alias = [u"help"]
 
-    def execute(self,args):
+    def execute(self, cmd, args):
         global progname, aliases, commands
 
         detailed = False
@@ -158,8 +186,8 @@ Adding a tag:
         self.re_date = re.compile("^\^(\d\d/\d\d/\d{4})$")
         u"""Regex for the date"""
 
-    def execute(self,args):
-        global sql, config
+    def execute(self, cmd, args):
+        global lib
         # Separate words
         args = (" ".join(args)).split(" ")
 
@@ -170,14 +198,23 @@ Adding a tag:
 
         # Process command
         if cmd in ["tag", "list"]:
-            self.__add_tag_or_list(cmd + "s", args[0])
+            if len(args) > 1:
+                # The second argument is the priority
+                priority = int(args[1])
+            else:
+                priority = 0
+
+            if cmd == "tag":
+                lib.add_tag(args[0], priority)
+            elif cmd == "list":
+                lib.add_list(args[0], priority)
             pass
-        else:
+        else: # Adding a task
             # Init params
-            priority = ""
+            priority = None
             tags = []
-            list = ""
-            date = ""
+            list = None
+            date = None
             text = []
             # Look for symbols
             for a in args:
@@ -207,51 +244,10 @@ Adding a tag:
                 if not symbol:
                     text.append(a)
 
-            if priority == "":
-                priority = config["default_priority"]
-            elif priority > 3:
-                priority = 3
-
-            if tags == []:
-                tags.append(config["default_tag"])
-            tags_copy = []
-            for t in tags:
-                self.__add_tag_or_list("tags", t)
-                tags_copy.append(self.__get_id("tags", t))
-            tags = ",".join(tags_copy)
-
-            if list == "":
-                list = config["default_list"]
-            self.__add_tag_or_list("lists", list)
-            list = self.__get_id("lists", list)
-
             text = " ".join(text)
 
             # Add the task with the correct parameters
-            with sql:
-                sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?)',
-                        (text.decode('utf-8'), priority, date, tags, list, 0))
-            pass
-        pass
-
-    def __add_tag_or_list(self, table, name):
-        u"""Add an element "name" to the "table" if it doesn't exist. It is
-        meant to be used with table="lists" or table="tags" """
-        global sql
-        with sql:
-            c = sql.execute('select count(*) as nb from %s where name=?' %
-                    table, (name,))
-            if c.fetchone()[0] == 0:
-                sql.execute('insert into %s values(null, ?)' % table, (name,))
-                sql.commit()
-
-    def __get_id(self, table, name):
-        u"""Get the id of the element "name" in "table". It's meant to be used
-        with table = "lists" or "tags" """
-        global sql
-        with sql:
-            res = sql.execute('select id from %s where name=?' % table, (name,))
-            return str(res.fetchone()[0])
+            lib.add_task(text.decode('utf-8'), priority, date, tags, list)
     pass
     
 
@@ -270,9 +266,9 @@ whereas the regexp is compared to the name or the title.
 
     alias = [u"remove", u"rm"]
 
-    def execute(self,args):
+    def execute(self, cmd, args):
         # TODO
-        global sql
+        global lib
 
         if args == []:
             print self.__doc__.split('\n',1)[0]," ",args
@@ -316,34 +312,23 @@ whereas the regexp is compared to the name or the title.
             if operation == u'=':
                 ids = [a, ]
             else:
-                temp = sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
+                with lib.sql:
+                    temp = lib.sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
                 for t in temp:
                     ids.append(str(t[0]))
 
             # Removing the tasks belonging to the list
             if cmd == u'list':
-                for i in ids:
-                    sql.execute(u'delete from tasks where list=?', (i, ))
+                lib.remove_lists(ids)
             # Updating the tag list for the concerned tags.
             else:
-                for t in sql.execute(u'select * from tasks'):
-                    tags = t["tags"].split(",")
-                    tags_copy = tags[:]
-                    for i in range(len(tags_copy)):
-                        if tags_copy[i] in ids:
-                            tags.pop(i)
-                    if len(tags) == 0:
-                        tags.append("1")
-                    sql.execute(u'update tasks set tags=? where id=?',
-                            (",".join(tags), t["id"]))
-                sql.commit()
-
-
-
-
-        # Final cleanup
-        sql.execute('delete from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a, ))
-        sql.commit()
+                lib.remove_tags(ids)
+        else: # removing a task
+            ids = []
+            with lib.sql:
+                for t in lib.sql.execute(u'select id from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a,)):
+                    ids.append(t["id"])
+            lib.remove_tasks(ids)
 
 
 class ListCommand (Command):
@@ -359,26 +344,26 @@ usage: %s list
         self.tagswidth = allowable/4
         self.textwidth = allowable - self.tagswidth
 
-    def execute(self,args):
-        global sql
+    def execute(self, cmd, args):
+        global lib
         # TODO
-        with sql:
+        with lib.sql:
             # Print the tasks for each list
-            for l in sql.execute(u"select * from lists"):
+            for l in LIB.SQL.execute(u"select * from lists"):
                 text_list = l["name"] + u" (id: {id})".format(id = l["id"])
                 output(text_list)
                 length = len(text_list)
                 output(u"{s:*<{lgth}}".format(s = "*", 
                     lgth = length))
-                tasks = sql.execute(u"select * from tasks where list=?",
+                tasks = lib.sql.execute(u"select * from tasks where list=?",
                         (l["id"],)).fetchall()
                 self.__output_tasks(tasks)
                 output()
             print "lists:"
-            for r in sql.execute("""select * from lists"""):
+            for r in lib.sql.execute("""select * from lists"""):
                 print "\t",r
             print "tags:"
-            for r in sql.execute("""select * from tags"""):
+            for r in lib.sql.execute("""select * from tags"""):
                 print "\t",r
         pass
     pass
@@ -410,7 +395,7 @@ usage: %s list
         tags_name = []
         for i in range(len(tags)):
             if tags[i] != "1":
-                res = sql.execute(u"select name from tags where id=?",
+                res = lib.sql.execute(u"select name from tags where id=?",
                         (tags[i],))
                 tags_name.append( res.fetchone()["name"] )
         return ", ".join(tags_name)
@@ -460,90 +445,6 @@ usage: %s list
                 t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
 
 
-
-
-def init():
-    u"""Initialisation of the program
-    - loading user preferences
-    - initialising database access
-    - initializing some global vars
-    """
-    global enc, out, config, sql
-
-    # Default encoding
-    enc = locale.getpreferredencoding()
-
-    # Default output : stdout
-    out = sys.stdout
-
-    # Loading configuration
-    config = {}
-    try:
-        with open(os.environ.get("HOME") + "/.yatrc", "r") as config_file:
-            for line in config_file:
-                if not (re.match(r'^\s*#.*$', line) or re.match(r'^\s*$', line)):
-                    line = re.sub(r'\s*=\s*', "=", line, 1)
-                    line = re.sub(r'\n$', r'', line)
-                    opt = line.split('=', 1)
-                    config[opt[0]] = opt[1]
-        config_file.close()
-    except IOError:
-        # No .yatrc
-        pass
-
-    # For each option, loading default if it isn't defined
-    config["yatdir"] = config.get("yatdir", "~/.yat")
-    config["default_list"] = config.get("default_list", "nolist")
-    config["default_tag"] = config.get("default_tag", "notag")
-    config["default_priority"] = config.get("default_priority", "1")
-
-    # Create yat directory
-    if config["yatdir"][0] == "~":
-        config["yatdir"] = os.environ.get("HOME") + config["yatdir"][1:]
-    if not os.path.isdir(config["yatdir"]):
-        os.makedirs(config["yatdir"], mode=0700)
-
-    # Connect to sqlite db
-    sql = sqlite3.connect(config["yatdir"] + "/yat.db")
-    sql.row_factory = sqlite3.Row
-    try:
-        with sql:
-            sql.execute("select * from tags")
-    except sqlite3.OperationalError:
-        # Create tables
-        with sql:
-            sql.execute("""
-                create table tasks (
-                    id integer primary key,
-                    task text,
-                    priority int,
-                    due_date text,
-                    tags text,
-                    list text,
-                    completed integer
-                )""")
-            sql.execute("""
-                create table tags (
-                    id integer primary key,
-                    name text
-                    )""")
-            sql.execute("""
-                create table lists (
-                    id integer primary key,
-                    name text
-                    )""")
-            sql.execute("""insert into tags values (null, "notag")""")
-            sql.execute("""insert into lists values (null, "nolist")""")
-            sql.commit()
-    pass
-
-    # Add support for the REGEXP() operator
-    def regexp(expr, item):
-        r = re.findall(expr,item)
-        return len(r) == 1 and r[0] == item
-    sql.create_function("regexp", 2, regexp)
-
-
 def isCommand(obj):
     u"""Check if the parameter is a class derived from Command, without being
     Command"""
@@ -554,10 +455,10 @@ def isCommand(obj):
         return False
 
 def output(st = u"", f = None, linebreak = True):
-    global enc, out
+    global lib
     if f == None:
-        f = out
-    f.write(st.encode(enc))
+        f = lib.out
+    f.write(st.encode(lib.enc))
     if linebreak:
         f.write(os.linesep)
 
@@ -565,10 +466,10 @@ def main(argv):
     u"""
     Entry point of the program
     """
-    global commands, aliases, progname
+    global commands, aliases, progname, lib
 
     # Initialisation
-    init()
+    lib = YatLib()
 
     # Getting the name of the program
     progname = argv[0]
@@ -585,16 +486,19 @@ def main(argv):
     # Determining which command to use (default list)
     cmd = ListCommand()
     cmd_args = []
+    cmd_alias = "tasks"
     if len(argv) > 1:
         if argv[1] in aliases:
             cmd = aliases[argv[1]]()
+            cmd_alias = argv[1]
             cmd_args = argv[2:]
         else:
             cmd = AddCommand()
+            cmd_alias = "add"
             cmd_args = argv[1:]
 
     # Executing command with the rest of the arguments
-    cmd.execute(cmd_args)
+    cmd.execute(cmd_alias, cmd_args)
 
 if __name__ == "__main__":
     main(sys.argv)
