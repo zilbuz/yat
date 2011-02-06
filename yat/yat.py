@@ -161,12 +161,18 @@ Adding a task:
     double quotes are optionnal.
 
 Adding a list:
-    Just add a new list. The name can contain anything but spaces.
-    Example: yat add list groceries
+    Just add a new list. The name can contain anything but spaces. The second
+    argument can be the priority of the list. When the tasks will be displayed
+    by lists, they will be ordered with this number. The default priority is 0
+    and the "nolist" list has a priority of -1.
+    Example: yat add list groceries 1
 
 Adding a tag:
-    Just add a new tag. The name can contain anything but spaces.
-    Example: yat add tag work
+    Just add a new tag. The name can contain anything but spaces. The second
+    argument can be the priority of the tag. When the tasks will be displayed by
+    tags, they will be ordered with this number. The default priority is 0 and
+    the "notag" tag has a priority of -1.
+    Example: yat add tag work 5
 """
     
     alias = [u"add"]
@@ -259,11 +265,13 @@ class RemoveCommand (Command):
 usage: %s remove [task | list | tag] [<regexp>|id=<id_nb>]
 
 The use is straightforward : every element matching the
-informations gets deleted.
+informations gets deleted. 
 
 The informations can be either a number or a regexp. The number
 is compared to the id of the elements to delete (task, list or tag),
 whereas the regexp is compared to the name or the title.
+
+If "task", "list" or "tag" is not provided, "task" is assumed.
 """
 
     alias = [u"remove", u"rm"]
@@ -334,9 +342,13 @@ whereas the regexp is compared to the name or the title.
 
 
 class ListCommand (Command):
-    u"""List the current tasks
+    u"""List the current tasks, lists or tags
 
-usage: %s list
+usage: %s [show|ls|tasks|lists|tags]
+
+List the content of the todolist. Depending of the alias used, it will display
+the tasks list, the lists list or the tags list. The aliases "show" and "ls"
+display the tasks. If no command is provided, "tasks" is assumed.
 """
 
     alias = [u"show", u"ls", u"lists", u"tasks", u"tags"]
