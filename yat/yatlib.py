@@ -31,6 +31,7 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
+import datetime
 import locale
 import os
 import re
@@ -132,7 +133,7 @@ class YatLib:
         pass
 
     def get_tasks(self, ids=None, regexp=None, order=True, group_by="list",
-    order_by=["priority", "due_date"]):
+            order_by=["reverse:priority", "due_date"]):
         u"""Method to get the tasks from the database and ordering them
         according to the parameters. 
         
@@ -143,7 +144,9 @@ class YatLib:
         The group-by arg can only contain "list" or "tag"
 
         The order-by contains an array with column names. The tasks will be
-        ordered by the first element, then the second...
+        ordered by the first element, then the second... To reverse the sorting
+        order, use something like "reverse:column_name" (see default parameters
+        for an example)
 
         params:
             - ids (array<int>)
@@ -152,10 +155,6 @@ class YatLib:
             - group-by ("list" or "tag")
             - order-by (array<string>)
         """
-        # TODO: a fonction to get the tasks from their ids or a regexp, and
-        # order them depending on a parameter. Return a table, or maybe a map 
-        # {listname -> tasks_table} or {tagname -> tasks_table}, also depending
-        # on a parameter
 
         tasks = []
         # Extract tasks from the database
@@ -197,10 +196,54 @@ class YatLib:
                         grouped_tasks[index][1].append(t)
                         # A task can be in different tags
 
-        # Ordering them
+        # Ordering tasks
         if order:
-            #TODO: tasks ordering
-            ordered_tasks = grouped_tasks
+            # Ordering groups
+            ordered_tasks = self.__quicksort(list = grouped_tasks, column =
+                "priority", group = True)
+            
+            # Ordering tasks according to the first criterion
+            for group, tasks in ordered_tasks:
+                tmp = order_by[0].split(":")
+                if tmp[0] == "reverse":
+                    comparison = ">"
+                    attribute = tmp[1]
+                else:
+                    comparison = "<"
+                    attribute = tmp[0]
+                self.__quicksort(list = tasks, column = attribute, order =
+                        comparison)
+
+                # Ordering tasks according to the rest of the criterion
+                ordered_by = [attribute]
+                for c in order_by[1:]:
+                    l = 0
+                    r = 0
+
+                    # Extract attribute and sorting order
+                    tmp = c.split(":")
+                    if tmp[0] == "reverse":
+                        comparison = ">"
+                        attribute = tmp[1]
+                    else:
+                        comparison = "<"
+                        attribute = tmp[0]
+
+                    # Sort tasks
+                    for i in range(len(tasks) - 1):
+                        compare = True
+                        for o in ordered_by:
+                            if tasks[i][o] != tasks[i+1][o]:
+                                compare = False
+                        if compare:
+                            r = i + 1
+                        else:
+                            self.__quicksort(list = tasks, left = l, right = r,
+                                    column = attribute, order = comparison)
+                            l = i + 1
+                    self.__quicksort(list = tasks, left = l, right = r, column =
+                            attribute, order = comparison)
+                    ordered_by.append(attribute)
         else:
             ordered_tasks = grouped_tasks
 
@@ -359,6 +402,105 @@ class YatLib:
         with self.sql:
             res = self.sql.execute('select id from %s where name=?' % table, (name,))
             return str(res.fetchone()[0])
+
+    def __quicksort(self, list, column, left=None, right=None, order=">=",
+            group=False):
+        u"""Implementation of the quicksort of database rows. 
+        
+        The parameter "list" contains database rows or tuples of database rows.
+        If a tuple is provided, the ordering will be made on the first element,
+        and group has to be set to True.
+
+        The parameters "left" and "right" contain the limits for the sorting
+        algorithm.
+
+        The parameter "order" contains the comparison that will be made between
+        the elements. It has to be in [">", "<", ">=", "<="].
+        """
+        # If left and right are not provided, assuming sorting on all the list
+        if left == None:
+            left = 0
+        if right == None:
+            right = len(list) - 1
+
+        if right > left:
+            pivot = left + (right - left)/2
+            pivot = self.__partition(list, column, left, right, pivot, order,
+                    group)
+            self.__quicksort(list, column, left, pivot - 1, order, group)
+            self.__quicksort(list, column, pivot + 1, right, order, group)
+        return list
+
+    def __partition(self, list, column, left, right, pivot, order, group):
+        u"""Partioning of a list according to a "pivot" and a sorting "order",
+        within the "left" and "right" limits. This function is a part of the
+        quicksort algorithm.
+        """
+        pivotValue = list[pivot]
+        list[pivot], list[right] = list[right], list[pivot]
+        storeIndex = left
+        for i in range(left, right):
+            swap = False
+
+            if group:
+                if self.__compare(column, order, list[i][0][column],
+                        pivotValue[0][column]):
+                    swap = True
+            else:
+                if self.__compare(column, order, list[i][column],
+                        pivotValue[column]):
+                    swap = True
+
+            if swap:
+                list[i], list[storeIndex] = list[storeIndex], list[i]
+                storeIndex += 1
+        list[storeIndex], list[right] = list[right], list[storeIndex]
+        return storeIndex
+
+    def __compare(self, column, comparison, val1, val2):
+        u"""Compare two values of "column" with "comparison". The attribute
+        "column" has to be provided to handle correctly the comparison of the
+        "due_date" column. This method is a part of the quicksort algorithm.
+        """
+        # Construct a datetime if the column is due_date
+        if column == "due_date":
+            if val1 != u"":
+                tmp_val1 = val1.split("/")
+                tmp_val1 = datetime.date(int(tmp_val1[2]), int(tmp_val1[1]),
+                        int(tmp_val1[0]))
+
+            if val2 != u"":
+                tmp_val2 = val2.split("/")
+                tmp_val2 = datetime.date(int(tmp_val2[2]), int(tmp_val2[1]),
+                        int(tmp_val2[0]))
+            
+            if val1 == u"" and val2 != u"":
+                if comparison == ">=" or comparison == ">":
+                    tmp_val1 = tmp_val2 - datetime.timedelta(1)
+                else:
+                    tmp_val1 = tmp_val2 + datetime.timedelta(1)
+            elif val1 != u"" and val2 == u"":
+                if comparison == ">=" or comparison == ">":
+                    tmp_val2 = tmp_val1 - datetime.timedelta(1)
+                else:
+                    tmp_val2 = tmp_val1 + datetime.timedelta(1)
+            elif val1 == u"" and val2 == u"":
+                tmp_val1 = datetime.date.today()
+                tmp_val2 = tmp_val1
+        else:
+            tmp_val1 = val1
+            tmp_val2 = val2
+
+        if comparison == ">":
+            return tmp_val1 > tmp_val2
+        elif comparison == ">=":
+            return tmp_val1 >= tmp_val2
+        elif comparison == "<":
+            return tmp_val1 < tmp_val2
+        elif comparison == "<=":
+            return tmp_val1 <= tmp_val2
+        else:
+            raise AttributeError, 'order argument should be in [">", ">=", "<", "<="]'
     
 
 if __name__ == "__main__":
