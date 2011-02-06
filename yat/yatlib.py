@@ -131,6 +131,81 @@ class YatLib:
                 self.sql.commit()
         pass
 
+    def get_tasks(self, ids=None, regexp=None, order=True, group_by="list",
+    order_by=["priority", "due_date"]):
+        u"""Method to get the tasks from the database and ordering them
+        according to the parameters. 
+        
+        The ordering is done only if the "order" parameter is set to True. 
+        
+        If no ids and no regexp are provided, assume regexp=".*"
+
+        The group-by arg can only contain "list" or "tag"
+
+        The order-by contains an array with column names. The tasks will be
+        ordered by the first element, then the second...
+
+        params:
+            - ids (array<int>)
+            - regexp (string)
+            - order (boolean)
+            - group-by ("list" or "tag")
+            - order-by (array<string>)
+        """
+        # TODO: a fonction to get the tasks from their ids or a regexp, and
+        # order them depending on a parameter. Return a table, or maybe a map 
+        # {listname -> tasks_table} or {tagname -> tasks_table}, also depending
+        # on a parameter
+
+        tasks = []
+        # Extract tasks from the database
+        if ids != None:
+            with self.sql:
+                for i in ids:
+                    tasks.extend(self.sql.execute(
+                        u"select * from tasks where id=?", (i,)).fetchall())
+        if regexp != None:
+            with self.sql:
+                tasks.extend(self.sql.execute(
+                    u"select * from tasks where task regexp ?", 
+                    (regexp,)).fetchall())
+        if ids == None and regexp == None:
+            with self.sql:
+                tasks.extend(self.sql.execute(
+                    u"select * from tasks").fetchall())
+
+
+        # Grouping tasks
+        grouped_tasks = []
+        if group_by == "list":
+            lists = self.sql.execute(u"select * from lists").fetchall()
+            for l in lists:
+                index = len(grouped_tasks)
+                grouped_tasks.append((l,[]))
+                for t in tasks[:]:
+                    if t["list"] == str(l["id"]):
+                        grouped_tasks[index][1].append(t)
+                        tasks.remove(t) # A task is in one list only
+        elif group_by == "tag":
+            lists = self.sql.execute(u"select * from tags").fetchall()
+            for tag in tags:
+                index = len(grouped_tasks)
+                grouped_tasks.append((tag,[]))
+                for t in tasks:
+                    task_tags = t["tags"].split(",")
+                    if str(tag["id"]) in task_tags:
+                        grouped_tasks[index][1].append(t)
+                        # A task can be in different tags
+
+        # Ordering them
+        if order:
+            #TODO: tasks ordering
+            ordered_tasks = grouped_tasks
+        else:
+            ordered_tasks = grouped_tasks
+
+        return ordered_tasks
+
     def add_task(self, text, priority=None, due_date=None, tags=None, list=None, completed=False):
         u"""Add a task to the database with the informations provided. Use
         default informations if None is provided
@@ -213,12 +288,13 @@ class YatLib:
     def remove_tags(self, ids):
         u"""Remove tags by their ids. Also update tasks which have these tags.
         param:
-            - ids (array<int>)
+            - ids (array<string>)
         """
         with self.sql:
             # Remove tags
             for i in ids:
-                self.sql.execute(u'delete from tags where id=?', (i,))
+                if i != "1": # it's not possible to remove the "notag" tag
+                    self.sql.execute(u'delete from tags where id=?', (i,))
 
             # Update tasks
             for t in self.sql.execute(u'select * from tasks'):
@@ -251,14 +327,15 @@ class YatLib:
         u"""Remove lists by their ids. Be careful, when deleting a list, every
         task that it contains will be deleted too.
         param:
-            - ids (array<int>)
+            - ids (array<string>)
         """
         with self.sql:
             for i in ids:
-                # Delete list
-                self.sql.execute(u'delete from lists where id=?', (i,))
-                # Delete tasks
-                self.sql.execute(u'delete from tasks where list=?', (i,))
+                if i != "1": # It's not possible to remove the "nolist" list
+                    # Delete list
+                    self.sql.execute(u'delete from lists where id=?', (i,))
+                    # Delete tasks
+                    self.sql.execute(u'delete from tasks where list=?', (i,))
             self.sql.commit()
         pass
 
@@ -282,8 +359,7 @@ class YatLib:
         with self.sql:
             res = self.sql.execute('select id from %s where name=?' % table, (name,))
             return str(res.fetchone()[0])
-    pass
-
+    
 
 if __name__ == "__main__":
     raise NotImplementedError

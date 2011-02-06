@@ -371,18 +371,18 @@ display the tasks. If no command is provided, "tasks" is assumed.
                 allowable = self.width - 28
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
-            with lib.sql:
-                # Print the tasks for each list
-                for l in lib.sql.execute(u"select * from lists"):
-                    text_list = l["name"] + u" (id: {id})".format(id = l["id"])
-                    output(text_list)
-                    length = len(text_list)
-                    output(u"{s:*<{lgth}}".format(s = "*", 
-                        lgth = length))
-                    tasks = lib.sql.execute(u"select * from tasks where list=?",
-                            (l["id"],)).fetchall()
-                    self.__output_tasks(tasks)
-                    output()
+
+            for group, tasks in lib.get_tasks():
+                # Print the tasks for each group
+                text_group = u"{name} (Priority: {p}, id: {id})".format(name =
+                        group["name"], p = group["priority"], id = group["id"])
+                output(text_group)
+                length = len(text_group)
+                output(u"{s:*<{lgth}}".format(s = "*", 
+                    lgth = length))
+                self.__output_tasks(tasks)
+                output()
+
         elif cmd == u'lists' :
             print "lists:"
             with lib.sql:
