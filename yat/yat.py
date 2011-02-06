@@ -31,8 +31,6 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import inspect
 import os
 import re
-import sqlite3
-import string
 import sys
 
 from yatlib import YatLib
@@ -196,6 +194,10 @@ Adding a tag:
             cmd = args[0]
             args = args[1:]
 
+        # If there is no more arguments, return immediately
+        if len(args) == 0:
+            return
+
         # Process command
         if cmd in ["tag", "list"]:
             if len(args) > 1:
@@ -341,15 +343,18 @@ usage: %s list
 
     def __init__(self):
         self.width = int(os.popen('stty size', 'r').read().split()[1])
+        self.textwidth = 0
+        self.tagswidth = 0
 
     def execute(self, cmd, args):
         global lib
         # TODO
         # Testing the alias used to call ListCommand
         if cmd in [u'show', u'ls', u'tasks']:
-            # I chose this value arbitrarily, but I think it fits.
-            if self.width < 36 :
-                output("The terminal is to small to print the list correctly")
+            # 48 is the minimum because of the (tagswidth - 5) in __output_tasks
+            if self.width < 48 :
+                output("The terminal is too small to print the list correctly")
+                return
             else:
                 allowable = self.width - 28
                 self.tagswidth = allowable/4
@@ -368,12 +373,12 @@ usage: %s list
                     output()
         elif cmd == u'lists' :
             print "lists:"
-            with sql:
+            with lib.sql:
                 for r in lib.sql.execute("""select * from lists"""):
                     print "\t",r
         elif cmd == u'tags':
             print "tags:"
-            with sql:
+            with lib.sql:
                 for r in lib.sql.execute("""select * from tags"""):
                     print "\t",r
 

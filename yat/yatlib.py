@@ -36,6 +36,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 
 class YatLib:
 
@@ -106,22 +107,27 @@ class YatLib:
                         due_date text,
                         tags text,
                         list text,
-                        completed integer
+                        completed integer,
+                        last_modified real
                     )""")
                 self.sql.execute("""
                     create table tags (
                         id integer primary key,
                         name text,
-                        priority integer
+                        priority integer,
+                        last_modified real
                         )""")
                 self.sql.execute("""
                     create table lists (
                         id integer primary key,
                         name text,
-                        priority integer
+                        priority integer,
+                        last_modified real
                         )""")
-                self.sql.execute("""insert into tags values (null, "notag", -1)""")
-                self.sql.execute("""insert into lists values (null, "nolist", -1)""")
+                self.sql.execute("""insert into tags values (null, "notag", -1,
+                        ?)""", (time.time(),))
+                self.sql.execute("""insert into lists values (null, "nolist",
+                        -1, ?)""", (time.time(),))
                 self.sql.commit()
         pass
 
@@ -170,8 +176,9 @@ class YatLib:
         
         # Add the task to the bdd
         with self.sql:
-            self.sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?)',
-                    (text, priority, due_date, tags, list, completed))
+            self.sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?)',
+                    (text, priority, due_date, tags, list, completed,
+                        self.get_time()))
             self.sql.commit()
         pass
 
@@ -255,6 +262,9 @@ class YatLib:
             self.sql.commit()
         pass
 
+    def get_time(self):
+        return time.time()
+
     def __add_tag_or_list(self, table, name, priority):
         u"""Add an element "name" to the "table" if it doesn't exist. It is
         meant to be used with table="lists" or table="tags" """
@@ -262,8 +272,8 @@ class YatLib:
             c = self.sql.execute('select count(*) as nb from %s where name=?' %
                     table, (name,))
             if c.fetchone()[0] == 0:
-                self.sql.execute('insert into %s values(null, ?, ?)' % table,
-                    (name, priority))
+                self.sql.execute('insert into %s values(null, ?, ?, ?)' % table,
+                    (name, priority, self.get_time()))
                 self.sql.commit()
 
     def __get_id(self, table, name):
