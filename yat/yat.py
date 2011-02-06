@@ -267,7 +267,6 @@ whereas the regexp is compared to the name or the title.
     alias = [u"remove", u"rm"]
 
     def execute(self, cmd, args):
-        # TODO
         global lib
 
         if args == []:
@@ -288,24 +287,25 @@ whereas the regexp is compared to the name or the title.
        
         a = " ".join(args)
         res = re_number.match(a)
-        if res is not None:
-            a = res.group(1)
-            operation = u"="
-            identifier = u"id"
-        else:
-            operation = u" regexp "
-
-            # Test if this is a valid regexp
-            try:
-                re.findall(a, "test")
-            except Exception:
-                output(u"The given expression is not a valid REGEXP.")
-                output(u"Please be aware of the difference with the usual shell expressions, especially for the *")
-                raise
-            if cmd == u"task":
-                identifier = cmd
+        with lib.sql:
+            if res is not None:
+                a = res.group(1)
+                operation = u"="
+                identifier = u"id"
             else:
-                identifier = u"name"
+                operation = u" regexp "
+
+                # Test if this is a valid regexp
+                try:
+                    re.findall(a, "test")
+                except Exception:
+                    output(u"The given expression is not a valid REGEXP.")
+                    output(u"Please be aware of the difference with the usual shell expressions, especially for the *")
+                    raise
+                if cmd == u"task":
+                    identifier = cmd
+                else:
+                    identifier = u"name"
 
         if cmd in [u"list", u"tag"]:
             ids = []
@@ -337,36 +337,45 @@ class ListCommand (Command):
 usage: %s list
 """
 
-    alias = [u"list", u"show"]
+    alias = [u"show", u"ls", u"lists", u"tasks", u"tags"]
 
     def __init__(self):
-        allowable = int(os.popen('stty size', 'r').read().split()[1]) - 28
-        self.tagswidth = allowable/4
-        self.textwidth = allowable - self.tagswidth
+        self.width = int(os.popen('stty size', 'r').read().split()[1])
 
     def execute(self, cmd, args):
         global lib
         # TODO
-        with lib.sql:
-            # Print the tasks for each list
-            for l in LIB.SQL.execute(u"select * from lists"):
-                text_list = l["name"] + u" (id: {id})".format(id = l["id"])
-                output(text_list)
-                length = len(text_list)
-                output(u"{s:*<{lgth}}".format(s = "*", 
-                    lgth = length))
-                tasks = lib.sql.execute(u"select * from tasks where list=?",
-                        (l["id"],)).fetchall()
-                self.__output_tasks(tasks)
-                output()
+        # Testing the alias used to call ListCommand
+        if cmd in [u'show', u'ls', u'tasks']:
+            # I chose this value arbitrarily, but I think it fits.
+            if self.width < 36 :
+                output("The terminal is to small to print the list correctly")
+            else:
+                allowable = self.width - 28
+                self.tagswidth = allowable/4
+                self.textwidth = allowable - self.tagswidth
+            with lib.sql:
+                # Print the tasks for each list
+                for l in lib.sql.execute(u"select * from lists"):
+                    text_list = l["name"] + u" (id: {id})".format(id = l["id"])
+                    output(text_list)
+                    length = len(text_list)
+                    output(u"{s:*<{lgth}}".format(s = "*", 
+                        lgth = length))
+                    tasks = lib.sql.execute(u"select * from tasks where list=?",
+                            (l["id"],)).fetchall()
+                    self.__output_tasks(tasks)
+                    output()
+        elif cmd == u'lists' :
             print "lists:"
-            for r in lib.sql.execute("""select * from lists"""):
-                print "\t",r
+            with sql:
+                for r in lib.sql.execute("""select * from lists"""):
+                    print "\t",r
+        elif cmd == u'tags':
             print "tags:"
-            for r in lib.sql.execute("""select * from tags"""):
-                print "\t",r
-        pass
-    pass
+            with sql:
+                for r in lib.sql.execute("""select * from tags"""):
+                    print "\t",r
 
     def __split_text(self, text, width=None):
         u"""Split the text so each chunk isn't longer than the textwidth
