@@ -431,7 +431,7 @@ display the tasks. If no command is provided, "tasks" is assumed.
                 tags_name.append( res.fetchone()["name"] )
         return ", ".join(tags_name)
 
-    def __output_tasks(self, tasks):
+    def __output_tasks(self, tasks, show_completed = False):
         u"""Print the tasks. The parameter tasks have to be complete rows of
         the tasks table."""
         # Print header
@@ -444,6 +444,10 @@ display the tasks. If no command is provided, "tasks" is assumed.
             t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
 
         for r in tasks:
+            # Skip the task if it's completed
+            if (not show_completed) and r["completed"] == 1:
+                continue
+
             # Split task text
             st = self.__split_text(r["task"])
 
@@ -590,8 +594,6 @@ The possible attributes for a list or a tag are:
                 if task == None and res != None:
                     task = res.group(1)
         
-        print id, task, name, priority, due_date, add_tags, remove_tags, list
-
         if id == None:
             output(st = u"[ERR] You must provide an id to the edit command. See yat help edit.", 
                     f = sys.stderr)
@@ -638,6 +640,43 @@ The possible attributes for a list or a tag are:
                     remove_tags_ids)
         pass
 
+class DoneCommand(Command):
+    u"""Set a task as completed.
+
+usage: %s done (id=<id>|<regexp>)
+
+WIP
+"""
+    alias = [u"done"]
+
+    def __init__(self):
+        global lib
+        self.re_id = re.compile(u"^id=({0})$".format(lib.config["re.id"]))
+
+    def execute(self, cmd, args):
+        if len(args) == 0:
+            output(st = u"[ERR] You must provide some informations to the command. See yat help done", 
+                    f = sys.stderr)
+
+        id = None
+        regexp = []
+        for a in args:
+            res = self.re_id.match(a)
+            if res != None:
+                id = res.group(1)
+                break
+            regexp.append(a)
+
+        regexp = " ".join(regexp)
+
+        if id != None:
+            tasks = lib.get_tasks(ids=[int(id)], order=False)
+        else:
+            tasks = lib.get_tasks(regexp = regexp, order = False)
+
+        for group,grouped_tasks in tasks:
+            for task in grouped_tasks:
+                lib.edit_task(task["id"], completed = True)
 
 
 def isCommand(obj):
