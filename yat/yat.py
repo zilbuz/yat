@@ -372,7 +372,9 @@ display the tasks. If no command is provided, "tasks" is assumed.
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
-            for group, tasks in lib.get_tasks():
+            for group, tasks in lib.get_tasks(group_by =
+                lib.config["cli.display_group"], order_by =
+                lib.config["cli.task_ordering"]):
                 # Print the tasks for each group
                 text_group = u"{name} (Priority: {p}, id: {id})".format(name =
                         group["name"], p = group["priority"], id = group["id"])
@@ -488,6 +490,40 @@ def output(st = u"", f = None, linebreak = True):
     if linebreak:
         f.write(os.linesep)
 
+def init():
+    u"""Initialisation specific to this commandline program."""
+    global lib
+
+    lib.config["cli.task_ordering"] = lib.config.get("cli.task_ordering",
+            "reverse:priority, due_date")
+    lib.config["cli.display_group"] = lib.config.get("cli.display_group",
+            "list")
+
+    # Processing task_ordering option
+    # Strip spaces and split on commas
+    opt = "".join(lib.config["cli.task_ordering"].split(" ")).split(",")
+    lib.config["cli.task_ordering"] = []
+    for o in opt:
+        order = o.split(":")
+        if len(order) > 1 and order[0] == "reverse":
+            reverse = True
+            column = order[1]
+        else:
+            column = order[0]
+        if column in ["priority", "due_date", "task", "id"]:
+            lib.config["cli.task_ordering"].append(o)
+        else:
+            output(st="[ERR] Config file, option cli.task_ordering: '{0}' is not a valid ordering option. See the example config file for a valid option.".format(o), f = sys.stderr)
+
+    # Default options
+    if lib.config["cli.task_ordering"] == []:
+        lib.config["cli.task_ordering"] = ["reverse:priority", "due_date"]
+
+    if not lib.config["cli.display_group"] in ["list", "tag"]:
+        output("[ERR] Config file, option cli.display_group: '{0}' is not a valid display group, it has to be \"list\" or \"tag\"".format(lib.config["cli.display_group"]), f = sys.stderr)
+        lib.config["cli.display_group"] = "list"
+
+
 def main(argv):
     u"""
     Entry point of the program
@@ -496,6 +532,7 @@ def main(argv):
 
     # Initialisation
     lib = YatLib()
+    init()
 
     # Getting the name of the program
     progname = argv[0]

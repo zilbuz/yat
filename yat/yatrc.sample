@@ -1,3 +1,14 @@
+# Sample configuration file
+# =========================
+#
+# All the default options of yat are displayed and commented here. If you want
+# to customize the way yat behave, you can copy this to ~/.yatrc, and modify the
+# options. If an option isn't provided, the default one will be used.
+
+
+# General options
+# ===============
+
 # Folder in which the database will be stored
 yatdir = ~/.yat
 
@@ -7,5 +18,17 @@ default_list = nolist
 # Default tag
 default_tag = notag
 
-# Default priority
+# Default task priority
 default_priority = 1
+
+
+# Options specific to the commandline program
+# ===========================================
+
+# Default task ordering. Use a comma separated list of name which have to be in
+# "priority", "due_date", "task", "id". To use a reverse sorting, you can add
+# "reverse:" before the name.
+cli.task_ordering = reverse:priority, due_date
+
+# Default grouping of tasks for the display. Can be "list" or "tag".
+cli.display_group = list

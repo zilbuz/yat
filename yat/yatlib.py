@@ -62,7 +62,7 @@ class YatLib:
                         line = re.sub(r'\s*=\s*', "=", line, 1)
                         line = re.sub(r'\n$', r'', line)
                         opt = line.split('=', 1)
-                        config[opt[0]] = opt[1]
+                        self.config[opt[0]] = opt[1]
             config_file.close()
         except IOError:
             # No .yatrc
@@ -186,7 +186,7 @@ class YatLib:
                         grouped_tasks[index][1].append(t)
                         tasks.remove(t) # A task is in one list only
         elif group_by == "tag":
-            lists = self.sql.execute(u"select * from tags").fetchall()
+            tags = self.sql.execute(u"select * from tags").fetchall()
             for tag in tags:
                 index = len(grouped_tasks)
                 grouped_tasks.append((tag,[]))
