@@ -7,6 +7,8 @@ Yat Library
 Minimalistic library to manipulate the data of yat: the configuration file and
 the sqlite database.
 
+This file also contain the exceptions used by yat programs.
+
 
            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
                    Version 2, December 2004 
@@ -130,6 +132,15 @@ class YatLib:
                 self.sql.execute("""insert into lists values (null, "nolist",
                         -1, ?)""", (time.time(),))
                 self.sql.commit()
+
+        # Hidden config (regexp)
+        self.config["re.id"] = u"\d*?"
+        self.config["re.priority"] = u"\d"
+        self.config["re.date"] = u"\d\d/\d\d/\d{4}"
+        self.config["re.tag_name"] = u".*"
+        self.config["re.tags_list"] = u"{0}?(,{0}?)*".format(
+                self.config["re.tag_name"])
+        self.config["re.list_name"] = u".*"
         pass
 
     def get_tasks(self, ids=None, regexp=None, order=True, group_by="list",
@@ -300,8 +311,60 @@ class YatLib:
             self.sql.commit()
         pass
 
-    def edit_task():
-        #TODO : edit task
+    def edit_task(self, id, task = None, priority = None, due_date = None, 
+            list = None, add_tags = [], remove_tags = [], completed = None):
+        u"""Edit the task with the given id.
+        params:
+            - id (int)
+            - task (string)
+            - priority (int)
+            - due_date (string)
+            - list (int)
+            - add_tags (array<int>)
+            - remove_tags (array<int>)
+            - completed (bool)
+        """
+
+        with self.sql:
+            t = self.sql.execute(u'select * from tasks where id=?',
+                    (id,)).fetchone()
+
+        if t == None:
+            raise WrongTaskId
+
+        if task == None:
+            task = t["task"]
+        if priority == None:
+            priority = t["priority"]
+        if due_date == None:
+            due_date = t["due_date"]
+        if list == None:
+            list = t["list"]
+        if completed == None:
+            completed = t["completed"]
+        elif completed:
+            completed = 1
+        else:
+            completed = 0
+
+        # Process add_tags and remove_tags
+        tags = t["tags"].split(",")
+        if add_tags != []:
+            for tag in add_tags:
+                if not str(tag) in tags:
+                    tags.append(str(tag))
+        if remove_tags != []:
+            for tag in remove_tags:
+                if str(tag) in tags:
+                    tags.remove(str(tag))
+        if tags == []:
+            tags = ["1"]
+        tags = ",".join(tags)
+
+        with self.sql:
+            self.sql.execute(u'update tasks set task=?, priority=?, due_date=?, list=?, tags=?, completed=?, last_modified=? where id=?',
+                    (task, priority, due_date, list, tags, completed,
+                        self.get_time(), t["id"]))
         pass
 
     def remove_tasks(self, ids):
@@ -315,6 +378,36 @@ class YatLib:
             self.sql.commit()
         pass
 
+    def get_tags(self, tags, type_id = True, can_create = False):
+        u"""Extract the tags from the database. The parameter tags have to be an
+        array with tag names or tag ids. 
+        
+        If tag names are provided, type_id have to be set to False. 
+        
+        If type_id is set to False and can_create is set to True, then if a tag
+        doesn't exist, it will be created.
+        """
+        res = []
+        for t in tags:
+            with self.sql:
+                tag_row = None
+                if type_id:
+                    tag_row = self.sql.execute(u'select * from tags where id=?',
+                            (t,)).fetchone()
+                else:
+                    tag_row = self.sql.execute(u'select * from tags where name=?', 
+                            (t,)).fetchone()
+                    if can_create and tag_row == None:
+                        self.add_tag(t)
+                        tag_row = self.sql.execute(u'select * from tags where name=?', 
+                            (t,)).fetchone()
+                if tag_row != None:
+                    res.append(tag_row)
+        return res
+
+
+
+
     def add_tag(self, name, priority=0):
         u"""Add a tag to the database with a certain priority, and create it if
         it doesn't exist
@@ -325,7 +418,27 @@ class YatLib:
         self.__add_tag_or_list("tags", name, priority)
         pass
 
-    def edit_tag():
+    def edit_tag(self, id, name = None, priority = None):
+        u"""Edit the tag with the given id.
+        params:
+            - name (string)
+            - priority (int)
+        """
+        with self.sql:
+            tag = self.sql.execute(u'select * from tags where id=?', (id,)).fetchone()
+        
+        if tag == None:
+            raise WrongTagId
+
+        if name == None:
+            name = tag["name"]
+
+        if priority == None:
+            priority = tag["priority"]
+
+        with self.sql:
+            self.sql.execute(u'update tags set name=?, priority=?, last_modified=? where id=?',
+                    (name, priority, self.get_time(), tag["id"]))
         pass
 
     def remove_tags(self, ids):
@@ -348,10 +461,34 @@ class YatLib:
                         tags.pop(i)
                 if len(tags) == 0:
                     tags.append("1")
-                self.sql.execute(u'update tasks set tags=? where id=?',
-                        (",".join(tags), t["id"]))
+                self.sql.execute(u'update tasks set tags=?, last_modified=? where id=?',
+                        (",".join(tags), self.get_time(), t["id"]))
             self.sql.commit()
         pass
+
+    def get_list(self, list, type_id = True, can_create = False):
+        u"""Extract a list from the database. The parameter list has to be a
+        list name or a list id. 
+        
+        If a list name is provided, then type_id has to be set to False.
+
+        If type_id is set to False and can_create is set to True, then if the
+        list name provided doesn't exist, it will be created.
+        """
+        res = None
+        with self.sql:
+            if type_id:
+                res = self.sql.execute(u'select * from lists where id=?',
+                        (list,)).fetchone()
+            else:
+                res = self.sql.execute(u'select * from lists where name=?',
+                        (list,)).fetchone()
+                if res == None and can_create:
+                    self.add_list(list)
+                    res = self.sql.execute(u'select * from lists where name=?',
+                            (list,)).fetchone()
+        return res
+            
 
     def add_list(self, name, priority=0):
         u"""Add a list to the database with a certain priority and create it if 
@@ -363,7 +500,28 @@ class YatLib:
         self.__add_tag_or_list("lists", name, priority)
         pass
 
-    def edit_list():
+    def edit_list(self, id, name = None, priority = None):
+        u"""Edit the list with the given id.
+        params:
+            - id (int)
+            - name (string)
+            - priority (int)
+        """
+        with self.sql:
+            list = self.sql.execute(u'select * from lists where id=?', (id,)).fetchone()
+        
+        if list == None:
+            raise WrongListId
+
+        if name == None:
+            name = list["name"]
+
+        if priority == None:
+            priority = list["priority"]
+
+        with self.sql:
+            self.sql.execute(u'update lists set name=?, priority=?, last_modified=? where id=?',
+                    (name, priority, self.get_time(), list["id"]))
         pass
     
     def remove_lists(self, ids):
@@ -383,6 +541,7 @@ class YatLib:
         pass
 
     def get_time(self):
+        u"""Return the current timestamp"""
         return time.time()
 
     def __add_tag_or_list(self, table, name, priority):
@@ -501,7 +660,18 @@ class YatLib:
             return tmp_val1 <= tmp_val2
         else:
             raise AttributeError, 'order argument should be in [">", ">=", "<", "<="]'
+
+class WrongTagId(Exception):
+    u"""Exception raised when trying to extract a tag that doesn't exist"""
+    pass
     
+class WrongListId(Exception):
+    u"""Exception raised when trying to extract a list that doesn't exist"""
+    pass
+
+class WrongTaskId(Exception):
+    u"""Exception raised when trying to extract a task that doesn't exist"""
+    pass
 
 if __name__ == "__main__":
     raise NotImplementedError
