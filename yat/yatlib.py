@@ -90,8 +90,17 @@ class YatLib:
 
         # Add a function to support the REGEXP() operator
         def regexp(expr, item):
-            r = re.findall(expr,item)
-            return len(r) == 1 and r[0] == item
+            # Replace all * and ? with .* and .? (but not \* and \?)
+            regex = re.sub(r'([^\\])\*', r'\1.*', expr)
+            regex = re.sub(r'([^\\])\?', r'\1.?', regex)
+            # Replace other \ with \\
+            regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
+            # Replace ^ and $ by \^ and \$
+            regex = re.sub(r'\^', r'\^', regex)
+            regex = re.sub(r'\$', r'\$', regex)
+            # Add ^ and $ to the regexp
+            regex = r'^' + regex + r'$'
+            return len(re.findall(regex, item)) > 0
         self.sql.create_function("regexp", 2, regexp)
     
         # Verify the existence of the database and create it if it doesn't exist

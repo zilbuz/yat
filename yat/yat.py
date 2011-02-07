@@ -274,6 +274,12 @@ The informations can be either a number or a regexp. The number
 is compared to the id of the elements to delete (task, list or tag),
 whereas the regexp is compared to the name or the title.
 
+The symbols for the regexp are the same than the shell: * to match multiple
+characters (will be expanded to the regexp ".*"), and ? to match a single
+character (will be expanded to the regexp ".?"). Surround your regexp with
+double quotes (") so that the shell doesn't expand them. If you want to search
+for "*" or "?" you can escape them with "\\".
+
 If "task", "list" or "tag" is not provided, "task" is assumed.
 """
 
@@ -308,13 +314,6 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
             else:
                 operation = u" regexp "
 
-                # Test if this is a valid regexp
-                try:
-                    re.findall(a, "test")
-                except Exception:
-                    output(u"The given expression is not a valid REGEXP.")
-                    output(u"Please be aware of the difference with the usual shell expressions, especially for the *")
-                    raise
                 if cmd == u"task":
                     identifier = cmd
                 else:
