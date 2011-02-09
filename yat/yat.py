@@ -111,9 +111,10 @@ the name of a command is provided, show the specific help text for this command.
                     output(u")", linebreak = False)
                 output()
             output()
+            output(u"If no command are provided, the 'show' command is assumed.")
             output(u"Please type \"%s help [command]\" to have" % progname, 
                     linebreak = False)
-            output(u" detailed informations on a specific command")
+            output(u" detailed informations on a specific command.")
 
         output()
         pass
@@ -346,7 +347,7 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
 class ListCommand (Command):
     u"""List the current tasks, lists or tags
 
-usage: %s [show|ls|tasks|lists|tags]
+usage: %s [show|ls|tasks|lists|tags] [--show-completed|-sc]
 
 List the content of the todolist. Depending of the alias used, it will display
 the tasks list, the lists list or the tags list. The aliases "show" and "ls"
@@ -359,18 +360,32 @@ display the tasks. If no command is provided, "tasks" is assumed.
         self.width = int(os.popen('stty size', 'r').read().split()[1])
         self.textwidth = 0
         self.tagswidth = 0
+        self.show_completed = False
 
     def execute(self, cmd, args):
         global lib
         # TODO
+
+        # Parse the options of the command
+        copy_args = args[:]
+        for a in copy_args:
+            res = re.match("^(--show-completed|-sc)$", a)
+            if res != None:
+                self.show_completed = True
+
         # Testing the alias used to call ListCommand
         if cmd in [u'show', u'ls', u'tasks']:
+            # Width of the done column
+            done_width = 0
+            if self.show_completed:
+                done_width = 2
+
             # 48 is the minimum because of the (tagswidth - 5) in __output_tasks
-            if self.width < 48 :
+            if self.width < (48 + done_width) :
                 output("The terminal is too small to print the list correctly")
                 return
             else:
-                allowable = self.width - 28
+                allowable = self.width - (28 + done_width)
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
@@ -430,21 +445,29 @@ display the tasks. If no command is provided, "tasks" is assumed.
                 tags_name.append( res.fetchone()["name"] )
         return ", ".join(tags_name)
 
-    def __output_tasks(self, tasks, show_completed = False):
+    def __output_tasks(self, tasks):
         u"""Print the tasks. The parameter tasks have to be complete rows of
         the tasks table."""
-        # Print header
-        output(u" _________________________{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
-            t="_", textwidth=self.textwidth, tagswidth=self.tagswidth))
-        output(u"|Priority | Due date | Id| Task{blank:<{textwidth}}| Tags{blank:<{tagswidth}}|".format( 
-            blank=" ", textwidth=(self.textwidth - 5),
+        # Print header, depending on show_completed
+        done_column_top = ""
+        done_column_middle = ""
+        done_column_bottom = ""
+        if self.show_completed:
+            done_column_top = "__"
+            done_column_middle = "| "
+            done_column_bottom = "--"
+
+        output(u" {done}_________________________{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
+            done=done_column_top, t="_", textwidth=self.textwidth, tagswidth=self.tagswidth))
+        output(u"{done}|Priority | Due date | Id| Task{blank:<{textwidth}}| Tags{blank:<{tagswidth}}|".format( 
+            done=done_column_middle, blank=" ", textwidth=(self.textwidth - 5),
             tagswidth=(self.tagswidth - 5)))
-        output(u" -------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-            t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
+        output(u" {done}-------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+            done=done_column_bottom, t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
 
         for r in tasks:
             # Skip the task if it's completed
-            if (not show_completed) and r["completed"] == 1:
+            if (not self.show_completed) and r["completed"] == 1:
                 continue
 
             # Split task text
@@ -455,8 +478,15 @@ display the tasks. If no command is provided, "tasks" is assumed.
             tags = self.__split_text(tags, self.tagswidth)
 
             # Print the first line of the current task
-            output(u"|{p:^9}|{date:^10}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                p = r["priority"], date = r["due_date"], id = r["id"], 
+            done_column = ""
+            if self.show_completed:
+                if r["completed"] == 1:
+                    done_column = "|X"
+                else:
+                    done_column = "| "
+
+            output(u"{done}|{p:^9}|{date:^10}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                done = done_column, p = r["priority"], date = r["due_date"], id = r["id"], 
                 task = st.pop(0), textwidth = self.textwidth, 
                 tags = tags.pop(0), tagswidth = self.tagswidth))
 
@@ -470,13 +500,13 @@ display the tasks. If no command is provided, "tasks" is assumed.
                     ta = tags[i]
                 else:
                     ta = u""
-                output(u"|         |          |   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                    task = te, textwidth = self.textwidth, tags=ta,
+                output(u"{done}|         |          |   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                    done = done_column_middle, task = te, textwidth = self.textwidth, tags=ta,
                     tagswidth = self.tagswidth))
 
             # Print the separator
-            output(u" -------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-                t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
+            output(u" {done}-------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+                done = done_column_bottom, t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
 
 
 class EditCommand(Command):
@@ -760,8 +790,7 @@ def main(argv):
             cmd_alias = argv[1]
             cmd_args = argv[2:]
         else:
-            cmd = AddCommand()
-            cmd_alias = "add"
+            cmd = ListCommand()
             cmd_args = argv[1:]
 
     # Executing command with the rest of the arguments
