@@ -316,15 +316,9 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
                 operation = u" regexp "
 
                 # Ask a confirmation for the * expression.
-
                 if a == '*':
-                    output("This operation is potentially disastrous. Are you so desperate ? (Y/n)")
-                    rep = input().lower()
-                    while len(rep) == 0 or (rep[0] != "y" and rep[0] != "n" and rep[0] != "\n"):
-                        output("Y/n :")
-                        rep = input().lower()
-
-                    if rep[0] == "n":
+                    res = yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
+                    if not res:
                         return
 
                 if cmd == u"task":
@@ -741,6 +735,30 @@ def input(f = None):
     if f == None:
         f = lib.input
     return f.readline().encode(lib.enc)
+
+def yes_no_question(txt, default = False, i = None, o = None):
+    u"""Ask the user the 'txt' yes/no question (append ' (Y/n)' or (y/N)
+    depending of the 'default' parameter) and return the answer with a boolean:
+    True for yes and False for no. 'i' and 'o' are the input and output to use.
+    If None, they use the ones defined in YatLib"""
+
+    yn_txt = ""
+    if default:
+        yn_txt = "Y/n"
+    else:
+        yn_txt = "y/N"
+
+    output(txt + " ("+ yn_txt + ")", f = o)
+    rep = input(i).lower()
+    while len(rep) == 0 or (rep[0] != "y" and rep[0] != "n" and rep[0] != "\n"):
+        output(yn_txt + " :", f = o)
+        rep = input().lower()
+
+    if rep[0] == "\n":
+        return default
+    else:
+        return rep[0] != "n"
+
 
 def init():
     u"""Initialisation specific to this commandline program."""
