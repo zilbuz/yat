@@ -669,13 +669,12 @@ WIP
         regexp = " ".join(regexp)
 
         if id != None:
-            tasks = lib.get_tasks(ids=[int(id)], order=False)
+            tasks = lib.get_tasks(ids=[int(id)], group=False, order=False)
         else:
-            tasks = lib.get_tasks(regexp = regexp, order = False)
+            tasks = lib.get_tasks(regexp = regexp, group=False, order = False)
 
-        for group,grouped_tasks in tasks:
-            for task in grouped_tasks:
-                lib.edit_task(task["id"], completed = True)
+        for task in tasks:
+            lib.edit_task(task["id"], completed = True)
 
 
 def isCommand(obj):

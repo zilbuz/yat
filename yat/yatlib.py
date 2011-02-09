@@ -152,18 +152,23 @@ class YatLib:
         self.config["re.list_name"] = u".*"
         pass
 
-    def get_tasks(self, ids=None, regexp=None, order=True, group_by="list",
+    def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
             order_by=["reverse:priority", "due_date"]):
-        u"""Method to get the tasks from the database and ordering them
-        according to the parameters. 
-        
-        The ordering is done only if the "order" parameter is set to True. 
-        
-        If no ids and no regexp are provided, assume regexp=".*"
+        u"""Method to get the tasks from the database, group them by list or
+        tag, and order them according to the parameters. This function return an
+        array of tasks if group is False, and an array of tuple (group,
+        list_of_tasks) if group is True, where group is a list or a tag, and
+        list_of_tasks, well... a list of tasks...
 
-        The group-by arg can only contain "list" or "tag"
+        The grouping is done only if "group" is set to True
+        
+        The ordering is done only if "order" and "group" are set to True. 
+        
+        If no ids and no regexp are provided, assume regexp="*"
 
-        The order-by contains an array with column names. The tasks will be
+        The group_by arg can only contain "list" or "tag"
+
+        The order_by contains an array with column names. The tasks will be
         ordered by the first element, then the second... To reverse the sorting
         order, use something like "reverse:column_name" (see default parameters
         for an example)
@@ -171,6 +176,7 @@ class YatLib:
         params:
             - ids (array<int>)
             - regexp (string)
+            - group (boolean)
             - order (boolean)
             - group-by ("list" or "tag")
             - order-by (array<string>)
@@ -195,29 +201,32 @@ class YatLib:
 
 
         # Grouping tasks
-        grouped_tasks = []
-        if group_by == "list":
-            lists = self.sql.execute(u"select * from lists").fetchall()
-            for l in lists:
-                index = len(grouped_tasks)
-                grouped_tasks.append((l,[]))
-                for t in tasks[:]:
-                    if t["list"] == str(l["id"]):
-                        grouped_tasks[index][1].append(t)
-                        tasks.remove(t) # A task is in one list only
-        elif group_by == "tag":
-            tags = self.sql.execute(u"select * from tags").fetchall()
-            for tag in tags:
-                index = len(grouped_tasks)
-                grouped_tasks.append((tag,[]))
-                for t in tasks:
-                    task_tags = t["tags"].split(",")
-                    if str(tag["id"]) in task_tags:
-                        grouped_tasks[index][1].append(t)
-                        # A task can be in different tags
+        if group:
+            grouped_tasks = []
+            if group_by == "list":
+                lists = self.sql.execute(u"select * from lists").fetchall()
+                for l in lists:
+                    index = len(grouped_tasks)
+                    grouped_tasks.append((l,[]))
+                    for t in tasks[:]:
+                        if t["list"] == str(l["id"]):
+                            grouped_tasks[index][1].append(t)
+                            tasks.remove(t) # A task is in one list only
+            elif group_by == "tag":
+                tags = self.sql.execute(u"select * from tags").fetchall()
+                for tag in tags:
+                    index = len(grouped_tasks)
+                    grouped_tasks.append((tag,[]))
+                    for t in tasks:
+                        task_tags = t["tags"].split(",")
+                        if str(tag["id"]) in task_tags:
+                            grouped_tasks[index][1].append(t)
+                            # A task can be in different tags
+        else:
+            grouped_tasks = tasks
 
-        # Ordering tasks
-        if order:
+        # Ordering tasks (you can't order tasks if they aren't grouped
+        if order and group:
             # Ordering groups
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
                 "priority", group = True)
