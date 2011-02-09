@@ -52,8 +52,11 @@ class YatLib:
         # Default encoding
         self.enc = locale.getpreferredencoding()
 
+        # Default input : stdin
+        self.input = sys.stdin
+
         # Default output : stdout
-        self.out = sys.stdout
+        self.output = sys.stdout
 
         # Loading configuration
         self.config = {}
@@ -91,7 +94,7 @@ class YatLib:
         # Add a function to support the REGEXP() operator
         def regexp(expr, item):
             # Replace all * and ? with .* and .? (but not \* and \?)
-            regex = re.sub(r'([^\\])\*', r'\1.*', expr)
+            regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
             regex = re.sub(r'([^\\])\?', r'\1.?', regex)
             # Replace other \ with \\
             regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)

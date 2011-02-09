@@ -315,6 +315,18 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
             else:
                 operation = u" regexp "
 
+                # Ask a confirmation for the * expression.
+
+                if a == '*':
+                    output("This operation is potentially disastrous. Are you so desperate ? (Y/n)")
+                    rep = input().lower()
+                    while len(rep) == 0 or (rep[0] != "y" and rep[0] != "n" and rep[0] != "\n"):
+                        output("Y/n :")
+                        rep = input().lower()
+
+                    if rep[0] == "n":
+                        return
+
                 if cmd == u"task":
                     identifier = cmd
                 else:
@@ -719,10 +731,16 @@ def isCommand(obj):
 def output(st = u"", f = None, linebreak = True):
     global lib
     if f == None:
-        f = lib.out
+        f = lib.output
     f.write(st.encode(lib.enc))
     if linebreak:
         f.write(os.linesep)
+
+def input(f = None):
+    global lib
+    if f == None:
+        f = lib.input
+    return f.readline().encode(lib.enc)
 
 def init():
     u"""Initialisation specific to this commandline program."""
