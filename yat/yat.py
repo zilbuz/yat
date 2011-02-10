@@ -680,8 +680,15 @@ class DoneCommand(Command):
 
 usage: %s done (id=<id>|<regexp>)
 
-WIP
+This command allows you to mark a task as completed. A task completed won't be
+deleted, but it won't be displayed by default with the 'show' command.
+
+You have to provide either the id of the task (with 'id=<id>'), or the name of
+the task. If you give the name of the task, you can use '*' and '?' as jokers.
+But if you do so, be careful to surround your request with double quotes so that
+the shell doesn't expand them.
 """
+
     alias = [u"done"]
 
     def __init__(self):
