@@ -97,19 +97,28 @@ the name of a command is provided, show the specific help text for this command.
                 output()
 
             output(u"The different commands are:")
+
+            # Extract docstrings from command classes
+            help_txts = []
             for name, cmd in commands.iteritems():
-                output(u"\t", linebreak = False)
-                output(cmd.alias[0], linebreak = False)
-                output(u"\t", linebreak = False)
-                output(cmd.__doc__.split('\n',1)[0], linebreak = False)
+                txt = u"\t" + cmd.alias[0]
+                txt += u"\t" + cmd.__doc__.split('\n', 1)[0]
                 if len(cmd.alias) > 1:
-                    output(u" (alias: ", linebreak = False)
+                    txt += u" (alias: "
                     for i in range(1, len(cmd.alias)):
-                        output(cmd.alias[i], linebreak = False)
-                        if i < len(cmd.alias) - 1: 
-                            output(u",", linebreak = False)
-                    output(u")", linebreak = False)
-                output()
+                        txt += cmd.alias[i]
+                        if i < len(cmd.alias) - 1:
+                            txt += u", "
+                    txt += u")"
+                help_txts.append(txt)
+
+            # Sort the docstrings
+            help_txts.sort()
+
+            # Print them
+            for t in help_txts:
+                output(t)
+
             output()
             output(u"If no command are provided, the 'show' command is assumed.")
             output(u"Please type \"%s help [command]\" to have" % progname, 
