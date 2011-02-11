@@ -383,7 +383,6 @@ Options:
 
     def execute(self, cmd, args):
         global lib
-        # TODO
 
         # Parse the options of the command
         copy_args = (" ".join(args)).split(" ")
@@ -421,16 +420,18 @@ Options:
                 self.__output_tasks(tasks)
                 output()
 
-        elif cmd == u'lists' :
-            print "lists:"
-            with lib.sql:
-                for r in lib.sql.execute("""select * from lists"""):
-                    print "\t",r
-        elif cmd == u'tags':
-            print "tags:"
-            with lib.sql:
-                for r in lib.sql.execute("""select * from tags"""):
-                    print "\t",r
+        elif cmd in [u'lists', u'tags'] :
+            grp_by = cmd[0:-1]
+
+            output(u"<" + grp_by + u" name> (id: <id>) - <tasks completed>/<tasks>:")
+            
+            for group, tasks in lib.get_tasks(group_by = grp_by, order = False):
+                n_tasks = len(tasks)
+                n_completed = 0
+                for t in tasks:
+                    n_completed += t["completed"]
+                output(u"\t- " + str(group["name"]) + u" (id: " + str(group["id"]) 
+                        + u") - " + str( n_completed) + u"/" + str(n_tasks))
 
     def __split_text(self, text, width=None):
         u"""Split the text so each chunk isn't longer than the textwidth
