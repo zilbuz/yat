@@ -353,11 +353,15 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
 class ListCommand (Command):
     u"""List the current tasks, lists or tags
 
-usage: %s [show|ls|tasks|lists|tags] [--show-completed|-sc]
+usage: %s [show|ls|tasks|lists|tags] [--show-completed|-a]
 
 List the content of the todolist. Depending of the alias used, it will display
 the tasks list, the lists list or the tags list. The aliases "show" and "ls"
 display the tasks. If no command is provided, "tasks" is assumed.
+
+Options:
+    --show-completed, -a
+        Display all the tasks, even if they are marked as completed.
 """
 
     alias = [u"show", u"ls", u"lists", u"tasks", u"tags"]
@@ -373,9 +377,9 @@ display the tasks. If no command is provided, "tasks" is assumed.
         # TODO
 
         # Parse the options of the command
-        copy_args = args[:]
+        copy_args = (" ".join(args)).split(" ")
         for a in copy_args:
-            res = re.match("^(--show-completed|-sc)$", a)
+            res = re.match("^(--show-completed|-a)$", a)
             if res != None:
                 self.show_completed = True
 
@@ -719,6 +723,58 @@ the shell doesn't expand them.
         for task in tasks:
             lib.edit_task(task["id"], completed = True)
 
+class CleanCommand(Command):
+    u"""Delete all the completed tasks.
+
+usage: %s clean [--force|-f|--interactive|-i]
+
+This command deletes all the completed tasks from the database. Be careful, this
+is definitive.
+
+Options:
+    --force, -f
+        Don't ask for a global confirmation, just delete.
+    --interactive, -i
+        Ask a confirmation for each completed task.
+"""
+    
+    alias = [u"clean"]
+
+    def __init__(self):
+        self.re_force = re.compile(r'^(--force|-f)$')
+        self.re_interactive = re.compile(r'^(--interactive|-i)$')
+        self.force = False
+        self.interactive = False
+
+    def execute(self, cmd, args):
+        # Parse args
+        args = (" ".join(args)).split(" ")
+        for a in args:
+            res = self.re_force.match(a)
+            if res != None:
+                self.force = True
+            res = self.re_interactive.match(a)
+            if res != None:
+                self.interactive = True
+
+        if not self.force:
+            if not yes_no_question(u"Are you sure you want to delete all your completed tasks ?"):
+                return
+
+        tasks = lib.get_tasks(order = False, group = False)
+        tasks_ids = []
+        for t in tasks:
+            if t["completed"] == 1:
+                if self.interactive:
+                    txt = u"Do you want to delete this task:\n" + t["task"] 
+                    txt += u" (priority: " + str(t["priority"])
+                    txt += u", due date: " + t["due_date"] + u") ?"
+                    if not yes_no_question(txt):
+                        continue
+                tasks_ids.append(t["id"])
+        
+        lib.remove_tasks(tasks_ids)
+
 
 def isCommand(obj):
     u"""Check if the parameter is a class derived from Command, without being
@@ -841,3 +897,4 @@ def main(argv):
 
 if __name__ == "__main__":
     main(sys.argv)
+
