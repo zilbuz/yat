@@ -28,10 +28,12 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
+import datetime
 import inspect
 import os
 import re
 import sys
+import time
 
 import yatlib
 
@@ -148,8 +150,10 @@ Adding a task:
     Example: yat add "do the laundry *2".
 
     '^' can be used to set the due date of the task, it must be followed by a
-    date of the form dd/mm/yyyy. 
-    Example: yat add "go to the cinema with Wendy ^12/02/2011".
+    date of the form xx/xx/yyyy[:[h]h[:mm][am|pm]], where xx/xx is either dd/mm or
+    mm/dd, depending of the cli.input_date option, and hh is the hour in 24 or
+    12 hour format, depending of the cli.input_time option.
+    Example: yat add "go to the cinema with Wendy ^12/02/2011:20".
 
     '#' can be used to set the tags of the task, it must be followed by the name
     of a tag. The tag name can be composed of anything but spaces. You can set 
@@ -200,7 +204,7 @@ Adding a tag:
             lib.config["re.list_name"]))
         u"""Regex for the list"""
 
-        self.re_date = re.compile(u"^\^({0})$".format(lib.config["re.date"]))
+        self.re_date = re.compile(u"^\^{0}$".format(lib.config["re.date"]))
         u"""Regex for the date"""
 
     def execute(self, cmd, args):
@@ -258,7 +262,12 @@ Adding a tag:
                 # Date
                 res = self.re_date.match(a)
                 if res != None:
-                    date = res.group(1)
+                    try:
+                        date = parse_input_date(res)
+                    except ValueError:
+                        output("[ERR] The due date isn't well formed. See 'yat help add'.", 
+                                f = sys.stderr)
+                        return
                     symbol = True
 
                 # Regular text
@@ -379,6 +388,7 @@ Options:
         self.width = int(os.popen('stty size', 'r').read().split()[1])
         self.textwidth = 0
         self.tagswidth = 0
+        self.datewidth = max(int(lib.config["cli.output_datetime_length"]), 8)
         self.show_completed = False
 
     def execute(self, cmd, args):
@@ -398,12 +408,12 @@ Options:
             if self.show_completed:
                 done_width = 2
 
-            # 48 is the minimum because of the (tagswidth - 5) in __output_tasks
-            if self.width < (48 + done_width) :
+            # 38 is an arbitrary value that seems to work well...
+            if self.width < (38 + self.datewidth + done_width) :
                 output("The terminal is too small to print the list correctly")
                 return
             else:
-                allowable = self.width - (28 + done_width)
+                allowable = self.width - (19 + self.datewidth + done_width)
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
@@ -477,13 +487,16 @@ Options:
             done_column_middle = "| "
             done_column_bottom = "--"
 
-        output(u" {done}_________________________{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
-            done=done_column_top, t="_", textwidth=self.textwidth, tagswidth=self.tagswidth))
-        output(u"{done}|Priority | Due date | Id| Task{blank:<{textwidth}}| Tags{blank:<{tagswidth}}|".format( 
-            done=done_column_middle, blank=" ", textwidth=(self.textwidth - 5),
-            tagswidth=(self.tagswidth - 5)))
-        output(u" {done}-------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-            done=done_column_bottom, t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
+        output(u" {done}__________{t:_<{datewidth}}_____{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
+            done=done_column_top, t="_", textwidth=self.textwidth,
+            tagswidth=self.tagswidth, datewidth=self.datewidth))
+        output(u"{done}|Priority |{date:^{datewidth}}| Id|{task:<{textwidth}}|{tags:<{tagswidth}}|".format(
+            done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
+            task = " Task", textwidth = self.textwidth, tags = " Tags",
+            tagswidth = self.tagswidth))
+        output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+            done=done_column_bottom, t="-", textwidth=self.textwidth,
+            tagswidth=self.tagswidth, datewidth=self.datewidth))
 
         for r in tasks:
             # Skip the task if it's completed
@@ -505,10 +518,14 @@ Options:
                 else:
                     done_column = "| "
 
-            output(u"{done}|{p:^9}|{date:^10}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                done = done_column, p = r["priority"], date = r["due_date"], id = r["id"], 
+            # Format the date column
+            date_column = parse_output_date(r["due_date"])
+
+            output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                done = done_column, p = r["priority"], date = date_column, id = r["id"], 
                 task = st.pop(0), textwidth = self.textwidth, 
-                tags = tags.pop(0), tagswidth = self.tagswidth))
+                tags = tags.pop(0), tagswidth = self.tagswidth, 
+                datewidth = self.datewidth))
 
             # Print the rest of the current task
             for i in range(max(len(st),len(tags))):
@@ -520,13 +537,15 @@ Options:
                     ta = tags[i]
                 else:
                     ta = u""
-                output(u"{done}|         |          |   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                output(u"{done}|         |{t: <{datewidth}}|   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
                     done = done_column_middle, task = te, textwidth = self.textwidth, tags=ta,
-                    tagswidth = self.tagswidth))
+                    tagswidth = self.tagswidth, t = " ", 
+                    datewidth = self.datewidth))
 
             # Print the separator
-            output(u" {done}-------------------------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-                done = done_column_bottom, t="-", textwidth=self.textwidth, tagswidth=self.tagswidth))
+            output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+                done = done_column_bottom, t="-", textwidth=self.textwidth,
+                tagswidth=self.tagswidth, datewidth = self.datewidth))
 
 
 class EditCommand(Command):
@@ -543,7 +562,7 @@ provided, "task" is assumed.
 The possible attributes for a task are:
     task: the text of the task.
     due_date: the due date of the task, the value must have the same format than
-        in the 'add' command: dd/mm/yyyy
+        in the 'add' command: xx/xx/yyyy[:[h]h[:mm][am|pm]]
     priority: the priority of the task, must be an integer from 0 (lowest
         priority) to 3 (highest priority)
     list: the task will be deleted from its current list and added to the one
@@ -565,7 +584,7 @@ The possible attributes for a list or a tag are:
     def __init__(self):
         global lib
         self.re_id = re.compile(u"^id=({0})$".format(lib.config["re.id"]))
-        self.re_due_date = re.compile(u"^due_date=({0})$".format(
+        self.re_due_date = re.compile(u"^due_date={0}$".format(
             lib.config["re.date"]))
         self.re_priority = re.compile(u"^priority=({0})$".format(
             lib.config["re.priority"]))
@@ -625,7 +644,12 @@ The possible attributes for a list or a tag are:
                 
                 res = self.re_due_date.match(a)
                 if due_date == None and res != None:
-                    due_date = res.group(1)
+                    try:
+                        due_date = parse_input_date(res)
+                    except ValueError:
+                        output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
+                                f = sys.stderr)
+                        return
 
                 res = self.re_list.match(a)
                 if list == None and res != None:
@@ -778,7 +802,7 @@ Options:
                 if self.interactive:
                     txt = u"Do you want to delete this task:\n" + t["task"] 
                     txt += u" (priority: " + str(t["priority"])
-                    txt += u", due date: " + t["due_date"] + u") ?"
+                    txt += u", due date: " + parse_output_date(t["due_date"]) + u") ?"
                     if not yes_no_question(txt):
                         continue
                 tasks_ids.append(t["id"])
@@ -832,6 +856,47 @@ def yes_no_question(txt, default = False, i = None, o = None):
     else:
         return rep[0] != "n"
 
+def parse_input_date(regex_date):
+    u"""This function transform the object returned by the date regexp in a
+    timestamp. Raise a ValueError if there is an error in the date."""
+    re_date = regex_date.groupdict()
+    year = int(re_date["year"])
+    if lib.config["cli.input_date"] == "dd/mm":
+        month = int(re_date["x2"])
+        day = int(re_date["x1"])
+    else:
+        month = int(re_date["x1"])
+        day = int(re_date["x2"])
+
+    hour = 0
+    if re_date["hour"] != None: 
+        hour = int(re_date["hour"])
+
+    minute = 0
+    if re_date["minute"] != None: 
+        minute = int(re_date["minute"])
+
+    apm = "am"
+    if re_date["apm"] != None:
+        apm = re_date["apm"]
+
+    if lib.config["cli.input_time"] == "12" and apm == "pm":
+        hour += 12
+
+    d = datetime.datetime(year, month, day, hour, minute)
+    return time.mktime(d.timetuple())
+
+def parse_output_date(timestamp):
+    u"""This function parse a timestamp into the format defined in the
+    cli.output_datetime option. (empty string if the timestamp is infinite)"""
+    date_string = ""
+    if timestamp != float('+inf') and timestamp != float('-inf') and timestamp != float('+nan') and timestamp != float('-nan'):
+        d = datetime.datetime.fromtimestamp(timestamp)
+        date_string = u"{0:" + lib.config["cli.output_datetime"] + u"}"
+        date_string = date_string.format(d)
+    return date_string
+
+
 
 def init():
     u"""Initialisation specific to this commandline program."""
@@ -841,6 +906,12 @@ def init():
             "reverse:priority, due_date")
     lib.config["cli.display_group"] = lib.config.get("cli.display_group",
             "list")
+    lib.config["cli.input_date"] = lib.config.get("cli.input_date",
+            "dd/mm")
+    lib.config["cli.input_time"] = lib.config.get("cli.input_time",
+            "24")
+    lib.config["cli.output_datetime"] = lib.config.get("cli.output_datetime",
+            "%d/%m/%Y %H:%M")
 
     # Processing task_ordering option
     # Strip spaces and split on commas
@@ -856,15 +927,35 @@ def init():
         if column in ["priority", "due_date", "task", "id"]:
             lib.config["cli.task_ordering"].append(o)
         else:
-            output(st="[ERR] Config file, option cli.task_ordering: '{0}' is not a valid ordering option. See the example config file for a valid option.".format(o), f = sys.stderr)
+            output(st=u"[ERR] Config file, option cli.task_ordering: '{0}' is not a valid ordering option. See the example config file for a valid option.".format(o), f = sys.stderr)
 
     # Default options
     if lib.config["cli.task_ordering"] == []:
         lib.config["cli.task_ordering"] = ["reverse:priority", "due_date"]
 
     if not lib.config["cli.display_group"] in ["list", "tag"]:
-        output("[ERR] Config file, option cli.display_group: '{0}' is not a valid display group, it has to be \"list\" or \"tag\"".format(lib.config["cli.display_group"]), f = sys.stderr)
+        output(u"[ERR] Config file, option cli.display_group: '{0}' is not a valid display group, it has to be \"list\" or \"tag\"".format(lib.config["cli.display_group"]), f = sys.stderr)
         lib.config["cli.display_group"] = "list"
+
+    if not lib.config["cli.input_date"] in ["dd/mm", "mm/dd"]:
+        output(u"[ERR] Config file, option cli.input_date: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(lib.config["cli.input_date"]), f = sys.stderr)
+        lib.config["cli.input_date"] = "dd/mm"
+
+    if not lib.config["cli.input_time"] in ["12", "24"]:
+        output(u"[ERR] Config file, option cli.input_time: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(lib.config["cli.input_time"]), f = sys.stderr)
+        lib.config["cli.input_time"] = "24"
+
+    res = re.finditer("%(.)", lib.config["cli.output_datetime"])
+    for g in res:
+        if not g.group(1) in ["d", "m", "Y", "H", "I", "M", "p"]:
+            output(u"[ERR] Config file, option cli.output_datetime: '{0}' is not a valid format, it has to be '%d', '%m', '%Y', '%H', '%I', '%M' or '%p'. See yatrc.sample for an example".format(g.group(0)), f = sys.stderr)
+            lib.config["cli.output_datetime"] = "%d/%m/%Y %H:%M"
+            break
+
+    date_length = len(lib.config["cli.output_datetime"])
+    if re.search("%Y", lib.config["cli.output_datetime"]):
+        date_length += 2
+    lib.config["cli.output_datetime_length"] = date_length
 
 
 def main(argv):

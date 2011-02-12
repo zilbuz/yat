@@ -32,3 +32,28 @@ cli.task_ordering = reverse:priority, due_date
 
 # Default grouping of tasks for the display. Can be "list" or "tag".
 cli.display_group = list
+
+
+# The next 2 options allows you to customize the way you enter date and time
+# when adding a task. You can choose the date format and the time format, but
+# the resulting format will be : "xx/xx/yyyy[:[h]h[:mm]]" where xx/xx is the date
+# format you chose. Moreover if you chose the 12 hour format, you can append am
+# or pm ("xx/xx/yyyy[:[h]h[:mm][am|pm]]"). If you don't add am or pm, then am will
+# be assumed.
+
+# Default format to input dates. It can be either dd/mm or mm/dd
+cli.input_date = dd/mm
+
+# Default time format: 12 or 24 hour
+cli.input_time = 24
+
+# Output datetime format. The variables you can use are:
+#   - %d : the day
+#   - %m : the month
+#   - %Y : the year
+#   - %H : the hour in a 24 hour format
+#   - %I : the hour in a 12 hour format
+#   - %M : the minutes
+#   - %p : am or pm
+cli.output_datetime = %d/%m/%Y %H:%M
+

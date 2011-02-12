@@ -79,6 +79,9 @@ class YatLib:
         self.config["default_tag"] = self.config.get("default_tag", "notag")
         self.config["default_priority"] = self.config.get("default_priority", "1")
 
+        # Default timestamp: infinite
+        self.config["default_date"] = float('+inf')
+
         # Create yat directory
         if self.config["yatdir"][0] == "~":
             self.config["yatdir"] = os.environ.get("HOME") + self.config["yatdir"][1:]
@@ -119,7 +122,7 @@ class YatLib:
                         id integer primary key,
                         task text,
                         priority int,
-                        due_date text,
+                        due_date real,
                         tags text,
                         list text,
                         completed integer,
@@ -148,7 +151,7 @@ class YatLib:
         # Hidden config (regexp)
         self.config["re.id"] = u"\d*?"
         self.config["re.priority"] = u"\d"
-        self.config["re.date"] = u"\d\d/\d\d/\d{4}"
+        self.config["re.date"] = u"(?P<x1>\d\d)/(?P<x2>\d\d)/(?P<year>\d{4})(:(?P<hour>\d?\d)(:(?P<minute>\d\d))?(?P<apm>am|pm)?)?"
         self.config["re.tag_name"] = u".*"
         self.config["re.tags_list"] = u"{0}?(,{0}?)*".format(
                 self.config["re.tag_name"])
@@ -287,7 +290,7 @@ class YatLib:
         params:
             - text (string)
             - priority (int)
-            - due_date (string)
+            - due_date (float)
             - tags (array<string>)
             - list (string)
             - completed (bool)
@@ -301,7 +304,7 @@ class YatLib:
 
         # Set the due date
         if due_date == None:
-            due_date = u""
+            due_date = self.config["default_date"]
 
         # Get the ids of the tags
         if tags == None or tags == []:
@@ -643,42 +646,14 @@ class YatLib:
         "due_date" column. This method is a part of the quicksort algorithm.
         """
         # Construct a datetime if the column is due_date
-        if column == "due_date":
-            if val1 != u"":
-                tmp_val1 = val1.split("/")
-                tmp_val1 = datetime.date(int(tmp_val1[2]), int(tmp_val1[1]),
-                        int(tmp_val1[0]))
-
-            if val2 != u"":
-                tmp_val2 = val2.split("/")
-                tmp_val2 = datetime.date(int(tmp_val2[2]), int(tmp_val2[1]),
-                        int(tmp_val2[0]))
-            
-            if val1 == u"" and val2 != u"":
-                if comparison == ">=" or comparison == ">":
-                    tmp_val1 = tmp_val2 - datetime.timedelta(1)
-                else:
-                    tmp_val1 = tmp_val2 + datetime.timedelta(1)
-            elif val1 != u"" and val2 == u"":
-                if comparison == ">=" or comparison == ">":
-                    tmp_val2 = tmp_val1 - datetime.timedelta(1)
-                else:
-                    tmp_val2 = tmp_val1 + datetime.timedelta(1)
-            elif val1 == u"" and val2 == u"":
-                tmp_val1 = datetime.date.today()
-                tmp_val2 = tmp_val1
-        else:
-            tmp_val1 = val1
-            tmp_val2 = val2
-
         if comparison == ">":
-            return tmp_val1 > tmp_val2
+            return val1 > val2
         elif comparison == ">=":
-            return tmp_val1 >= tmp_val2
+            return val1 >= val2
         elif comparison == "<":
-            return tmp_val1 < tmp_val2
+            return val1 < val2
         elif comparison == "<=":
-            return tmp_val1 <= tmp_val2
+            return val1 <= val2
         else:
             raise AttributeError, 'order argument should be in [">", ">=", "<", "<="]'
 
