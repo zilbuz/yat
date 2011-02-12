@@ -264,7 +264,8 @@ Adding a tag:
                         date = parse_input_date(res)
                     except ValueError:
                         output("[ERR] The due date isn't well formed. See 'yat help add'.", 
-                                f = sys.stderr)
+                                f = sys.stderr,
+                                foreground = colors.errf, background = colors.errb, bold = colors.errbold)
                         return
                     symbol = True
 
@@ -420,7 +421,9 @@ Options:
                 # Print the tasks for each group
                 text_group = u"{name} (Priority: {p}, id: {id})".format(name =
                         group["name"], p = group["priority"], id = group["id"])
-                output(text_group)
+                c = lib.config["cli.color_group_name"]
+                output(text_group, foreground = c[0], background = c[1], bold =
+                        c[2])
                 length = len(text_group)
                 output(u"{s:*<{lgth}}".format(s = "*", 
                     lgth = length))
@@ -430,7 +433,9 @@ Options:
         elif cmd in [u'lists', u'tags'] :
             grp_by = cmd[0:-1]
 
-            output(u"<" + grp_by + u" name> (id: <id>) - <tasks completed>/<tasks>:")
+            c = lib.config["cli.color_group_name"]
+            output(u"<" + grp_by + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
+                    foreground = c[0], background = c[1], bold = c[2])
             
             for group, tasks in lib.get_tasks(group_by = grp_by, order = False):
                 n_tasks = len(tasks)
@@ -484,16 +489,20 @@ Options:
             done_column_middle = "| "
             done_column_bottom = "--"
 
+        c = lib.config["cli.color_header"]
         output(u" {done}__________{t:_<{datewidth}}_____{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
             done=done_column_top, t="_", textwidth=self.textwidth,
-            tagswidth=self.tagswidth, datewidth=self.datewidth))
+            tagswidth=self.tagswidth, datewidth=self.datewidth), 
+            foreground = c[0], background = c[1], bold = c[2])
         output(u"{done}|Priority |{date:^{datewidth}}| Id|{task:<{textwidth}}|{tags:<{tagswidth}}|".format(
             done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
             task = " Task", textwidth = self.textwidth, tags = " Tags",
-            tagswidth = self.tagswidth))
+            tagswidth = self.tagswidth),
+            foreground = c[0], background = c[1], bold = c[2])
         output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
             done=done_column_bottom, t="-", textwidth=self.textwidth,
-            tagswidth=self.tagswidth, datewidth=self.datewidth))
+            tagswidth=self.tagswidth, datewidth=self.datewidth),
+            foreground = c[0], background = c[1], bold = c[2])
 
         for r in tasks:
             # Skip the task if it's completed
@@ -518,11 +527,18 @@ Options:
             # Format the date column
             date_column = parse_output_date(r["due_date"])
 
+            # Select color
+            if r["due_date"] < lib.get_time():
+                c = lib.config["cli.color_tasks_late"]
+            else:
+                c = lib.config["cli.color_priority" + str(r["priority"])]
+
             output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
                 done = done_column, p = r["priority"], date = date_column, id = r["id"], 
                 task = st.pop(0), textwidth = self.textwidth, 
                 tags = tags.pop(0), tagswidth = self.tagswidth, 
-                datewidth = self.datewidth))
+                datewidth = self.datewidth),
+                foreground = c[0], background = c[1], bold = c[2])
 
             # Print the rest of the current task
             for i in range(max(len(st),len(tags))):
@@ -537,7 +553,8 @@ Options:
                 output(u"{done}|         |{t: <{datewidth}}|   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
                     done = done_column_middle, task = te, textwidth = self.textwidth, tags=ta,
                     tagswidth = self.tagswidth, t = " ", 
-                    datewidth = self.datewidth))
+                    datewidth = self.datewidth),
+                    foreground = c[0], background = c[1], bold = c[2])
 
             # Print the separator
             output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
@@ -600,7 +617,8 @@ The possible attributes for a list or a tag are:
 
         if len(args) == 0:
             output(st = u"[ERR] You must provide some arguments to edit an element. See 'yat help edit'.", 
-                    f = sys.stderr)
+                    f = sys.stderr,
+                    foreground = colors.errf, background = colors.errb, bold = colors.errbold)
             return
 
         if args[0] in [u"task", u"list", u"tag"]:
@@ -647,7 +665,8 @@ The possible attributes for a list or a tag are:
                         due_date = parse_input_date(res)
                     except ValueError:
                         output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
-                                f = sys.stderr)
+                                f = sys.stderr,
+                                foreground = colors.errf, background = colors.errb, bold = colors.errbold)
                         return
                     symbol = True
 
@@ -678,12 +697,14 @@ The possible attributes for a list or a tag are:
         
         if id == None:
             output(st = u"[ERR] You must provide an id to the edit command. See yat help edit.", 
-                    f = sys.stderr)
+                    f = sys.stderr,
+                    foreground = colors.errf, background = colors.errb, bold = colors.errbold)
             return
 
         if id == "1" and element in [u"tag", u"list"]:
             output(st = u"[ERR] You can't modify 'notag' or 'nolist'", f =
-                    sys.stderr)
+                    sys.stderr,
+                    foreground = colors.errf, background = colors.errb, bold = colors.errbold)
             return
 
         if element == u"list":
@@ -691,13 +712,15 @@ The possible attributes for a list or a tag are:
                 lib.edit_list(id, name, priority)
             except yatlib.WrongListId:
                 output(st = u"[ERR] {0} is not a valid list id.".format(id), 
-                        f = sys.stderr)
+                        f = sys.stderr,
+                        foreground = colors.errf, background = colors.errb, bold = colors.errbold)
         elif element == u"tag":
             try:
                 lib.edit_tag(id, name, priority)
             except yatlib.WrongTagId:
                 output(st = u"[ERR] {0} is not a valid tag id.".format(id), 
-                        f = sys.stderr)
+                        f = sys.stderr,
+                        foreground = colors.errf, background = colors.errb, bold = colors.errbold)
         else:
             # Process the tag names
             add_tags_ids = []
@@ -749,7 +772,8 @@ the shell doesn't expand them.
     def execute(self, cmd, args):
         if len(args) == 0:
             output(st = u"[ERR] You must provide some informations to the command. See yat help done", 
-                    f = sys.stderr)
+                    f = sys.stderr,
+                    foreground = colors.errf, background = colors.errb, bold = colors.errbold)
 
         id = None
         regexp = []
@@ -822,6 +846,64 @@ Options:
         
         lib.remove_tasks(tasks_ids)
 
+class colors:
+    u"""ASCII code to change console colors. f... is for foreground colors, and
+    b... is for background colors"""
+    default     = u"\033[0m"
+    bold        = u"\033[1m"
+    fblack      = u"\033[30m"
+    fred        = u"\033[31m"
+    fgreen      = u"\033[32m"
+    fyellow     = u"\033[33m"
+    fblue       = u"\033[34m"
+    fmagenta    = u"\033[35m"
+    fcyan       = u"\033[36m"
+    fwhite      = u"\033[37m"
+    bblack      = u"\033[40m"
+    bred        = u"\033[41m"
+    bgreen      = u"\033[42m"
+    byellow     = u"\033[43m"
+    bblue       = u"\033[44m"
+    bmagenta    = u"\033[45m"
+    bcyan       = u"\033[46m"
+    bwhite      = u"\033[47m"
+
+    available = ["", "black", "white", "red", "green", "yellow", "blue", "magenta",
+            "cyan"]
+
+    # Shortcut to errors colors
+    errf = "red"
+    errb = ""
+    errbold = True
+
+    @staticmethod
+    def get(foreground, background, bold):
+        u"""Return the string with the code to change the colors of the console
+        text. The first two parameters are the color name, in "red", "green",
+        "yellow", "blue", "magenta", "cyan", "white", "black". The last
+        parameter is True or False."""
+
+        foreground = foreground.lower()
+        background = background.lower()
+
+        if foreground in colors.available and background in colors.available:
+            c = dict(inspect.getmembers(colors))
+
+            fcolor = u""
+            if foreground != "":
+                fcolor = c["f" + foreground]
+
+            bcolor = u""
+            if background != "":
+                bcolor = c["b" + background]
+            
+            if bold:
+                bold_code = colors.bold
+            else:
+                bold_code = u""
+                
+            return bold_code + fcolor + bcolor
+
 
 def isCommand(obj):
     u"""Check if the parameter is a class derived from Command, without being
@@ -832,10 +914,18 @@ def isCommand(obj):
     else:
         return False
 
-def output(st = u"", f = None, linebreak = True):
+def output(st = u"", f = None, linebreak = True, foreground = "", 
+        background = "", bold = False):
     global lib
+
+    # Default output
     if f == None:
         f = lib.output
+
+    # Process colors
+    if lib.config["cli.colors"]:
+        st = colors.get(foreground, background, bold) + st + colors.default
+
     f.write(st.encode(lib.enc))
     if linebreak:
         f.write(os.linesep)
@@ -925,6 +1015,71 @@ def init():
             "24")
     lib.config["cli.output_datetime"] = lib.config.get("cli.output_datetime",
             "%d/%m/%Y %H:%M")
+    lib.config["cli.colors"] = lib.config.get("cli.colors", "True")
+
+
+    # Colors
+    if lib.config["cli.colors"].lower() == "true":
+        lib.config["cli.colors"] = True
+    elif lib.config["cli.colors"].lower() == "false":
+        lib.condig["cli.colors"] = False
+    else:
+        tmp = lib.config["cli.colors"]
+        lib.config["cli.colors"] = True
+        output(u"[ERR] Config file, option cli.colors: '{0}' is not a valid option, it has to be 'true' or 'false'".format(tmp), 
+                f = sys.stderr,
+                foreground = colors.errf, background = colors.errb, bold = colors.errbold)
+
+    def process_color_option(name, default):
+        u"""Process the color option 'name' to replace it with a triplet of
+        color names (and boolean for the last element)"""
+
+        c = ("".join(lib.config.get(name,default).split(" "))).split(",")
+
+        col_err = lib.config["cli.color_error"]
+        if len(col_err) != 3:
+            col_err = ["red", "", True]
+        
+        if len(c) != 3:
+            output(u"[ERR] Config file, option {0}: '{1}' is not valid. See the sample config file for an example.".format(name, 
+                        lib.config[name]), f = sys.stderr, 
+                        foreground = colors.errf, background = colors.errb, bold = colors.errbold)
+            lib.config[name] = default
+
+        for i in range(2):
+            if c[i] == "default":
+                c[i] = ""
+            elif not c[i] in colors.available:
+                output(u"[ERR] Config file, option {0}: '{1}' is not a valid color. See the sample config for an example.".format(name,
+                    c[i]), f = sys.stderr,
+                    foreground = colors.errf, background = colors.errb, bold = colors.errbold)
+                c[i] = ""
+
+        if c[2].lower() == "true":
+            c[2] = True
+        elif c[2].lower() == "false":
+            c[2] = False
+        else:
+            output(u"[ERR] Config file, option {0}: '{1}' is not a valid option for bold. It has to be true or false".format(name, c[2]),
+                f = sys.stderr,
+                foreground = colors.errf, background = colors.errb, bold = colors.errbold)
+            c[2] = False
+
+        lib.config[name] = c
+
+    process_color_option("cli.color_error", "red,default,true")
+    col_err = lib.config["cli.color_error"]
+    colors.errf = col_err[0]
+    colors.errb = col_err[1]
+    colors.errbold = col_err[2]
+    process_color_option("cli.color_tasks_late", "red,default,false")
+    process_color_option("cli.color_group_name", "default,default,true")
+    process_color_option("cli.color_header", "default,default,true")
+    process_color_option("cli.color_priority3", "default,default,false")
+    process_color_option("cli.color_priority2", "default,default,false")
+    process_color_option("cli.color_priority1", "default,default,false")
+    process_color_option("cli.color_priority0", "default,default,false")
+
 
     # Processing task_ordering option
     # Strip spaces and split on commas
@@ -940,28 +1095,36 @@ def init():
         if column in ["priority", "due_date", "task", "id"]:
             lib.config["cli.task_ordering"].append(o)
         else:
-            output(st=u"[ERR] Config file, option cli.task_ordering: '{0}' is not a valid ordering option. See the example config file for a valid option.".format(o), f = sys.stderr)
+            output(st=u"[ERR] Config file, option cli.task_ordering: '{0}' is not a valid ordering option. See the example config file for a valid option.".format(o), f = sys.stderr,
+                foreground = colors.errf, background = colors.errb, bold = colors.errbold)
 
     # Default options
+
+    # Tasks output
     if lib.config["cli.task_ordering"] == []:
         lib.config["cli.task_ordering"] = ["reverse:priority", "due_date"]
 
     if not lib.config["cli.display_group"] in ["list", "tag"]:
-        output(u"[ERR] Config file, option cli.display_group: '{0}' is not a valid display group, it has to be \"list\" or \"tag\"".format(lib.config["cli.display_group"]), f = sys.stderr)
+        output(u"[ERR] Config file, option cli.display_group: '{0}' is not a valid display group, it has to be \"list\" or \"tag\"".format(lib.config["cli.display_group"]), f = sys.stderr,
+            foreground = colors.errf, background = colors.errb, bold = colors.errbold)
         lib.config["cli.display_group"] = "list"
 
+    # Date format
     if not lib.config["cli.input_date"] in ["dd/mm", "mm/dd"]:
-        output(u"[ERR] Config file, option cli.input_date: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(lib.config["cli.input_date"]), f = sys.stderr)
+        output(u"[ERR] Config file, option cli.input_date: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(lib.config["cli.input_date"]), f = sys.stderr,
+            foreground = colors.errf, background = colors.errb, bold = colors.errbold)
         lib.config["cli.input_date"] = "dd/mm"
 
     if not lib.config["cli.input_time"] in ["12", "24"]:
-        output(u"[ERR] Config file, option cli.input_time: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(lib.config["cli.input_time"]), f = sys.stderr)
+        output(u"[ERR] Config file, option cli.input_time: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(lib.config["cli.input_time"]), f = sys.stderr,
+            foreground = colors.errf, background = colors.errb, bold = colors.errbold)
         lib.config["cli.input_time"] = "24"
 
     res = re.finditer("%(.)", lib.config["cli.output_datetime"])
     for g in res:
         if not g.group(1) in ["d", "m", "Y", "H", "I", "M", "p"]:
-            output(u"[ERR] Config file, option cli.output_datetime: '{0}' is not a valid format, it has to be '%d', '%m', '%Y', '%H', '%I', '%M' or '%p'. See yatrc.sample for an example".format(g.group(0)), f = sys.stderr)
+            output(u"[ERR] Config file, option cli.output_datetime: '{0}' is not a valid format, it has to be '%d', '%m', '%Y', '%H', '%I', '%M' or '%p'. See yatrc.sample for an example".format(g.group(0)), f = sys.stderr,
+                foreground = colors.errf, background = colors.errb, bold = colors.errbold)
             lib.config["cli.output_datetime"] = "%d/%m/%Y %H:%M"
             break
 

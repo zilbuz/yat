@@ -57,3 +57,22 @@ cli.input_time = 24
 #   - %p : am or pm
 cli.output_datetime = %d/%m/%Y %H:%M
 
+# Colors
+# The first option decide whether or not you want to get colors in your output,
+# it has to be 'true' or 'false'.
+# The other options are setting up the foreground, background and weight of some
+# outputs. You have to provide three comma-separated values. The first one is
+# the foreground color, the second one is the background color, and the last one
+# is 'true' if you want it bold, 'false' if not. The colors availables are :
+# 'default', 'black', 'white', 'red', 'green', 'yellow', 'blue', 'magenta',
+# 'cyan'.
+cli.colors = true
+cli.color_error = red, default, true
+cli.color_tasks_late = red, default, false
+cli.color_group_name = default, default, true
+cli.color_header = default, default, true
+cli.color_priority3 = default, default, false
+cli.color_priority2 = default, default, false
+cli.color_priority1 = default, default, false
+cli.color_priority0 = default, default, false
+
