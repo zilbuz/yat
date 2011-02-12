@@ -723,12 +723,16 @@ The possible attributes for a list or a tag are:
         pass
 
 class DoneCommand(Command):
-    u"""Set a task as completed.
+    u"""Change the completed status of a task.
 
-usage: %s done (id=<id>|<regexp>)
+usage: %s (done|undone) (id=<id>|<regexp>)
 
-This command allows you to mark a task as completed. A task completed won't be
-deleted, but it won't be displayed by default with the 'show' command.
+By using the 'done' alias, this command allows you to mark a task as completed.
+A task completed won't be deleted, but it won't be displayed by default with the
+'show' command.
+
+If you use 'undone' instead, the 'completed' flag will be set to False for this
+task.
 
 You have to provide either the id of the task (with 'id=<id>'), or the name of
 the task. If you give the name of the task, you can use '*' and '?' as jokers.
@@ -736,7 +740,7 @@ But if you do so, be careful to surround your request with double quotes so that
 the shell doesn't expand them.
 """
 
-    alias = [u"done"]
+    alias = [u"done", u"undone"]
 
     def __init__(self):
         global lib
@@ -763,8 +767,9 @@ the shell doesn't expand them.
         else:
             tasks = lib.get_tasks(regexp = regexp, group=False, order = False)
 
+        done = cmd == u"done"
         for task in tasks:
-            lib.edit_task(task["id"], completed = True)
+            lib.edit_task(task["id"], completed = done)
 
 class CleanCommand(Command):
     u"""Delete all the completed tasks.
