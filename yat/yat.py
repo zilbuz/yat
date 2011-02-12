@@ -209,8 +209,6 @@ Adding a tag:
 
     def execute(self, cmd, args):
         global lib
-        # Separate words
-        args = (" ".join(args)).split(" ")
 
         cmd = ""
         if args[0] in ["task", "list", "tag"]:
@@ -277,7 +275,7 @@ Adding a tag:
             text = " ".join(text)
 
             # Add the task with the correct parameters
-            lib.add_task(text.decode('utf-8'), priority, date, tags, list)
+            lib.add_task(text, priority, date, tags, list)
     pass
     
 
@@ -395,8 +393,7 @@ Options:
         global lib
 
         # Parse the options of the command
-        copy_args = (" ".join(args)).split(" ")
-        for a in copy_args:
+        for a in args:
             res = re.match("^(--show-completed|-a)$", a)
             if res != None:
                 self.show_completed = True
@@ -636,11 +633,13 @@ The possible attributes for a list or a tag are:
                     name = res.group(1)
 
             else:
+                symbol = False
                 res = self.re_priority.match(a)
                 if priority == None and res != None:
                     priority = int(res.group(1))
                     if priority > 3:
                         priority = 3
+                    symbol = True
                 
                 res = self.re_due_date.match(a)
                 if due_date == None and res != None:
@@ -650,22 +649,32 @@ The possible attributes for a list or a tag are:
                         output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
                                 f = sys.stderr)
                         return
+                    symbol = True
 
                 res = self.re_list.match(a)
                 if list == None and res != None:
                     list = res.group(1)
+                    symbol = True
 
                 res = self.re_add_tags.match(a)
                 if add_tags == None and res != None:
                     add_tags = res.group(1)
+                    symbol = True
 
                 res = self.re_remove_tags.match(a)
                 if remove_tags == None and res != None:
                     remove_tags = res.group(1)
+                    symbol = True
 
                 res = self.re_name.match(a)
                 if task == None and res != None:
-                    task = res.group(1)
+                    task = [res.group(1)]
+                    symbol = True
+
+                if task != None and not symbol:
+                    task.append(a)
+
+        task = " ".join(task)
         
         if id == None:
             output(st = u"[ERR] You must provide an id to the edit command. See yat help edit.", 
@@ -709,7 +718,7 @@ The possible attributes for a list or a tag are:
             else:
                 list_id = None
 
-            lib.edit_task(id, task.decode('utf-8'), priority, due_date, list_id, add_tags_ids,
+            lib.edit_task(id, task, priority, due_date, list_id, add_tags_ids,
                     remove_tags_ids)
         pass
 
@@ -782,7 +791,6 @@ Options:
 
     def execute(self, cmd, args):
         # Parse args
-        args = (" ".join(args)).split(" ")
         for a in args:
             res = self.re_force.match(a)
             if res != None:
@@ -980,18 +988,23 @@ def main(argv):
         for a in cmd.alias:
             aliases[a] = cmd
 
+    # Process args
+    args = (" ".join(argv)).split(" ")
+    for i in range(len(args)):
+        args[i] = args[i].decode('utf-8')
+
     # Determining which command to use (default list)
     cmd = ListCommand()
     cmd_args = []
     cmd_alias = "tasks"
-    if len(argv) > 1:
-        if argv[1] in aliases:
-            cmd = aliases[argv[1]]()
-            cmd_alias = argv[1]
-            cmd_args = argv[2:]
+    if len(args) > 1:
+        if args[1] in aliases:
+            cmd = aliases[args[1]]()
+            cmd_alias = args[1]
+            cmd_args = args[2:]
         else:
             cmd = ListCommand()
-            cmd_args = argv[1:]
+            cmd_args = args[1:]
 
     # Executing command with the rest of the arguments
     cmd.execute(cmd_alias, cmd_args)
