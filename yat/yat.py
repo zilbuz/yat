@@ -709,7 +709,7 @@ The possible attributes for a list or a tag are:
             else:
                 list_id = None
 
-            lib.edit_task(id, task, priority, due_date, list_id, add_tags_ids,
+            lib.edit_task(id, task.decode('utf-8'), priority, due_date, list_id, add_tags_ids,
                     remove_tags_ids)
         pass
 

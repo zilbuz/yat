@@ -126,26 +126,29 @@ class YatLib:
                         tags text,
                         list text,
                         completed integer,
-                        last_modified real
+                        last_modified real,
+                        created real
                     )""")
                 self.sql.execute("""
                     create table tags (
                         id integer primary key,
                         name text,
                         priority integer,
-                        last_modified real
+                        last_modified real,
+                        created real
                         )""")
                 self.sql.execute("""
                     create table lists (
                         id integer primary key,
                         name text,
                         priority integer,
-                        last_modified real
+                        last_modified real,
+                        created real
                         )""")
                 self.sql.execute("""insert into tags values (null, "notag", -1,
-                        ?)""", (time.time(),))
+                        ?, ?)""", (self.get_time(), self.get_time()))
                 self.sql.execute("""insert into lists values (null, "nolist",
-                        -1, ?)""", (time.time(),))
+                        -1, ?, ?)""", (time.time(), self.get_time()))
                 self.sql.commit()
 
         # Hidden config (regexp)
@@ -329,9 +332,9 @@ class YatLib:
         
         # Add the task to the bdd
         with self.sql:
-            self.sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?)',
+            self.sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?)',
                     (text, priority, due_date, tags, list, completed,
-                        self.get_time()))
+                        self.get_time(), self.get_time()))
             self.sql.commit()
         pass
 
@@ -575,8 +578,8 @@ class YatLib:
             c = self.sql.execute('select count(*) as nb from %s where name=?' %
                     table, (name,))
             if c.fetchone()[0] == 0:
-                self.sql.execute('insert into %s values(null, ?, ?, ?)' % table,
-                    (name, priority, self.get_time()))
+                self.sql.execute('insert into %s values(null, ?, ?, ?, ?)' % table,
+                    (name, priority, self.get_time(), self.get_time()))
                 self.sql.commit()
 
     def __get_id(self, table, name):
