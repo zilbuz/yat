@@ -1205,8 +1205,30 @@ def main(argv):
             cmd = ListCommand()
             cmd_args = args[1:]
 
-    # Executing command with the rest of the arguments
-    cmd.execute(cmd_alias, cmd_args)
+    # Testing if there's a lock
+    force_lock = False
+    try:
+        lib.get_lock()
+    except yatlib.ExistingLock as e:
+        txt = u"A lock is already set up on the database by the application of"
+        txt += u" pid: {0}. If you are sure that".format(e)
+        txt += u" you have no yat application running, you can decide to bypass"
+        txt += u" it. Do you want to bypass the lock ?"
+        force_lock = yes_no_question(txt)
+    finally:
+        lib.release_lock()
+
+    try:
+        lib.get_lock(force_lock)
+        # Executing command with the rest of the arguments
+        cmd.execute(cmd_alias, cmd_args)
+    except yatlib.ExistingLock:
+        output(u"[ERR] A lock is already set up, the command was ignored.",
+                f = sys.stderr, foreground = colors.errf, background =
+                colors.errb, bold = colors.errbold)
+        pass
+    finally:
+        lib.release_lock()
 
 if __name__ == "__main__":
     main(sys.argv)

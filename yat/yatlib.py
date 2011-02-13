@@ -36,6 +36,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import datetime
 import locale
 import os
+import pickle
 import re
 import sqlite3
 import sys
@@ -150,6 +151,9 @@ class YatLib:
                 self.__sql.execute("""insert into lists values (null, "nolist",
                         -1, ?, ?)""", (time.time(), self.get_time()))
                 self.__sql.commit()
+
+        # Get application pid
+        self.__pid = os.getpid()
 
         # Hidden config (regexp)
         self.config["re.id"] = u"\d*?"
@@ -586,6 +590,40 @@ class YatLib:
         u"""Return the current timestamp"""
         return time.time()
 
+    def get_lock(self, force = False):
+        u"""Acquire the lock for the database. If the lock is already active
+        with someone other than us, raise an exception"""
+        locked_pid = 0
+        try:
+            with open(self.config["yatdir"] + "/lock") as lock_file:
+                locked_pid = pickle.load(lock_file)
+        except IOError:
+            locked_pid = self.__pid
+
+        if locked_pid == self.__pid or force:
+            with open(self.config["yatdir"] + "/lock", 'w') as lock_file:
+                pickle.dump(self.__pid, lock_file)
+        else:
+            raise ExistingLock, locked_pid
+        
+        return self.__pid
+
+    def release_lock(self):
+        u"""Release the lock for the database then return true. If the lock was
+        set up by another program, then do nothing and return false."""
+        delete = False
+        try:
+            with open(self.config["yatdir"] + "/lock") as lock_file:
+                if pickle.load(lock_file) == self.__pid:
+                    delete = True
+        except IOError:
+            pass
+
+        if delete:
+            os.remove(self.config["yatdir"] + "/lock")
+
+        return delete
+
     def __add_tag_or_list(self, table, name, priority):
         u"""Add an element "name" to the "table" if it doesn't exist. It is
         meant to be used with table="lists" or table="tags" """
@@ -685,6 +723,10 @@ class WrongListId(Exception):
 
 class WrongTaskId(Exception):
     u"""Exception raised when trying to extract a task that doesn't exist"""
+    pass
+
+class ExistingLock(Exception):
+    u"""Exception raised when a lock is already set."""
     pass
 
 if __name__ == "__main__":
