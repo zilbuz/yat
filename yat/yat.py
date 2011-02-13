@@ -283,7 +283,7 @@ Adding a tag:
 class RemoveCommand (Command):
     u"""Remove a task, a list or a tag
 
-usage: %s remove [task | list | tag] [<regexp>|id=<id_nb>]
+usage: %s remove [task | list | tag] [--interactive|-i] [<regexp>|id=<id_nb>]
 
 The use is straightforward : every element matching the
 informations gets deleted. 
@@ -299,12 +299,26 @@ double quotes (") so that the shell doesn't expand them. If you want to search
 for "*" or "?" you can escape them with "\\".
 
 If "task", "list" or "tag" is not provided, "task" is assumed.
+
+Options:
+    --interactive, -i
+        Ask a confirmation for every deleted element.
 """
 
     alias = [u"remove", u"rm"]
 
+    def __init__(self):
+        self.re_interactive = re.compile(r'^(--interactive|-i)$')
+        self.interactive = False
+
     def execute(self, cmd, args):
         global lib
+
+        for a in args[:]:
+            res = self.re_interactive.match(a)
+            if res != None:
+                self.interactive = True
+                args.remove(a)
 
         if args == []:
             print self.__doc__.split('\n',1)[0]," ",args
@@ -353,6 +367,11 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
                     temp = lib.get_lists_regex(a)
 
                 for t in temp:
+                    txt = u"Do you want to delete this " + cmd + u":\n" 
+                    txt += t["name"] 
+                    txt += u" (priority: " + str(t["priority"]) + u") ?"
+                    if not yes_no_question(txt):
+                        continue
                     ids.append(str(t["id"]))
 
             # Removing the tasks belonging to the list
@@ -369,6 +388,12 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
                 temp = lib.get_tasks(regexp = a, group = False, order = False)
 
             for t in temp:
+                if self.interactive:
+                    txt = u"Do you want to delete this task:\n" + t["task"] 
+                    txt += u" (priority: " + str(t["priority"])
+                    txt += u", due date: " + parse_output_date(t["due_date"]) + u") ?"
+                    if not yes_no_question(txt):
+                        continue
                 ids.append(t["id"])
 
             lib.remove_tasks(ids)
