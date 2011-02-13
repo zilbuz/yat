@@ -89,10 +89,10 @@ class YatLib:
             os.makedirs(self.config["yatdir"], mode=0700)
 
         # Connect to sqlite db
-        self.sql = sqlite3.connect(self.config["yatdir"] + "/yat.db")
+        self.__sql = sqlite3.connect(self.config["yatdir"] + "/yat.db")
 
         # Use Row as row_factory to add access by column name and other things
-        self.sql.row_factory = sqlite3.Row
+        self.__sql.row_factory = sqlite3.Row
 
         # Add a function to support the REGEXP() operator
         def regexp(expr, item):
@@ -107,17 +107,17 @@ class YatLib:
             # Add ^ and $ to the regexp
             regex = r'^' + regex + r'$'
             return len(re.findall(regex, item)) > 0
-        self.sql.create_function("regexp", 2, regexp)
+        self.__sql.create_function("regexp", 2, regexp)
     
         # Verify the existence of the database and create it if it doesn't exist
         # (very basic)
         try:
-            with self.sql:
-                self.sql.execute("select * from tags")
+            with self.__sql:
+                self.__sql.execute("select * from tags")
         except sqlite3.OperationalError:
             # Create tables
-            with self.sql:
-                self.sql.execute("""
+            with self.__sql:
+                self.__sql.execute("""
                     create table tasks (
                         id integer primary key,
                         task text,
@@ -129,7 +129,7 @@ class YatLib:
                         last_modified real,
                         created real
                     )""")
-                self.sql.execute("""
+                self.__sql.execute("""
                     create table tags (
                         id integer primary key,
                         name text,
@@ -137,7 +137,7 @@ class YatLib:
                         last_modified real,
                         created real
                         )""")
-                self.sql.execute("""
+                self.__sql.execute("""
                     create table lists (
                         id integer primary key,
                         name text,
@@ -145,11 +145,11 @@ class YatLib:
                         last_modified real,
                         created real
                         )""")
-                self.sql.execute("""insert into tags values (null, "notag", -1,
+                self.__sql.execute("""insert into tags values (null, "notag", -1,
                         ?, ?)""", (self.get_time(), self.get_time()))
-                self.sql.execute("""insert into lists values (null, "nolist",
+                self.__sql.execute("""insert into lists values (null, "nolist",
                         -1, ?, ?)""", (time.time(), self.get_time()))
-                self.sql.commit()
+                self.__sql.commit()
 
         # Hidden config (regexp)
         self.config["re.id"] = u"\d*?"
@@ -194,18 +194,18 @@ class YatLib:
         tasks = []
         # Extract tasks from the database
         if ids != None:
-            with self.sql:
+            with self.__sql:
                 for i in ids:
-                    tasks.extend(self.sql.execute(
+                    tasks.extend(self.__sql.execute(
                         u"select * from tasks where id=?", (i,)).fetchall())
         if regexp != None:
-            with self.sql:
-                tasks.extend(self.sql.execute(
+            with self.__sql:
+                tasks.extend(self.__sql.execute(
                     u"select * from tasks where task regexp ?", 
                     (regexp,)).fetchall())
         if ids == None and regexp == None:
-            with self.sql:
-                tasks.extend(self.sql.execute(
+            with self.__sql:
+                tasks.extend(self.__sql.execute(
                     u"select * from tasks").fetchall())
 
 
@@ -213,7 +213,7 @@ class YatLib:
         if group:
             grouped_tasks = []
             if group_by == "list":
-                lists = self.sql.execute(u"select * from lists").fetchall()
+                lists = self.__sql.execute(u"select * from lists").fetchall()
                 for l in lists:
                     index = len(grouped_tasks)
                     grouped_tasks.append((l,[]))
@@ -222,7 +222,7 @@ class YatLib:
                             grouped_tasks[index][1].append(t)
                             tasks.remove(t) # A task is in one list only
             elif group_by == "tag":
-                tags = self.sql.execute(u"select * from tags").fetchall()
+                tags = self.__sql.execute(u"select * from tags").fetchall()
                 for tag in tags:
                     index = len(grouped_tasks)
                     grouped_tasks.append((tag,[]))
@@ -331,11 +331,11 @@ class YatLib:
             completed = 0
         
         # Add the task to the bdd
-        with self.sql:
-            self.sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?)',
+        with self.__sql:
+            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?)',
                     (text, priority, due_date, tags, list, completed,
                         self.get_time(), self.get_time()))
-            self.sql.commit()
+            self.__sql.commit()
         pass
 
     def edit_task(self, id, task = None, priority = None, due_date = None, 
@@ -352,8 +352,8 @@ class YatLib:
             - completed (bool)
         """
 
-        with self.sql:
-            t = self.sql.execute(u'select * from tasks where id=?',
+        with self.__sql:
+            t = self.__sql.execute(u'select * from tasks where id=?',
                     (id,)).fetchone()
 
         if t == None:
@@ -371,6 +371,7 @@ class YatLib:
             completed = t["completed"]
         elif completed:
             completed = 1
+
         else:
             completed = 0
 
@@ -388,8 +389,8 @@ class YatLib:
             tags = ["1"]
         tags = ",".join(tags)
 
-        with self.sql:
-            self.sql.execute(u'update tasks set task=?, priority=?, due_date=?, list=?, tags=?, completed=?, last_modified=? where id=?',
+        with self.__sql:
+            self.__sql.execute(u'update tasks set task=?, priority=?, due_date=?, list=?, tags=?, completed=?, last_modified=? where id=?',
                     (task, priority, due_date, list, tags, completed,
                         self.get_time(), t["id"]))
         pass
@@ -399,10 +400,10 @@ class YatLib:
         params:
             - ids (array<int>)
         """
-        with self.sql:
+        with self.__sql:
             for i in ids:
-                self.sql.execute(u'delete from tasks where id=?', (i,))
-            self.sql.commit()
+                self.__sql.execute(u'delete from tasks where id=?', (i,))
+            self.__sql.commit()
         pass
 
     def get_tags(self, tags, type_id = True, can_create = False):
@@ -416,21 +417,28 @@ class YatLib:
         """
         res = []
         for t in tags:
-            with self.sql:
+            with self.__sql:
                 tag_row = None
                 if type_id:
-                    tag_row = self.sql.execute(u'select * from tags where id=?',
+                    tag_row = self.__sql.execute(u'select * from tags where id=?',
                             (t,)).fetchone()
                 else:
-                    tag_row = self.sql.execute(u'select * from tags where name=?', 
+                    tag_row = self.__sql.execute(u'select * from tags where name=?', 
                             (t,)).fetchone()
                     if can_create and tag_row == None:
                         self.add_tag(t)
-                        tag_row = self.sql.execute(u'select * from tags where name=?', 
+                        tag_row = self.__sql.execute(u'select * from tags where name=?', 
                             (t,)).fetchone()
                 if tag_row != None:
                     res.append(tag_row)
         return res
+
+    def get_tags_regex(self, regex):
+        u"""Extract from the database all the tags that match regex, where regex
+        is an expression with * and ? jokers"""
+        with self.__sql:
+            return self.__sql.execute(u'select * from tags where name regexp ?',
+                    (regex,)).fetchall()
 
 
 
@@ -451,8 +459,8 @@ class YatLib:
             - name (string)
             - priority (int)
         """
-        with self.sql:
-            tag = self.sql.execute(u'select * from tags where id=?', (id,)).fetchone()
+        with self.__sql:
+            tag = self.__sql.execute(u'select * from tags where id=?', (id,)).fetchone()
         
         if tag == None:
             raise WrongTagId
@@ -463,8 +471,8 @@ class YatLib:
         if priority == None:
             priority = tag["priority"]
 
-        with self.sql:
-            self.sql.execute(u'update tags set name=?, priority=?, last_modified=? where id=?',
+        with self.__sql:
+            self.__sql.execute(u'update tags set name=?, priority=?, last_modified=? where id=?',
                     (name, priority, self.get_time(), tag["id"]))
         pass
 
@@ -473,14 +481,14 @@ class YatLib:
         param:
             - ids (array<string>)
         """
-        with self.sql:
+        with self.__sql:
             # Remove tags
             for i in ids:
                 if i != "1": # it's not possible to remove the "notag" tag
-                    self.sql.execute(u'delete from tags where id=?', (i,))
+                    self.__sql.execute(u'delete from tags where id=?', (i,))
 
             # Update tasks
-            for t in self.sql.execute(u'select * from tasks'):
+            for t in self.__sql.execute(u'select * from tasks'):
                 tags = t["tags"].split(",")
                 tags_copy = tags[:]
                 for i in range(len(tags_copy)):
@@ -488,9 +496,9 @@ class YatLib:
                         tags.pop(i)
                 if len(tags) == 0:
                     tags.append("1")
-                self.sql.execute(u'update tasks set tags=?, last_modified=? where id=?',
+                self.__sql.execute(u'update tasks set tags=?, last_modified=? where id=?',
                         (",".join(tags), self.get_time(), t["id"]))
-            self.sql.commit()
+            self.__sql.commit()
         pass
 
     def get_list(self, list, type_id = True, can_create = False):
@@ -503,18 +511,25 @@ class YatLib:
         list name provided doesn't exist, it will be created.
         """
         res = None
-        with self.sql:
+        with self.__sql:
             if type_id:
-                res = self.sql.execute(u'select * from lists where id=?',
+                res = self.__sql.execute(u'select * from lists where id=?',
                         (list,)).fetchone()
             else:
-                res = self.sql.execute(u'select * from lists where name=?',
+                res = self.__sql.execute(u'select * from lists where name=?',
                         (list,)).fetchone()
                 if res == None and can_create:
                     self.add_list(list)
-                    res = self.sql.execute(u'select * from lists where name=?',
+                    res = self.__sql.execute(u'select * from lists where name=?',
                             (list,)).fetchone()
         return res
+
+    def get_lists_regex(self, regex):
+        u"""Extract from the database the lists that match regex, where regex is
+        an expression with * and ? jokers."""
+        with self.__sql:
+            return self.__sql.execute('select * from lists where name regexp ?',
+                    (regex,)).fetchall()
             
 
     def add_list(self, name, priority=0):
@@ -534,8 +549,8 @@ class YatLib:
             - name (string)
             - priority (int)
         """
-        with self.sql:
-            list = self.sql.execute(u'select * from lists where id=?', (id,)).fetchone()
+        with self.__sql:
+            list = self.__sql.execute(u'select * from lists where id=?', (id,)).fetchone()
         
         if list == None:
             raise WrongListId
@@ -546,8 +561,8 @@ class YatLib:
         if priority == None:
             priority = list["priority"]
 
-        with self.sql:
-            self.sql.execute(u'update lists set name=?, priority=?, last_modified=? where id=?',
+        with self.__sql:
+            self.__sql.execute(u'update lists set name=?, priority=?, last_modified=? where id=?',
                     (name, priority, self.get_time(), list["id"]))
         pass
     
@@ -557,14 +572,14 @@ class YatLib:
         param:
             - ids (array<string>)
         """
-        with self.sql:
+        with self.__sql:
             for i in ids:
                 if i != "1": # It's not possible to remove the "nolist" list
                     # Delete list
-                    self.sql.execute(u'delete from lists where id=?', (i,))
+                    self.__sql.execute(u'delete from lists where id=?', (i,))
                     # Delete tasks
-                    self.sql.execute(u'delete from tasks where list=?', (i,))
-            self.sql.commit()
+                    self.__sql.execute(u'delete from tasks where list=?', (i,))
+            self.__sql.commit()
         pass
 
     def get_time(self):
@@ -574,19 +589,19 @@ class YatLib:
     def __add_tag_or_list(self, table, name, priority):
         u"""Add an element "name" to the "table" if it doesn't exist. It is
         meant to be used with table="lists" or table="tags" """
-        with self.sql:
-            c = self.sql.execute('select count(*) as nb from %s where name=?' %
+        with self.__sql:
+            c = self.__sql.execute('select count(*) as nb from %s where name=?' %
                     table, (name,))
             if c.fetchone()[0] == 0:
-                self.sql.execute('insert into %s values(null, ?, ?, ?, ?)' % table,
+                self.__sql.execute('insert into %s values(null, ?, ?, ?, ?)' % table,
                     (name, priority, self.get_time(), self.get_time()))
-                self.sql.commit()
+                self.__sql.commit()
 
     def __get_id(self, table, name):
         u"""Get the id of the element "name" in "table". It's meant to be used
         with table = "lists" or "tags" """
-        with self.sql:
-            res = self.sql.execute('select id from %s where name=?' % table, (name,))
+        with self.__sql:
+            res = self.__sql.execute('select id from %s where name=?' % table, (name,))
             return str(res.fetchone()[0])
 
     def __quicksort(self, list, column, left=None, right=None, order=">=",

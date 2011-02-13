@@ -324,34 +324,36 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
        
         a = " ".join(args)
         res = re_number.match(a)
-        with lib.sql:
-            if res is not None:
-                a = res.group(1)
-                operation = u"="
-                identifier = u"id"
+        if res is not None:
+            a = res.group(1)
+            operation = u"="
+            identifier = u"id"
+        else:
+            operation = u" regexp "
+
+            # Ask a confirmation for the * expression.
+            if a == '*':
+                res = yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
+                if not res:
+                    return
+
+            if cmd == u"task":
+                identifier = cmd
             else:
-                operation = u" regexp "
-
-                # Ask a confirmation for the * expression.
-                if a == '*':
-                    res = yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
-                    if not res:
-                        return
-
-                if cmd == u"task":
-                    identifier = cmd
-                else:
-                    identifier = u"name"
+                identifier = u"name"
 
         if cmd in [u"list", u"tag"]:
             ids = []
             if operation == u'=':
                 ids = [a, ]
             else:
-                with lib.sql:
-                    temp = lib.sql.execute(u'select id from {0} where name regexp ?'.format(cmd+u's'), (a, )).fetchall()
+                if cmd == "tag":
+                    temp = lib.get_tags_regex(a)
+                else:
+                    temp = lib.get_lists_regex(a)
+
                 for t in temp:
-                    ids.append(str(t[0]))
+                    ids.append(str(t["id"]))
 
             # Removing the tasks belonging to the list
             if cmd == u'list':
@@ -361,9 +363,14 @@ If "task", "list" or "tag" is not provided, "task" is assumed.
                 lib.remove_tags(ids)
         else: # removing a task
             ids = []
-            with lib.sql:
-                for t in lib.sql.execute(u'select id from {0} where {1}{2} ?'.format(cmd+u's', identifier, operation), (a,)):
-                    ids.append(t["id"])
+            if operation == u'=':
+                temp = lib.get_tasks(ids = [int(a)], group = False, order = False)
+            else:
+                temp = lib.get_tasks(regexp = a, group = False, order = False)
+
+            for t in temp:
+                ids.append(t["id"])
+
             lib.remove_tasks(ids)
 
 
@@ -470,11 +477,10 @@ Options:
         return a comma separated list of tags name"""
         tags = tags_nb.split(",")
         tags_name = []
-        for i in range(len(tags)):
-            if tags[i] != "1":
-                res = lib.sql.execute(u"select name from tags where id=?",
-                        (tags[i],))
-                tags_name.append( res.fetchone()["name"] )
+        tags_rows = lib.get_tags(tags)
+        for t in tags_rows:
+            if t["id"] != 1:
+                tags_name.append(t["name"])
         return ", ".join(tags_name)
 
     def __output_tasks(self, tasks):
