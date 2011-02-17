@@ -1067,10 +1067,6 @@ def init():
 
         c = ("".join(lib.config.get(name,default).split(" "))).split(",")
 
-        col_err = lib.config["cli.color_error"]
-        if len(col_err) != 3:
-            col_err = ["red", "", True]
-        
         if len(c) != 3:
             output(u"[ERR] Config file, option {0}: '{1}' is not valid. See the sample config file for an example.".format(name, 
                         lib.config[name]), f = sys.stderr, 
