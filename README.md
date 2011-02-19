@@ -22,6 +22,7 @@ Simply type `yat help` to have the list of all available commands, and `yat
 help <cmd>` to get the documentation of the specific <cmd>.
 
 The most common commands are:
+
 *   `yat add "some task"`
 
     Simply add a task to your todolist. It will be added in a default list and
@@ -32,16 +33,14 @@ The most common commands are:
     You can also add lists or tags with this command. Again, see `yat help add`
     for detailed instructions.
 
-*   `yat remove "some task"`
-    `yat remove id=2`
+*   `yat remove "some task"` or `yat remove id=2`
 
     The first command will remove the task(s) with the name some task, while the
     second command will remove the task with the id 2. When entering the name of
     the task, you can use * as a joker for any number of any character, and ? as
     a joker for one occurence of any character.
 
-*   `yat done "some task"`
-    `yat done id=2`
+*   `yat done "some task"` or `yat done id=2`
 
     This command will mark a task as done. The mean to identify which task to
     mark is like the "remove" command.
