@@ -724,7 +724,8 @@ The possible attributes for a list or a tag are:
                 if task != None and not symbol:
                     task.append(a)
 
-        task = " ".join(task)
+        if task != None:
+            task = " ".join(task)
         
         if id == None:
             output(st = u"[ERR] You must provide an id to the edit command. See yat help edit.", 
