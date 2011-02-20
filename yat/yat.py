@@ -165,7 +165,7 @@ Adding a task:
     doesn't exist, it will be created.
     Example: yad add "peanut butter >groceries"
 
-    Apart for the tags, if a symbol is used more than one time for a task, the
+    Apart from the tags, if a symbol is used more than one time for a task, the
     last one will be used.
     You can place the symbols anywhere in the task text.
     You can escape the symbols with \, for example: "the symbol \> won't be
