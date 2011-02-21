@@ -12,8 +12,8 @@ Just clone the repository somewhere in your computer.
 Then if you want, you can load the development branch by doing 
 `git checkout dev` in the yat folder.
 
-Finally, create a symbolic link to yat.py in a path directory. For example:
-`ln -s /path/to/yat/yat.py /usr/local/bin/yat`
+Finally, create a symbolic link to yat in a path directory. For example:
+`ln -s /path/to/yat/yat /usr/local/bin/yat`
 
 How to use
 ----------
