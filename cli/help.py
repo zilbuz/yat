@@ -54,15 +54,16 @@ the name of a command is provided, show the specific help text for this command.
 
         if cmd.alias[0] == u"help":
             if not detailed:
-                cli.output(st = (u"%s (Yet Another Todolist) is a very simple " %
-                    cli.name), linebreak = False)
-                cli.output(u"commandline todolist manager.")
-                cli.output()
-                cli.output(u"usage: %s [command] [arguments]" %
-                        cli.name)
-                cli.output()
+                cli.output(
+                u"""{name} (Yet Another Todolist) is a very simple commandline todolist manager.
 
-            cli.output(u"The different commands are:")
+usage: {name} [options] [command] [arguments]
+
+options:
+    --help, -h
+        Print this help and exit
+
+The different commands are:""".format(name = cli.name))
 
             # Extract docstrings from command classes
             help_txts = []

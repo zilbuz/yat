@@ -29,6 +29,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import inspect
+import optparse
 import re
 import sys
 
@@ -173,6 +174,20 @@ def main(argv):
     Entry point of the program
     """
 
+    # Process args
+    args = (" ".join(argv)).split(" ")
+    for i in range(len(args)):
+        args[i] = args[i].decode('utf-8')
+
+    # Parsing options
+    options = {
+        "help": False
+        }
+    for a in args[:]:
+        if a == u"-h" or a == u"--help":
+            options["help"] = True
+            args.remove(a)
+
     # Initialisation
     init()
 
@@ -196,22 +211,23 @@ def main(argv):
             cli.aliases[a] = cmd
             cli.aliases[a] = cmd
 
-    # Process args
-    args = (" ".join(argv)).split(" ")
-    for i in range(len(args)):
-        args[i] = args[i].decode('utf-8')
-
     # Determining which command to use (default list)
-    cmd = show.ShowCommand()
-    cmd_args = []
-    cmd_alias = "tasks"
-    if len(args) > 1:
-        if args[1] in cli.aliases:
-            cmd = cli.aliases[args[1]]()
-            cmd_alias = args[1]
-            cmd_args = args[2:]
-        else:
-            cmd_args = args[1:]
+    if options["help"]:
+        # if -h/--help was in the arguments, print the help and exit
+        cmd = help.HelpCommand()
+        cmd_args = []
+        cmd_alias = "help"
+    else:
+        cmd = show.ShowCommand()
+        cmd_args = []
+        cmd_alias = "tasks"
+        if len(args) > 1:
+            if args[1] in cli.aliases:
+                cmd = cli.aliases[args[1]]()
+                cmd_alias = args[1]
+                cmd_args = args[2:]
+            else:
+                cmd_args = args[1:]
 
     # Testing if there's a lock
     force_lock = False
