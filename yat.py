@@ -131,6 +131,7 @@ class Yat:
                     create table tasks (
                         id integer primary key,
                         task text,
+                        parent integer,
                         priority int,
                         due_date real,
                         tags text,
@@ -222,6 +223,74 @@ class Yat:
                     u"select * from tasks").fetchall())
 
 
+        # Constructs a dictionary to identify the children of a given id
+        id_dict = {}
+        for t in tasks:
+            if t["id"] not in id_dict:
+                id_dict[t["id"]] = (t, [])
+            elif:
+                id_dict[t["id"]][0] = t
+
+            if t["parent"] not in id_dict:
+                id_dict[t["parent"]] = (None, [])
+            id_dict[t["parent"]][1].append(t["id"])
+
+
+        # Returns a pair composed by the tree and all the tasks that have to be
+        # flushed from the sublist of tags yet to be treated
+        def tree_construction_by_tag(origin_task, tag):
+            def tag_present_in_parents(task):
+                parent = id_dict[task["parent"]][0]
+                return parent != None and (str(tag["id"]) in parent["tags"].split(",") or tag_present_in_parents(parent))
+
+            inheritance = tag_present_in_parents(origin_task)
+            actual_tag = str(tag["id"]) in task["tags"].split(",")
+            return_value = ([(origin_task, [])], [origin_task])
+
+            # The tags are inherited, so passing to the children
+            if inheritance or actual_tag:
+                for c in id_dict[origin_task["id"]][1]:
+                    tmp = tree_construction_by_tag(id_dict[c][0], tag)
+                    return_value[0][0][1].extend(tmp[0])
+                    return_value[1].extend(tmp[1])
+            else:
+                raise IncoherentDBState()
+
+            # If this is the first occurrence of the tag in the inheritance line,
+            # It will add the direct ancestors.
+            if not inheritance:
+                parent = id_dict[origin_task["parent"]][0]
+                while parent != None:
+                    return_value = ([(parent, return_value[0])], return_value[1])
+                    parent = id_dict[parent["parent"]][0]
+
+            return return_value
+
+        def tree_construction_by_list(origin_task, list):
+            def list_of_parent(task):
+                parent = id_dict[task["parent"]][0]
+                return parent != None and (list["id"] == parent["list"] or list_of_parent(parent))
+
+            return_value = ([(origin_task, [])], [origin_task])
+
+            if origin_task["list"] != list["id"]:
+                return_value[1] = []
+
+            for c in id_dict[origin_task["id"]][1]:
+                tmp = tree_construction_by_list(id_dict[c][0], liskt)
+                return_value[0][0][1].extend(tmp[0])
+                return_value[1].extend(tmp[1])
+            parent = id_dict[origin_task["parent"]][0]
+            if parent["list"] != list["id"]:
+                if return_value[0][0][1] == [] and origin_task["list"] != list["id"]:
+                    return ([], [])
+                elif not list_of_parent(origin_task):
+                    while parent != None:
+                        return_value = ([(parent, return_value[0])], return_value[1])
+                        parent = id_dict[parent["parent"]][0]
+
+            return return_value
+
         # Grouping tasks
         if group:
             grouped_tasks = []
@@ -233,7 +302,18 @@ class Yat:
                     for t in tasks[:]:
                         if t["list"] == str(l["id"]):
                             grouped_tasks[index][1].append(t)
-                            tasks.remove(t) # A task is in one list only
+
+                # Construction of the trees
+                for g in grouped_tasks:
+                    tmp_list = []
+                    for t in g[1]:
+                        tmp = tree_construction_by_list(t, g[0])
+                        for i in tmp[1]:
+                            g[1].remove(i)
+                        tmp_list.extend(tmp[0])
+                    g[1] = tmp_list
+                                                
+
             elif group_by == "tag":
                 tags = self.__sql.execute(u"select * from tags").fetchall()
                 for tag in tags:
@@ -244,8 +324,34 @@ class Yat:
                         if str(tag["id"]) in task_tags:
                             grouped_tasks[index][1].append(t)
                             # A task can be in different tags
+
+                # Construction of the trees
+                for g in grouped_tasks:
+                    tmp_list = []
+                    for t in g[1]:
+                        tmp = tree_construction_by_tag(t, g[0])
+                        for i in tmp[1]:
+                            g[1].remove(i)
+                        tmp_list.extend(tmp[0])
+
+                    g[1] = tmp_list
         else:
-            grouped_tasks = tasks
+            # Takes an id and returns the list associated
+            def tree_construction(parent, task_set):
+                ids = []
+                for r in relations:
+                    if r[0] == parent:
+                        ids.append(r[1])
+                if ids == []:
+                    return []
+
+                return_value = []
+                for t in task_set:
+                    if t["id"] in ids:
+                        return_value.append((t, tree_construction(t["id"], task_set)))
+                return return_value
+            grouped_tasks = tree_construction(0, tasks)
+
 
         # Ordering tasks (you can't order tasks if they aren't grouped
         if order and group:
@@ -741,6 +847,10 @@ class ExistingLock(Exception):
 class WrongConfigFile(Exception):
     u"""Exception raised when the path passed to Yat() doesn't point to a valid
     file."""
+    pass
+
+class IncoherentDBState(Exception):
+    u"""Exception raised when something doesn't add up and we don't know why, so we blame the DB"""
     pass
 
 if __name__ == "__main__":
