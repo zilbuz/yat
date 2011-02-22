@@ -62,6 +62,8 @@ usage: {name} [options] [command] [arguments]
 options:
     --help, -h
         Print this help and exit
+    --config-file FILE, -c FILE
+        Use FILE as a configuration file.
 
 The different commands are:""".format(name = cli.name))
 
