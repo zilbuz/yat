@@ -173,6 +173,14 @@ class Yat:
         self.config["re.tags_list"] = u"{0}?(,{0}?)*".format(
                 self.config["re.tag_name"])
         self.config["re.list_name"] = u".*"
+
+        # Dictionary used in the sorting of the tasks
+
+        self.__operators = {}
+        self.__operators["<"] = lambda x, y: x < y
+        self.__operators[">"] = lambda x, y: x > y
+        self.__operators[">="] = lambda x, y: x >= y
+        self.__operators["<="] = lambda x, y: x <= y
         pass
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
@@ -254,7 +262,7 @@ class Yat:
                     return_value[0][0][1].extend(tmp[0])
                     return_value[1].extend(tmp[1])
             else:
-                raise IncoherentDBState()
+                raise IncoherentDBState, 'Errr... There is a problem in the hierarchy handling process'
 
             # If this is the first occurrence of the tag in the inheritance line,
             # It will add the direct ancestors.
@@ -368,39 +376,51 @@ class Yat:
                 else:
                     comparison = "<"
                     attribute = tmp[0]
+
+                # Reset the internal dictionary
+                self.__dict = {}
+
                 self.__quicksort(list = tasks, column = attribute, order =
-                        comparison)
+                        comparison, depth = True)
 
                 # Ordering tasks according to the rest of the criterion
-                ordered_by = [attribute]
-                for c in order_by[1:]:
-                    l = 0
-                    r = 0
+                def secondary_sort(list, remaining, primary_tuple):
+                    for t in list:
+                        t[1] = secondary_sort(t[1], remaining, primary_tuple)
+                    ordered_by = [primary_tuple]
+                    for c in remaining:
+                        l = 0
+                        r = 0
 
-                    # Extract attribute and sorting order
-                    tmp = c.split(":")
-                    if tmp[0] == "reverse":
-                        comparison = ">"
-                        attribute = tmp[1]
-                    else:
-                        comparison = "<"
-                        attribute = tmp[0]
-
-                    # Sort tasks
-                    for i in range(len(tasks) - 1):
-                        compare = True
-                        for o in ordered_by:
-                            if tasks[i][o] != tasks[i+1][o]:
-                                compare = False
-                        if compare:
-                            r = i + 1
+                        # Extract attribute and sorting order
+                        tmp = c.split(":")
+                        if tmp[0] == "reverse":
+                            comp = ">"
+                            attr = tmp[1]
                         else:
-                            self.__quicksort(list = tasks, left = l, right = r,
-                                    column = attribute, order = comparison)
-                            l = i + 1
-                    self.__quicksort(list = tasks, left = l, right = r, column =
-                            attribute, order = comparison)
-                    ordered_by.append(attribute)
+                            comp = "<"
+                            attr = tmp[0]
+
+                        # Sort tasks
+                        for i in range(len(tasks) - 1):
+                            compare = True
+                            for o in ordered_by:
+                                if (self.__tree_extrem_value(list[i], o[0], o[1]) !=
+                                    self.__tree_extrem_value(list[i+1], o[0], o[1])):
+                                    compare = False
+                            if compare:
+                                r = i + 1
+                            else:
+                                self.__quicksort(list, left = l, right = r,
+                                        column = attr, order = comp)
+                                l = i + 1
+                        self.__quicksort(list, left = l, right = r, column =
+                                attr, order = comp)
+                        ordered_by.append((attribute,comp))
+                    return list
+
+                tasks = secondary_sort(tasks, order_by[1:], (comparison, attribute))
+
         else:
             ordered_tasks = grouped_tasks
 
@@ -758,7 +778,7 @@ class Yat:
             return str(res.fetchone()[0])
 
     def __quicksort(self, list, column, left=None, right=None, order=">=",
-            group=False):
+            group=False, depth = False):
         u"""Implementation of the quicksort of database rows. 
         
         The parameter "list" contains database rows or tuples of database rows.
@@ -771,6 +791,10 @@ class Yat:
         The parameter "order" contains the comparison that will be made between
         the elements. It has to be in [">", "<", ">=", "<="].
         """
+        if depth:
+            for t in list:
+                self.__quicksort(t[1], column, left, right, order, group, True)
+
         # If left and right are not provided, assuming sorting on all the list
         if left == None:
             left = 0
@@ -797,12 +821,12 @@ class Yat:
             swap = False
 
             if group:
-                if self.__compare(column, order, list[i][0][column],
-                        pivotValue[0][column]):
+                if self.__compare(column, order, list[i][0],
+                        pivotValue[0], depth = False):
                     swap = True
             else:
-                if self.__compare(column, order, list[i][column],
-                        pivotValue[column]):
+                if self.__compare(column, order, list[i],
+                        pivotValue):
                     swap = True
 
             if swap:
@@ -811,22 +835,33 @@ class Yat:
         list[storeIndex], list[right] = list[right], list[storeIndex]
         return storeIndex
 
-    def __compare(self, column, comparison, val1, val2):
+    def __tree_extrem_value(self, task, column, comparison):
+        # We assume the dictionary is up-to-date
+        if task[0] in self.__dict:
+            return self.__dict[task[0]]
+        if comparison not in self.__operators:
+            raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
+        return_value = task[0][column]
+        if task[1] != []:
+            subvalues = map(lambda x: self.__tree_extrem_value(x, column, comparison))
+            extrem_subvalue = reduce((lambda x,y: x if self.__operators[comparison](x, y) else y), subvalues)
+            return_value = return_value if self.__operators[comparison](return_value, extrem_subvalue) else extrem_subvalue
+        return return_value
+            
+
+
+    def __compare(self, column, comparison, val1, val2, depth = True):
         u"""Compare two values of "column" with "comparison". The attribute
         "column" has to be provided to handle correctly the comparison of the
         "due_date" column. This method is a part of the quicksort algorithm.
         """
         # Construct a datetime if the column is due_date
-        if comparison == ">":
-            return val1 > val2
-        elif comparison == ">=":
-            return val1 >= val2
-        elif comparison == "<":
-            return val1 < val2
-        elif comparison == "<=":
-            return val1 <= val2
-        else:
-            raise AttributeError, 'order argument should be in [">", ">=", "<", "<="]'
+        if comparison not in self.__operators:
+            raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
+        if not depth:
+            return self.__operators[comparison](val1[column], val2[column])
+        return self.__operators[comparison](self.__tree_extrem_value(val1, column, comparison),
+                                            self.__tree_extrem_value(val2, column, comparison))
 
 class WrongTagId(Exception):
     u"""Exception raised when trying to extract a tag that doesn't exist"""
