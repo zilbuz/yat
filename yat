@@ -181,14 +181,36 @@ def main(argv):
 
     # Parsing options
     options = {
-        "help": False
+        "help": False,
+        "config-file": None
         }
+    catch_arg = False
     for a in args[:]:
         if a == u"-h" or a == u"--help":
             options["help"] = True
             args.remove(a)
+            continue
+
+        if a == u"-c" or a == u"--config-file":
+            catch_arg = True
+            args.remove(a)
+            continue
+
+        if catch_arg == True and options["config-file"] == None:
+            options["config-file"] = a
+            args.remove(a)
+            catch_arg = False
+            continue
 
     # Initialisation
+    try:
+        cli.lib = yat.Yat(options["config-file"])
+    except yat.WrongConfigFile as e:
+        cli.output(u"[ERR] The file you want to use as a configuration file ({0}) doesn't exist.".format(e), 
+                foreground = cli.colors.errf, background = cli.colors.errb, 
+                bold = cli.colors.errbold, f = sys.stderr)
+        exit(1)
+
     init()
 
     # Getting the name of the program
@@ -201,14 +223,12 @@ def main(argv):
         if c != []:
             cmd_objs.extend(c)
     cli.commands = dict(cmd_objs)
-    cli.commands = dict(cmd_objs)
     
     cli.aliases = {}
 
     # Fill the aliases dictionnary
     for name, cmd in cli.commands.iteritems():
         for a in cmd.alias:
-            cli.aliases[a] = cmd
             cli.aliases[a] = cmd
 
     # Determining which command to use (default list)

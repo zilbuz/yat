@@ -31,6 +31,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import datetime
 import inspect
 import os
+import sys
 import yat
 
 __all__ = [
@@ -47,7 +48,7 @@ u"""All filename listed here will be loaded when using the expression
     "from Commands import *"
 """
 
-lib = yat.Yat()
+lib = None
 name = None
 commands = None
 aliases = None
@@ -122,22 +123,29 @@ def isCommand(obj):
 
 def output(st = u"", f = None, linebreak = True, foreground = "", 
         background = "", bold = False):
-    global lib
+    # Defaults when the library isn't set yet
+    if lib == None:
+        if f == None:
+            f = sys.stderr
+        use_colors = True
+        enc = 'utf-8'
+    else:
+        use_colors = lib.config["cli.colors"]
+        enc = lib.enc
 
     # Default output
     if f == None:
         f = lib.output
 
     # Process colors
-    if lib.config["cli.colors"]:
+    if use_colors:
         st = colors.get(foreground, background, bold) + st + colors.default
 
-    f.write(st.encode(lib.enc))
+    f.write(st.encode(enc))
     if linebreak:
         f.write(os.linesep)
 
 def input(f = None):
-    global lib
     if f == None:
         f = lib.input
     return f.readline().encode(lib.enc)

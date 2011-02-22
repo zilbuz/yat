@@ -43,7 +43,7 @@ import time
 
 class Yat:
 
-    def __init__(self):
+    def __init__(self, config_file_path = None):
         u"""Constructor:
             * load the configuration file
             * open a connection with the database
@@ -58,10 +58,17 @@ class Yat:
         # Default output : stdout
         self.output = sys.stdout
 
+        # Config file
+        if config_file_path == None:
+            config_file_path = os.environ.get("HOME") + "/.yatrc"
+        else:
+            if not os.path.isfile(config_file_path):
+                raise WrongConfigFile, config_file_path
+
         # Loading configuration
         self.config = {}
         try:
-            with open(os.environ.get("HOME") + "/.yatrc", "r") as config_file:
+            with open(config_file_path, "r") as config_file:
                 for line in config_file:
                     if not (re.match(r'^\s*#.*$', line) or re.match(r'^\s*$', line)):
                         line = re.sub(r'\s*=\s*', "=", line, 1)
@@ -726,6 +733,11 @@ class WrongTaskId(Exception):
 
 class ExistingLock(Exception):
     u"""Exception raised when a lock is already set."""
+    pass
+
+class WrongConfigFile(Exception):
+    u"""Exception raised when the path passed to Yat() doesn't point to a valid
+    file."""
     pass
 
 if __name__ == "__main__":
