@@ -61,9 +61,11 @@ usage: {name} [options] [command] [arguments]
 
 options:
     --help, -h
-        Print this help and exit
+        Print this help and exit.
     --config-file FILE, -c FILE
         Use FILE as a configuration file.
+    --version, -v
+        Print the current version of yat and exit.
 
 The different commands are:""".format(name = cli.name))
 

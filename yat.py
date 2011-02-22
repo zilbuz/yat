@@ -41,6 +41,9 @@ import sqlite3
 import sys
 import time
 
+# Current version of yat
+VERSION = u"0.1b-dev"
+
 class Yat:
 
     def __init__(self, config_file_path = None):

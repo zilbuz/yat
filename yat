@@ -182,7 +182,8 @@ def main(argv):
     # Parsing options
     options = {
         "help": False,
-        "config-file": None
+        "config-file": None,
+        "version": False
         }
     catch_arg = False
     for a in args[:]:
@@ -202,6 +203,11 @@ def main(argv):
             catch_arg = False
             continue
 
+        if a == u"-v" or a == u"--version":
+            options["version"] = True
+            args.remove(a)
+            continue
+
     # Initialisation
     try:
         cli.lib = yat.Yat(options["config-file"])
@@ -212,6 +218,11 @@ def main(argv):
         exit(1)
 
     init()
+
+    # Print current version if asked
+    if options["version"]:
+        cli.output(u"""yat version {0}""".format(yat.VERSION), f = sys.stderr)
+        exit(0)
 
     # Getting the name of the program
     cli.name = argv[0]
