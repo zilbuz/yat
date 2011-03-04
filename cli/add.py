@@ -42,11 +42,16 @@ is assumed.
 Adding a task:
     When adding a task, you must provide the task's text, and optionnally some
     symbols to set the priority, due date, tags or list. The symbols are '*',
-    '^', '#' and '>'.
+    '~', '^', '#' and '>'.
 
     '*' can be used to set the priority of the task, it must be followed by a number
     between 0 and 3. 
     Example: yat add "do the laundry *2".
+
+    '~' would be used if you want to make a subtask for an already existing task. It 
+    must be followed by the id number of the parent task. If no list/deadline/priority
+    argument is provided, the default list/deadline/priority of the subtask will be the
+    one(s) of the parent task.
 
     '^' can be used to set the due date of the task, it must be followed by a
     date of the form xx/xx/yyyy[:[h]h[:mm][am|pm]], where xx/xx is either dd/mm or
@@ -98,6 +103,10 @@ Adding a tag:
         self.re_tag = re.compile(u"^#({0})$".format(cli.lib.config["re.tag_name"]))
         u"""Regex for the tags"""
 
+        self.re_parent = re.compile(u"^~({0})$".format(
+            cli.lib.config["re.parent_id"]))
+        u"""Regex for the parent task"""
+
         self.re_list = re.compile(u"^>({0})$".format(
             cli.lib.config["re.list_name"]))
         u"""Regex for the list"""
@@ -131,6 +140,7 @@ Adding a tag:
         else: # Adding a task
             # Init params
             priority = None
+            parent_id = 0
             tags = []
             list = None
             date = None
@@ -153,6 +163,12 @@ Adding a tag:
                 if res != None:
                     list = res.group(1)
                     symbol = True
+
+                # Parent task
+                res = self.re_parent.match(a)
+                if res != None:
+                    parent_id = int(res.group(1))
+                    symbol = True
                 # Date
                 res = self.re_date.match(a)
                 if res != None:
@@ -173,5 +189,5 @@ Adding a tag:
             text = " ".join(text)
 
             # Add the task with the correct parameters
-            cli.lib.add_task(text, priority, date, tags, list)
+            cli.lib.add_task(text, parent_id, priority, date, tags, list)
     pass

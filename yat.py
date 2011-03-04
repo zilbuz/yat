@@ -168,6 +168,7 @@ class Yat:
         # Hidden config (regexp)
         self.config["re.id"] = u"\d*?"
         self.config["re.priority"] = u"\d"
+        self.config["re.parent_id"] = u"\d"
         self.config["re.date"] = u"(?P<x1>\d\d)/(?P<x2>\d\d)/(?P<year>\d{4})(:(?P<hour>\d?\d)(:(?P<minute>\d\d))?(?P<apm>am|pm)?)?"
         self.config["re.tag_name"] = u".*"
         self.config["re.tags_list"] = u"{0}?(,{0}?)*".format(
@@ -236,7 +237,7 @@ class Yat:
         for t in tasks:
             if t["id"] not in id_dict:
                 id_dict[t["id"]] = (t, [])
-            elif:
+            else:
                 id_dict[t["id"]][0] = t
 
             if t["parent"] not in id_dict:
@@ -279,22 +280,22 @@ class Yat:
                 parent = id_dict[task["parent"]][0]
                 return parent != None and (list["id"] == parent["list"] or list_of_parent(parent))
 
-            return_value = ([(origin_task, [])], [origin_task])
+            return_value = [[(origin_task, [])], [origin_task]]
 
             if origin_task["list"] != list["id"]:
                 return_value[1] = []
 
             for c in id_dict[origin_task["id"]][1]:
-                tmp = tree_construction_by_list(id_dict[c][0], liskt)
+                tmp = tree_construction_by_list(id_dict[c][0], list)
                 return_value[0][0][1].extend(tmp[0])
                 return_value[1].extend(tmp[1])
             parent = id_dict[origin_task["parent"]][0]
-            if parent["list"] != list["id"]:
+            if parent == None or parent["list"] != list["id"]:
                 if return_value[0][0][1] == [] and origin_task["list"] != list["id"]:
-                    return ([], [])
+                    return [[], []]
                 elif not list_of_parent(origin_task):
                     while parent != None:
-                        return_value = ([(parent, return_value[0])], return_value[1])
+                        return_value = [[(parent, return_value[0])], return_value[1]]
                         parent = id_dict[parent["parent"]][0]
 
             return return_value
@@ -319,7 +320,9 @@ class Yat:
                         for i in tmp[1]:
                             g[1].remove(i)
                         tmp_list.extend(tmp[0])
-                    g[1] = tmp_list
+                    while g[1] != []:
+                        g[1].pop()
+                    g[1].extend(tmp_list)
                                                 
 
             elif group_by == "tag":
@@ -426,7 +429,7 @@ class Yat:
 
         return ordered_tasks
 
-    def add_task(self, text, priority=None, due_date=None, tags=None, list=None, completed=False, parent_id=0):
+    def add_task(self, text, parent_id=0, priority=None, due_date=None, tags=None, list=None, completed=False):
         u"""Add a task to the database with the informations provided. Use
         default informations if None is provided
         params:
@@ -439,15 +442,27 @@ class Yat:
             - parent_id (int)
         """
 
+        # Check the parent
+        with self.__sql:
+            p = self.__sql.execute(u'select * from tasks where id=?', (parent_id,)).fetchone()
+        if p == None and parent_id != 0:
+            raise WrongTaskId
+
         # Set the priority
         if priority == None:
-            priority = self.config["default_priority"]
+            if parent_id == 0:
+                priority = self.config["default_priority"]
+            else:
+                priority = p[3]
         elif priority > 3:
             priority = 3
 
         # Set the due date
         if due_date == None:
-            due_date = self.config["default_date"]
+            if parent_id == 0:
+                due_date = self.config["default_date"]
+            else:
+                due_date = p[4]
 
         # Get the ids of the tags
         if tags == None or tags == []:
@@ -460,7 +475,10 @@ class Yat:
 
         # Get the id of the list
         if list == None or list == u"":
-            list = self.config["default_list"]
+            if parent_id == 0:
+                list = self.config["default_list"]
+            else:
+                list = p[6]
         self.__add_tag_or_list("lists", list, 0)
         list = self.__get_id("lists", list)
 
@@ -469,12 +487,6 @@ class Yat:
             completed = 1
         else:
             completed = 0
-
-        # Check the parent
-        with self.__sql:
-            if parent_id != 0 and self.__sql.execute(u'select * from tasks where id=?',
-                                                     (parent_id,)).fetchone() == None:
-                raise WrongTaskId
 
         # Add the task to the bdd
         with self.__sql:
