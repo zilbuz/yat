@@ -426,7 +426,7 @@ class Yat:
 
         return ordered_tasks
 
-    def add_task(self, text, priority=None, due_date=None, tags=None, list=None, completed=False):
+    def add_task(self, text, priority=None, due_date=None, tags=None, list=None, completed=False, parent_id=0):
         u"""Add a task to the database with the informations provided. Use
         default informations if None is provided
         params:
@@ -436,6 +436,7 @@ class Yat:
             - tags (array<string>)
             - list (string)
             - completed (bool)
+            - parent_id (int)
         """
 
         # Set the priority
@@ -468,11 +469,17 @@ class Yat:
             completed = 1
         else:
             completed = 0
-        
+
+        # Check the parent
+        with self.__sql:
+            if parent_id != 0 and self.__sql.execute(u'select * from tasks where id=?',
+                                                     (parent_id,)).fetchone() == None:
+                raise WrongTaskId
+
         # Add the task to the bdd
         with self.__sql:
-            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    (text, priority, due_date, tags, list, completed,
+            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    (text, parent_id, priority, due_date, tags, list, completed,
                         self.get_time(), self.get_time()))
             self.__sql.commit()
         pass
