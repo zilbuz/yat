@@ -130,9 +130,9 @@ Options:
         else: # removing a task
             ids = []
             if operation == u'=':
-                temp = cli.lib.get_tasks(ids = [int(a)], group = False, order = False)
+                temp = cli.lib.get_tasks(ids = [int(a)], group = False, order = False, select_children = False)
             else:
-                temp = cli.lib.get_tasks(regexp = a, group = False, order = False)
+                temp = cli.lib.get_tasks(regexp = a, group = False, order = False, select_children = False)
 
             for t in temp:
                 if self.interactive:
@@ -141,6 +141,6 @@ Options:
                     txt += u", due date: " + cli.parse_output_date(t["due_date"]) + u") ?"
                     if not cli.yes_no_question(txt):
                         continue
-                ids.append(t["id"])
+                ids.append(t[0]["id"])
 
             cli.lib.remove_tasks(ids)

@@ -185,7 +185,7 @@ class Yat:
         pass
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
-            order_by=["reverse:priority", "due_date"]):
+            order_by=["reverse:priority", "due_date"], select_children=True):
         u"""Method to get the tasks from the database, group them by list or
         tag, and order them according to the parameters. This function return an
         array of tasks if group is False, and an array of tuple (group,
@@ -232,17 +232,35 @@ class Yat:
                     u"select * from tasks").fetchall())
 
 
+        # Pulls in the children of the selected tasks
+
+        if select_children:
+            to_examine = tasks
+            new_children = []
+
+            while to_examine != []:
+                for i in to_examine:
+                    tmp = self.__sql.execute(u'''select * from tasks
+                                                      where parent=?''', (i['id'],)).fetchall()
+                    new_children.extend([c for c in tmp if c not in tasks])
+
+                to_examine = new_children
+                tasks.extend(new_children)
+                new_children = []
+
         # Constructs a dictionary to identify the children of a given id
-        id_dict = {}
+        id_dict = {0:(None, [])}
         for t in tasks:
             if t["id"] not in id_dict:
                 id_dict[t["id"]] = (t, [])
             else:
-                id_dict[t["id"]][0] = t
+                id_dict[t["id"]] = (t, id_dict[t["id"]][1])
 
             if t["parent"] not in id_dict:
                 id_dict[t["parent"]] = (None, [])
             id_dict[t["parent"]][1].append(t["id"])
+
+
 
 
         # Returns a pair composed by the tree and all the tasks that have to be
@@ -280,10 +298,10 @@ class Yat:
                 parent = id_dict[task["parent"]][0]
                 return parent != None and (list["id"] == parent["list"] or list_of_parent(parent))
 
-            return_value = [[(origin_task, [])], [origin_task]]
+            return_value = ([(origin_task, [])], [origin_task])
 
             if origin_task["list"] != list["id"]:
-                return_value[1] = []
+                return_value = (return_value[0], [])
 
             for c in id_dict[origin_task["id"]][1]:
                 tmp = tree_construction_by_list(id_dict[c][0], list)
@@ -292,10 +310,10 @@ class Yat:
             parent = id_dict[origin_task["parent"]][0]
             if parent == None or parent["list"] != list["id"]:
                 if return_value[0][0][1] == [] and origin_task["list"] != list["id"]:
-                    return [[], []]
+                    return ([], [])
                 elif not list_of_parent(origin_task):
                     while parent != None:
-                        return_value = [[(parent, return_value[0])], return_value[1]]
+                        return_value = ([(parent, return_value[0])], return_value[1])
                         parent = id_dict[parent["parent"]][0]
 
             return return_value
@@ -320,9 +338,7 @@ class Yat:
                         for i in tmp[1]:
                             g[1].remove(i)
                         tmp_list.extend(tmp[0])
-                    while g[1] != []:
-                        g[1].pop()
-                    g[1].extend(tmp_list)
+                    g = (g[0], tmp_list)
                                                 
 
             elif group_by == "tag":
@@ -348,20 +364,11 @@ class Yat:
                     g[1] = tmp_list
         else:
             # Takes an id and returns the list associated
-            def tree_construction(parent, task_set):
-                ids = []
-                for r in relations:
-                    if r[0] == parent:
-                        ids.append(r[1])
-                if ids == []:
-                    return []
-
-                return_value = []
-                for t in task_set:
-                    if t["id"] in ids:
-                        return_value.append((t, tree_construction(t["id"], task_set)))
-                return return_value
-            grouped_tasks = tree_construction(0, tasks)
+            def tree_construction(parent):
+                if parent not in id_dict:
+                    raise WrongTaskId, parent 
+                return (id_dict[parent][0], [tree_construction(child) for child in id_dict[parent][1]])
+            grouped_tasks = tree_construction(0)[1]
 
 
         # Ordering tasks (you can't order tasks if they aren't grouped
@@ -560,6 +567,9 @@ class Yat:
         """
         with self.__sql:
             for i in ids:
+                children = self.__sql.execute(u'select id from tasks where parent=?', (i,)).fetchall()
+                children = [tmp[0] for tmp in children]
+                self.remove_tasks(children)
                 self.__sql.execute(u'delete from tasks where id=?', (i,))
             self.__sql.commit()
         pass
