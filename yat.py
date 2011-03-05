@@ -460,7 +460,7 @@ class Yat:
             if parent_id == 0:
                 priority = self.config["default_priority"]
             else:
-                priority = p[3]
+                priority = p['priority']
         elif priority > 3:
             priority = 3
 
@@ -469,7 +469,7 @@ class Yat:
             if parent_id == 0:
                 due_date = self.config["default_date"]
             else:
-                due_date = p[4]
+                due_date = p['due_date']
 
         # Get the ids of the tags
         if tags == None or tags == []:
@@ -481,13 +481,16 @@ class Yat:
         tags = ",".join(tags_copy)
 
         # Get the id of the list
+        list_flag = True
         if list == None or list == u"":
             if parent_id == 0:
                 list = self.config["default_list"]
             else:
-                list = p[6]
-        self.__add_tag_or_list("lists", list, 0)
-        list = self.__get_id("lists", list)
+                list = p['list']
+                list_flag = False
+        if list_flag:
+            self.__add_tag_or_list("lists", list, 0)
+            list = self.__get_id("lists", list)
 
         # Set completed
         if completed:
