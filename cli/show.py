@@ -165,8 +165,9 @@ Options:
             tagswidth=self.tagswidth, datewidth=self.datewidth),
             foreground = c[0], background = c[1], bold = c[2])
 
-        for r in tasks:
+        for r0 in tasks:
             # Skip the task if it's completed
+            r = r0[0]
             if (not self.show_completed) and r["completed"] == 1:
                 continue
 

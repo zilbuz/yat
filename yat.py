@@ -261,8 +261,6 @@ class Yat:
             id_dict[t["parent"]][1].append(t["id"])
 
 
-
-
         # Returns a pair composed by the tree and all the tasks that have to be
         # flushed from the sublist of tags yet to be treated
         def tree_construction_by_tag(origin_task, tag):
@@ -296,24 +294,23 @@ class Yat:
         def tree_construction_by_list(origin_task, list):
             def list_of_parent(task):
                 parent = id_dict[task["parent"]][0]
-                return parent != None and (list["id"] == parent["list"] or list_of_parent(parent))
+                return parent != None and (list["id"] == int(parent["list"]) or list_of_parent(parent))
 
-            return_value = ([(origin_task, [])], [origin_task])
-
-            if origin_task["list"] != list["id"]:
+            return_value = ((origin_task, []), [origin_task])
+            if int(origin_task["list"]) != list["id"]:
                 return_value = (return_value[0], [])
 
             for c in id_dict[origin_task["id"]][1]:
                 tmp = tree_construction_by_list(id_dict[c][0], list)
-                return_value[0][0][1].extend(tmp[0])
+                return_value[0][1].append(tmp[0])
                 return_value[1].extend(tmp[1])
             parent = id_dict[origin_task["parent"]][0]
-            if parent == None or parent["list"] != list["id"]:
-                if return_value[0][0][1] == [] and origin_task["list"] != list["id"]:
+            if parent != None and int(parent["list"])!= list["id"]:
+                if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
                     return ([], [])
                 elif not list_of_parent(origin_task):
                     while parent != None:
-                        return_value = ([(parent, return_value[0])], return_value[1])
+                        return_value = ((parent, return_value[0]), return_value[1])
                         parent = id_dict[parent["parent"]][0]
 
             return return_value
@@ -331,16 +328,18 @@ class Yat:
                             grouped_tasks[index][1].append(t)
 
                 # Construction of the trees
+                tmp_grouped_tasks = []
+                ban_list = []
                 for g in grouped_tasks:
                     tmp_list = []
                     for t in g[1]:
-                        tmp = tree_construction_by_list(t, g[0])
-                        for i in tmp[1]:
-                            g[1].remove(i)
-                        tmp_list.extend(tmp[0])
-                    g = (g[0], tmp_list)
+                        if g[0] not in ban_list:
+                            tmp = tree_construction_by_list(t, g[0])
+                            ban_list.extend(tmp[1])
+                            tmp_list.append(tmp[0])
+                    tmp_grouped_tasks.append((g[0], tmp_list))
+                grouped_tasks = tmp_grouped_tasks
                                                 
-
             elif group_by == "tag":
                 tags = self.__sql.execute(u"select * from tags").fetchall()
                 for tag in tags:
@@ -370,13 +369,12 @@ class Yat:
                 return (id_dict[parent][0], [tree_construction(child) for child in id_dict[parent][1]])
             grouped_tasks = tree_construction(0)[1]
 
-
         # Ordering tasks (you can't order tasks if they aren't grouped
         if order and group:
             # Ordering groups
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
                 "priority", group = True)
-            
+
             # Ordering tasks according to the first criterion
             for group, tasks in ordered_tasks:
                 tmp = order_by[0].split(":")
@@ -396,7 +394,7 @@ class Yat:
                 # Ordering tasks according to the rest of the criterion
                 def secondary_sort(list, remaining, primary_tuple):
                     for t in list:
-                        t[1] = secondary_sort(t[1], remaining, primary_tuple)
+                        t = (t[0], secondary_sort(t[1], remaining, primary_tuple))
                     ordered_by = [primary_tuple]
                     for c in remaining:
                         l = 0
@@ -412,11 +410,11 @@ class Yat:
                             attr = tmp[0]
 
                         # Sort tasks
-                        for i in range(len(tasks) - 1):
+                        for i in range(len(list) - 1):
                             compare = True
                             for o in ordered_by:
-                                if (self.__tree_extrem_value(list[i], o[0], o[1]) !=
-                                    self.__tree_extrem_value(list[i+1], o[0], o[1])):
+                                if (self.__tree_extrem_value(list[i], o[1], o[0]) !=
+                                    self.__tree_extrem_value(list[i+1], o[1], o[0])):
                                     compare = False
                             if compare:
                                 r = i + 1
@@ -823,9 +821,10 @@ class Yat:
         The parameter "order" contains the comparison that will be made between
         the elements. It has to be in [">", "<", ">=", "<="].
         """
-        if depth:
-            for t in list:
-                self.__quicksort(t[1], column, left, right, order, group, True)
+        if depth and not group:
+            for e in list:
+                if e != []:
+                    self.__quicksort(e[1], column, left, right, order, group, True)
 
         # If left and right are not provided, assuming sorting on all the list
         if left == None:
@@ -875,7 +874,7 @@ class Yat:
             raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
         return_value = task[0][column]
         if task[1] != []:
-            subvalues = map(lambda x: self.__tree_extrem_value(x, column, comparison))
+            subvalues = map(lambda x: self.__tree_extrem_value(x, column, comparison), task[1])
             extrem_subvalue = reduce((lambda x,y: x if self.__operators[comparison](x, y) else y), subvalues)
             return_value = return_value if self.__operators[comparison](return_value, extrem_subvalue) else extrem_subvalue
         return return_value
@@ -892,6 +891,7 @@ class Yat:
             raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
         if not depth:
             return self.__operators[comparison](val1[column], val2[column])
+
         return self.__operators[comparison](self.__tree_extrem_value(val1, column, comparison),
                                             self.__tree_extrem_value(val2, column, comparison))
 
