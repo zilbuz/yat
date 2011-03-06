@@ -236,17 +236,18 @@ class Yat:
 
         if select_children:
             to_examine = tasks
-            new_children = []
 
             while to_examine != []:
+                new_children = []
                 for i in to_examine:
                     tmp = self.__sql.execute(u'''select * from tasks
                                                       where parent=?''', (i['id'],)).fetchall()
                     new_children.extend([c for c in tmp if c not in tasks])
-
                 to_examine = new_children
                 tasks.extend(new_children)
-                new_children = []
+            to_fetch = set([t['parent'] for t in tasks]) - set([t['id'] for t in tasks]) - set([0])
+            tasks.extend([self.__sql.execute(u'''select * from tasks where id=?''',
+                                             (i,)).fetchone() for i in to_fetch])
 
         # Constructs a dictionary to identify the children of a given id
         id_dict = {0:(None, [])}
@@ -302,15 +303,16 @@ class Yat:
 
             for c in id_dict[origin_task["id"]][1]:
                 tmp = tree_construction_by_list(id_dict[c][0], list)
-                return_value[0][1].append(tmp[0])
-                return_value[1].extend(tmp[1])
+                if tmp[0][0] != None:
+                    return_value[0][1].append(tmp[0])
+                    return_value[1].extend(tmp[1])
             parent = id_dict[origin_task["parent"]][0]
             if parent != None and int(parent["list"])!= list["id"]:
                 if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
-                    return ([], [])
+                    return ((None, []), [])
                 elif not list_of_parent(origin_task):
                     while parent != None:
-                        return_value = ((parent, return_value[0]), return_value[1])
+                        return_value = ((parent, [return_value[0]]), return_value[1])
                         parent = id_dict[parent["parent"]][0]
 
             return return_value
@@ -355,11 +357,14 @@ class Yat:
             grouped_tasks = tmp_grouped_tasks
         else:
             # Takes an id and returns the list associated
-            def tree_construction(parent):
+            def simple_tree_construction(parent):
                 if parent not in id_dict:
                     raise WrongTaskId, parent 
                 return (id_dict[parent][0], [tree_construction(child) for child in id_dict[parent][1]])
-            grouped_tasks = tree_construction(0)[1]
+            if select_children:
+                grouped_tasks = simple_tree_construction(0)[1]
+            else:
+                grouped_tasks = [(t, []) for t in tasks]
 
         # Ordering tasks (you can't order tasks if they aren't grouped
         if order and group:
@@ -496,7 +501,7 @@ class Yat:
             self.__sql.commit()
         pass
 
-    def edit_task(self, id, task = None, priority = None, due_date = None, 
+    def edit_task(self, id, task = None, parent = None, priority = None, due_date = None, 
             list = None, add_tags = [], remove_tags = [], completed = None):
         u"""Edit the task with the given id.
         params:
@@ -519,6 +524,8 @@ class Yat:
 
         if task == None:
             task = t["task"]
+        if parent == None:
+            parent = t["parent"]
         if priority == None:
             priority = t["priority"]
         if due_date == None:
@@ -546,10 +553,9 @@ class Yat:
         if tags == []:
             tags = ["1"]
         tags = ",".join(tags)
-
         with self.__sql:
-            self.__sql.execute(u'update tasks set task=?, priority=?, due_date=?, list=?, tags=?, completed=?, last_modified=? where id=?',
-                    (task, priority, due_date, list, tags, completed,
+            self.__sql.execute(u'update tasks set task=?, parent=?, priority=?, due_date=?, list=?, tags=?, completed=?, last_modified=? where id=?',
+                    (task, parent, priority, due_date, list, tags, completed,
                         self.get_time(), t["id"]))
         pass
 

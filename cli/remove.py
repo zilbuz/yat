@@ -136,9 +136,9 @@ Options:
 
             for t in temp:
                 if self.interactive:
-                    txt = u"Do you want to delete this task:\n" + t["task"] 
-                    txt += u" (priority: " + str(t["priority"])
-                    txt += u", due date: " + cli.parse_output_date(t["due_date"]) + u") ?"
+                    txt = u"Do you want to delete this task:\n" + t[0]["task"] 
+                    txt += u" (priority: " + str(t[0]["priority"])
+                    txt += u", due date: " + cli.parse_output_date(t[0]["due_date"]) + u") ?"
                     if not cli.yes_no_question(txt):
                         continue
                 ids.append(t[0]["id"])
