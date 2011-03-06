@@ -165,60 +165,74 @@ Options:
             tagswidth=self.tagswidth, datewidth=self.datewidth),
             foreground = c[0], background = c[1], bold = c[2])
 
-        for r0 in tasks:
-            # Skip the task if it's completed
-            r = r0[0]
-            if (not self.show_completed) and r["completed"] == 1:
-                continue
-
-            # Split task text
-            st = self.__split_text(r["task"])
-
-            # Prepare and split tags
-            tags = self.__get_tags(r["tags"])
-            tags = self.__split_text(tags, self.tagswidth)
-
-            # Print the first line of the current task
-            done_column = ""
-            if self.show_completed:
-                if r["completed"] == 1:
-                    done_column = "|X"
-                else:
-                    done_column = "| "
-
-            # Format the date column
-            date_column = cli.parse_output_date(r["due_date"])
-
-            # Select color
-            if r["due_date"] < cli.lib.get_time():
-                c = cli.lib.config["cli.color_tasks_late"]
-            else:
-                c = cli.lib.config["cli.color_priority" + str(r["priority"])]
-
-            cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}|{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                done = done_column, p = r["priority"], date = date_column, id = r["id"], 
-                task = st.pop(0), textwidth = self.textwidth, 
-                tags = tags.pop(0), tagswidth = self.tagswidth, 
-                datewidth = self.datewidth),
-                foreground = c[0], background = c[1], bold = c[2])
-
-            # Print the rest of the current task
-            for i in range(max(len(st),len(tags))):
-                if i < len(st):
-                    te = st[i]
-                else:
-                    te = u""
-                if i < len(tags):
-                    ta = tags[i]
-                else:
-                    ta = u""
-                cli.output(u"{done}|         |{t: <{datewidth}}|   |{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                    done = done_column_middle, task = te, textwidth = self.textwidth, tags=ta,
-                    tagswidth = self.tagswidth, t = " ", 
-                    datewidth = self.datewidth),
-                    foreground = c[0], background = c[1], bold = c[2])
+        for r in tasks:
+            self.__print_tree(r, "", done_column_middle)
 
             # Print the separator
             cli.output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
                 done = done_column_bottom, t="-", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth = self.datewidth))
+
+    def __print_tree(self, root, prefix="", done_column_middle=""):
+        # Skip the task if it's completed
+        if (not self.show_completed) and root[0]["completed"] == 1:
+            return
+
+        # Split task text
+        st = self.__split_text(root[0]["task"], self.textwidth - len(prefix))
+
+        # Prepare and split tags
+        tags = self.__get_tags(root[0]["tags"])
+        tags = self.__split_text(tags, self.tagswidth)
+
+        # Print the first line of the current task
+        done_column = ""
+        if self.show_completed:
+            if root[0]["completed"] == 1:
+                done_column = "|X"
+            else:
+                done_column = "| "
+
+        # Format the date column
+        date_column = cli.parse_output_date(root[0]["due_date"])
+
+        # Select color
+        if root[0]["due_date"] < cli.lib.get_time():
+            c = cli.lib.config["cli.color_tasks_late"]
+        else:
+            c = cli.lib.config["cli.color_priority" + str(root[0]["priority"])]
+
+        cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+            done = done_column, p = root[0]["priority"], date = date_column, id = root[0]["id"], 
+            pref = prefix, pref_width = len(prefix),
+            task = st.pop(0), textwidth = self.textwidth - len(prefix), 
+            tags = tags.pop(0), tagswidth = self.tagswidth, 
+            datewidth = self.datewidth),
+            foreground = c[0], background = c[1], bold = c[2])
+
+        # Blanking the prefix
+        blank_prefix = ""
+        for i in range(len(prefix)):
+            blank_prefix = blank_prefix + " "
+
+        # Print the rest of the current task
+        for i in range(max(len(st),len(tags))):
+            if i < len(st):
+                te = st[i]
+            else:
+                te = u""
+            if i < len(tags):
+                ta = tags[i]
+            else:
+                ta = u""
+            cli.output(u"{done}|         |{t: <{datewidth}}|   | {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                done = done_column_middle, task = te, textwidth = self.textwidth - len(blank_prefix),
+                tags=ta, pref = blank_prefix, pref_width = len(blank_prefix),
+                tagswidth = self.tagswidth, t = " ", 
+                datewidth = self.datewidth),
+                foreground = c[0], background = c[1], bold = c[2])
+
+        # Print the nodes of the root
+        prefix = blank_prefix + "* "
+        for node in root[1]:
+            self.__print_tree(node, prefix)

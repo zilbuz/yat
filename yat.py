@@ -318,7 +318,9 @@ class Yat:
         # Grouping tasks
         if group:
             grouped_tasks = []
+            tree_construction = None
             if group_by == "list":
+                tree_construction = tree_construction_by_list
                 lists = self.__sql.execute(u"select * from lists").fetchall()
                 for l in lists:
                     index = len(grouped_tasks)
@@ -327,20 +329,8 @@ class Yat:
                         if t["list"] == str(l["id"]):
                             grouped_tasks[index][1].append(t)
 
-                # Construction of the trees
-                tmp_grouped_tasks = []
-                ban_list = []
-                for g in grouped_tasks:
-                    tmp_list = []
-                    for t in g[1]:
-                        if g[0] not in ban_list:
-                            tmp = tree_construction_by_list(t, g[0])
-                            ban_list.extend(tmp[1])
-                            tmp_list.append(tmp[0])
-                    tmp_grouped_tasks.append((g[0], tmp_list))
-                grouped_tasks = tmp_grouped_tasks
-                                                
             elif group_by == "tag":
+                tree_construction = tree_construction_by_tag
                 tags = self.__sql.execute(u"select * from tags").fetchall()
                 for tag in tags:
                     index = len(grouped_tasks)
@@ -351,16 +341,18 @@ class Yat:
                             grouped_tasks[index][1].append(t)
                             # A task can be in different tags
 
-                # Construction of the trees
-                for g in grouped_tasks:
-                    tmp_list = []
-                    for t in g[1]:
-                        tmp = tree_construction_by_tag(t, g[0])
-                        for i in tmp[1]:
-                            g[1].remove(i)
-                        tmp_list.extend(tmp[0])
-
-                    g[1] = tmp_list
+            # Construction of the trees
+            tmp_grouped_tasks = []
+            for g in grouped_tasks:
+                ban_list = []
+                tmp_list = []
+                for t in g[1]:
+                    if g[0] not in ban_list:
+                        tmp = tree_construction(t, g[0])
+                        ban_list.extend(tmp[1])
+                        tmp_list.append(tmp[0])
+                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in id_dict[0][1]]))
+            grouped_tasks = tmp_grouped_tasks
         else:
             # Takes an id and returns the list associated
             def tree_construction(parent):
