@@ -68,7 +68,7 @@ The possible attributes for a list or a tag are:
         self.re_due_date = re.compile(u"^due_date={0}$".format(
             cli.lib.config["re.date"]))
         self.re_parent = re.compile(u"^parent=({0})$".format(
-            cli.lib.config["re.parent_id"]))
+            cli.lib.config["re.id"]))
         self.re_priority = re.compile(u"^priority=({0})$".format(
             cli.lib.config["re.priority"]))
         self.re_add_tags = re.compile(u"^add_tags=({0})$".format(

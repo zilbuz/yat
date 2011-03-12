@@ -104,7 +104,7 @@ Adding a tag:
         u"""Regex for the tags"""
 
         self.re_parent = re.compile(u"^~({0})$".format(
-            cli.lib.config["re.parent_id"]))
+            cli.lib.config["re.id"]))
         u"""Regex for the parent task"""
 
         self.re_list = re.compile(u"^>({0})$".format(
