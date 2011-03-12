@@ -205,6 +205,10 @@ class Yat:
         order, use something like "reverse:column_name" (see default parameters
         for an example)
 
+        If select_children is set to True, the function will fetch the children
+        and parents of the tasks matching the pattern specified by the other
+        parameters.
+
         params:
             - ids (array<int>)
             - regexp (string)
@@ -212,6 +216,7 @@ class Yat:
             - order (boolean)
             - group-by ("list" or "tag")
             - order-by (array<string>)
+            - select_children (boolean)
         """
 
         tasks = []
@@ -250,79 +255,23 @@ class Yat:
                                              (i,)).fetchone() for i in to_fetch])
 
         # Constructs a dictionary to identify the children of a given id
-        id_dict = {0:(None, [])}
+        self.__child_dict = {0:(None, [])}
         for t in tasks:
-            if t["id"] not in id_dict:
-                id_dict[t["id"]] = (t, [])
+            if t["id"] not in self.__child_dict:
+                self.__child_dict[t["id"]] = (t, [])
             else:
-                id_dict[t["id"]] = (t, id_dict[t["id"]][1])
+                self.__child_dict[t["id"]] = (t, self.__child_dict[t["id"]][1])
 
-            if t["parent"] not in id_dict:
-                id_dict[t["parent"]] = (None, [])
-            id_dict[t["parent"]][1].append(t["id"])
-
-
-        # Returns a pair composed by the tree and all the tasks that have to be
-        # flushed from the sublist of tags yet to be treated
-        def tree_construction_by_tag(origin_task, tag):
-            def tag_present_in_parents(task):
-                parent = id_dict[task["parent"]][0]
-                return parent != None and (str(tag["id"]) in parent["tags"].split(",") or tag_present_in_parents(parent))
-
-            inheritance = tag_present_in_parents(origin_task)
-            actual_tag = str(tag["id"]) in task["tags"].split(",")
-            return_value = ([(origin_task, [])], [origin_task])
-
-            # The tags are inherited, so passing to the children
-            if inheritance or actual_tag:
-                for c in id_dict[origin_task["id"]][1]:
-                    tmp = tree_construction_by_tag(id_dict[c][0], tag)
-                    return_value[0][0][1].extend(tmp[0])
-                    return_value[1].extend(tmp[1])
-            else:
-                raise IncoherentDBState, 'Errr... There is a problem in the hierarchy handling process'
-
-            # If this is the first occurrence of the tag in the inheritance line,
-            # It will add the direct ancestors.
-            if not inheritance:
-                parent = id_dict[origin_task["parent"]][0]
-                while parent != None:
-                    return_value = ([(parent, return_value[0])], return_value[1])
-                    parent = id_dict[parent["parent"]][0]
-
-            return return_value
-
-        def tree_construction_by_list(origin_task, list):
-            def list_of_parent(task):
-                parent = id_dict[task["parent"]][0]
-                return parent != None and (list["id"] == int(parent["list"]) or list_of_parent(parent))
-
-            return_value = ((origin_task, []), [origin_task])
-            if int(origin_task["list"]) != list["id"]:
-                return_value = (return_value[0], [])
-
-            for c in id_dict[origin_task["id"]][1]:
-                tmp = tree_construction_by_list(id_dict[c][0], list)
-                if tmp[0][0] != None:
-                    return_value[0][1].append(tmp[0])
-                    return_value[1].extend(tmp[1])
-            parent = id_dict[origin_task["parent"]][0]
-            if parent != None and int(parent["list"])!= list["id"]:
-                if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
-                    return ((None, []), [])
-                elif not list_of_parent(origin_task):
-                    while parent != None:
-                        return_value = ((parent, [return_value[0]]), return_value[1])
-                        parent = id_dict[parent["parent"]][0]
-
-            return return_value
+            if t["parent"] not in self.__child_dict:
+                self.__child_dict[t["parent"]] = (None, [])
+            self.__child_dict[t["parent"]][1].append(t["id"])
 
         # Grouping tasks
         if group:
             grouped_tasks = []
             tree_construction = None
             if group_by == "list":
-                tree_construction = tree_construction_by_list
+                tree_construction = self.__tree_construction_by_list
                 lists = self.__sql.execute(u"select * from lists").fetchall()
                 for l in lists:
                     index = len(grouped_tasks)
@@ -332,7 +281,7 @@ class Yat:
                             grouped_tasks[index][1].append(t)
 
             elif group_by == "tag":
-                tree_construction = tree_construction_by_tag
+                tree_construction = self.__tree_construction_by_tag
                 tags = self.__sql.execute(u"select * from tags").fetchall()
                 for tag in tags:
                     index = len(grouped_tasks)
@@ -353,14 +302,10 @@ class Yat:
                         tmp = tree_construction(t, g[0])
                         ban_list.extend(tmp[1])
                         tmp_list.append(tmp[0])
-                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in id_dict[0][1]]))
+                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in self.__child_dict[0][1]]))
             grouped_tasks = tmp_grouped_tasks
         else:
             # Takes an id and returns the list associated
-            def simple_tree_construction(parent):
-                if parent not in id_dict:
-                    raise WrongTaskId, parent 
-                return (id_dict[parent][0], [tree_construction(child) for child in id_dict[parent][1]])
             if select_children:
                 grouped_tasks = simple_tree_construction(0)[1]
             else:
@@ -892,6 +837,93 @@ class Yat:
 
         return self.__operators[comparison](self.__tree_extrem_value(val1, column, comparison),
                                             self.__tree_extrem_value(val2, column, comparison))
+
+    def __tree_construction_by_tag(self, origin_task, tag):
+        u"""Builds a tree of task originating from origin_task according to
+        the specified tag. Basically, it fetches all the children and children's tree,
+        and, if the parent tasks aren't tagged, they are fetched as well for clarity purpose.
+        The return value is of the form ((origin_task, [children's trees]), [tasks already in the tree])
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                TREE
+        """
+        inheritance = self.__tag_present_in_parents(origin_task, task)
+        actual_tag = str(tag["id"]) in task["tags"].split(",")
+        return_value = ((origin_task, []), [origin_task])
+
+        # The tags are inherited, so passing to the children
+        if inheritance or actual_tag:
+            for c in self.__child_dict[origin_task["id"]][1]:
+                tmp = self.__tree_construction_by_tag(self.__child_dict[c][0], tag)
+                return_value[0][1].extend(tmp[0])
+                return_value[1].extend(tmp[1])
+        else:
+            raise IncoherentDBState, 'Errr... There is a problem in the hierarchy handling process'
+
+        # If this is the first occurrence of the tag in the inheritance line,
+        # It will add the direct ancestors.
+        if not inheritance:
+            parent = self.__child_dict[origin_task["parent"]][0]
+            while parent != None:
+                return_value = ((parent, return_value[0]), return_value[1])
+                parent = self.__child_dict[parent["parent"]][0]
+        return return_value
+
+    def __tag_present_in_parents(self, task, tag):
+        parent = self.__child_dict[task["parent"]][0]
+        return parent != None and (str(tag["id"]) in parent["tags"].split(",") or self.__tag_present_in_parents(parent, tag))
+
+
+    def __simple_tree_construction(self, parent, bogus):
+        u""" Constructs a simple tree of the parent and its children.
+        The return value is of the form (origin_task, [children's trees])
+        """
+        if parent not in self.__child_dict:
+            raise WrongTaskId, parent 
+        return (self.__child_dict[parent][0], [tree_construction(child) for child in self.__child_dict[parent][1]])
+
+    def __parents_on_list(self, task, list):
+        parent = self.__child_dict[task["parent"]][0]
+        return parent != None and (list["id"] == int(parent["list"]) or self.__parents_on_list(parent, list))
+
+    def __tree_construction_by_list(self, origin_task, list):
+        u"""Builds a tree of task originating from origin_task according to
+        the specified list. If the task and its children don't belong to the list,
+        the result is a tree with a single node, which is the task. if the task doesn't belong,
+        but at least on of its children or grand-children (or deeper) does, the tree consists of
+        a straight line to the belonging nodes.
+
+        Finally, if the task belongs to the list, the tree has the task for root and the trees of its children
+        for immediate children. If none of the parents of the task belong to the list, they will be fetched
+        and placed at the root for clarity purpose.
+
+        The return value is of the form ((origin_task, [children's trees]), [tasks already in the tree])
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                TREE
+        """
+        # Initiate the return value
+        return_value = ((origin_task, []), [origin_task])
+        if int(origin_task["list"]) != list["id"]:
+            return_value = (return_value[0], []) # There's no point in bloating the second list since
+                                                 # origin_task wouldn't be analysed as first recursion.
+
+        # Analysis of the children
+        for c in self.__child_dict[origin_task["id"]][1]:
+            tmp = self.__tree_construction_by_list(self.__child_dict[c][0], list)
+            if tmp[0][0] != None:   # It means some of the children (or deeper) are on the list
+                return_value[0][1].append(tmp[0])
+                return_value[1].extend(tmp[1])
+
+        # Analysis of the parents
+        parent = self.__child_dict[origin_task["parent"]][0]
+        if parent != None and int(parent["list"])!= list["id"]:
+            if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
+                return ((None, []), [])
+            elif not self.__parents_on_list(origin_task, list):
+                while parent != None:
+                    return_value = ((parent, [return_value[0]]), return_value[1])
+                    parent = self.__child_dict[parent["parent"]][0]
+
+        return return_value
 
 class WrongTagId(Exception):
     u"""Exception raised when trying to extract a tag that doesn't exist"""
