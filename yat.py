@@ -334,42 +334,7 @@ class Yat:
                         comparison, depth = True)
 
                 # Ordering tasks according to the rest of the criterion
-                def secondary_sort(list, remaining, primary_tuple):
-                    for t in list:
-                        t = (t[0], secondary_sort(t[1], remaining, primary_tuple))
-                    ordered_by = [primary_tuple]
-                    for c in remaining:
-                        l = 0
-                        r = 0
-
-                        # Extract attribute and sorting order
-                        tmp = c.split(":")
-                        if tmp[0] == "reverse":
-                            comp = ">"
-                            attr = tmp[1]
-                        else:
-                            comp = "<"
-                            attr = tmp[0]
-
-                        # Sort tasks
-                        for i in range(len(list) - 1):
-                            compare = True
-                            for o in ordered_by:
-                                if (self.__tree_extrem_value(list[i], o[1], o[0]) !=
-                                    self.__tree_extrem_value(list[i+1], o[1], o[0])):
-                                    compare = False
-                            if compare:
-                                r = i + 1
-                            else:
-                                self.__quicksort(list, left = l, right = r,
-                                        column = attr, order = comp)
-                                l = i + 1
-                        self.__quicksort(list, left = l, right = r, column =
-                                attr, order = comp)
-                        ordered_by.append((attribute,comp))
-                    return list
-
-                tasks = secondary_sort(tasks, order_by[1:], (comparison, attribute))
+                tasks = self.__secondary_sort(tasks, order_by[1:], (comparison, attribute))
 
         else:
             ordered_tasks = grouped_tasks
@@ -924,6 +889,42 @@ class Yat:
                     parent = self.__child_dict[parent["parent"]][0]
 
         return return_value
+
+    def __secondary_sort(self, list, remaining, primary_tuple):
+        for t in list:
+            t = (t[0], self.__secondary_sort(t[1], remaining, primary_tuple))
+        ordered_by = [primary_tuple]
+        for c in remaining:
+            l = 0
+            r = 0
+
+            # Extract attribute and sorting order
+            tmp = c.split(":")
+            if tmp[0] == "reverse":
+                comp = ">"
+                attr = tmp[1]
+            else:
+                comp = "<"
+                attr = tmp[0]
+
+            # Sort tasks
+            for i in range(len(list) - 1):
+                compare = True
+                for o in ordered_by:
+                    if (self.__tree_extrem_value(list[i], o[1], o[0]) !=
+                        self.__tree_extrem_value(list[i+1], o[1], o[0])):
+                        compare = False
+                if compare:
+                    r = i + 1
+                else:
+                    self.__quicksort(list, left = l, right = r,
+                            column = attr, order = comp)
+                    l = i + 1
+            self.__quicksort(list, left = l, right = r, column =
+                    attr, order = comp)
+            ordered_by.append((attr,comp))
+        return list
+
 
 class WrongTagId(Exception):
     u"""Exception raised when trying to extract a tag that doesn't exist"""
