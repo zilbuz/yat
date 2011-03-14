@@ -73,7 +73,7 @@ Options:
                 cli.output("The terminal is too small to print the list correctly")
                 return
             else:
-                allowable = self.width - (19 + self.datewidth + done_width)
+                allowable = self.width - (20 + self.datewidth + done_width)
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
@@ -154,16 +154,16 @@ Options:
             done_column_bottom = "--"
 
         c = cli.lib.config["cli.color_header"]
-        cli.output(u" {done}__________{t:_<{datewidth}}_____{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
+        cli.output(u" {done}__________{t:_<{datewidth}}______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
             done=done_column_top, t="_", textwidth=self.textwidth,
             tagswidth=self.tagswidth, datewidth=self.datewidth), 
             foreground = c[0], background = c[1], bold = c[2])
-        cli.output(u"{done}|Priority |{date:^{datewidth}}| Id|{task:<{textwidth}}|{tags:<{tagswidth}}|".format(
+        cli.output(u"{done}|Priority |{date:^{datewidth}}| Id| {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
             done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
-            task = " Task", textwidth = self.textwidth, tags = " Tags",
+            task = "Task", textwidth = self.textwidth, tags = " Tags",
             tagswidth = self.tagswidth),
             foreground = c[0], background = c[1], bold = c[2])
-        cli.output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+        cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
             done=done_column_bottom, t="-", textwidth=self.textwidth,
             tagswidth=self.tagswidth, datewidth=self.datewidth),
             foreground = c[0], background = c[1], bold = c[2])
@@ -172,7 +172,7 @@ Options:
             self.__print_tree(r, "", done_column_middle, list=list, tag=tag, check_contextual=True)
 
             # Print the separator
-            cli.output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+            cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
                 done = done_column_bottom, t="-", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth = self.datewidth))
 
