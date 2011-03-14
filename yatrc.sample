@@ -67,12 +67,26 @@ cli.output_datetime = %d/%m/%Y %H:%M
 # 'default', 'black', 'white', 'red', 'green', 'yellow', 'blue', 'magenta',
 # 'cyan'.
 cli.colors = true
+
+# yat will use this colour with the text that you ideally will never see.
 cli.color_error = red, default, true
+# This colour will override whatever colour is normally applied when displaying 
+# the late tasks.
 cli.color_tasks_late = red, default, false
+# The colour used to display the group name in the headers.
 cli.color_group_name = default, default, true
+# The colour of the header itself (obviously).
 cli.color_header = default, default, true
+
+# The four next colours are applied depending on the priority set for the task. 
 cli.color_priority3 = default, default, false
 cli.color_priority2 = default, default, false
 cli.color_priority1 = default, default, false
 cli.color_priority0 = default, default, false
+
+# The color of the tasks displayed to bring context, for instance in the case
+# of a subtask belonging to a different list : in the list of the main task, the
+# subtask will be displayed "for context", whereas in the list of the subtask, the
+# main task will be color_contextualized
+cli.color_contextual = default, default, false
 

@@ -114,6 +114,7 @@ def init():
     process_color_option("cli.color_priority2", "default,default,false")
     process_color_option("cli.color_priority1", "default,default,false")
     process_color_option("cli.color_priority0", "default,default,false")
+    process_color_option("cli.color_contextual", "default,default,false")
 
 
     # Processing task_ordering option
