@@ -89,7 +89,10 @@ Options:
                 length = len(text_group)
                 cli.output(u"{s:*<{lgth}}".format(s = "*", 
                     lgth = length))
-                self.__output_tasks(tasks)
+                if cli.lib.config["cli.display_group"] == "list":
+                    self.__output_tasks(tasks, list=group);
+                elif cli.lib.config["cli.display_group"] == "tag":
+                    self.__output_tasks(tasks, tag=group);
                 cli.output()
 
         elif cmd in [u'lists', u'tags'] :
@@ -138,7 +141,7 @@ Options:
                 tags_name.append(t["name"])
         return ", ".join(tags_name)
 
-    def __output_tasks(self, tasks):
+    def __output_tasks(self, tasks, list=None, tag=None):
         u"""Print the tasks. The parameter tasks have to be complete rows of
         the tasks table."""
         # Print header, depending on show_completed
@@ -166,14 +169,14 @@ Options:
             foreground = c[0], background = c[1], bold = c[2])
 
         for r in tasks:
-            self.__print_tree(r, "", done_column_middle)
+            self.__print_tree(r, "", done_column_middle, list=list, tag=tag, check_contextual=True)
 
             # Print the separator
             cli.output(u" {done}----------{t:-<{datewidth}}-----{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
                 done = done_column_bottom, t="-", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth = self.datewidth))
 
-    def __print_tree(self, root, prefix="", done_column_middle=""):
+    def __print_tree(self, root, prefix="", done_column_middle="", list=None, tag=None, check_contextual=True):
         # Skip the task if it's completed
         if (not self.show_completed) and root[0]["completed"] == 1:
             return
@@ -197,10 +200,16 @@ Options:
         date_column = cli.parse_output_date(root[0]["due_date"])
 
         # Select color
-        if root[0]["due_date"] < cli.lib.get_time():
-            c = cli.lib.config["cli.color_tasks_late"]
+        contextual = (list != None and int(root[0]["list"]) != list['id']) or (
+            tag != None and (str(tag["id"]) not in root[0]["tags"].split(",")))
+        color_name = "cli.color_default"
+        if check_contextual and contextual:
+            color_name = "cli.color_contextual" 
+        elif root[0]["due_date"] < cli.lib.get_time():
+            color_name = "cli.color_tasks_late"
         else:
-            c = cli.lib.config["cli.color_priority" + str(root[0]["priority"])]
+            color_name = "cli.color_priority" + str(root[0]["priority"])
+        c = cli.lib.config[color_name]
 
         cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
             done = done_column, p = root[0]["priority"], date = date_column, id = root[0]["id"], 
@@ -235,4 +244,4 @@ Options:
         # Print the nodes of the root
         prefix = blank_prefix + "* "
         for node in root[1]:
-            self.__print_tree(node, prefix)
+            self.__print_tree(node, prefix, list = list, tag = tag, check_contextual = check_contextual and (list != None or (tag != None and contextual)))
