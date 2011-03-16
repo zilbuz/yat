@@ -774,6 +774,11 @@ class Yat:
         return storeIndex
 
     def __tree_extrem_value(self, task, column, comparison):
+        u"""Returns the most significant value for the given comparison,
+        column and task tree. For instance, if the column is priority and the
+        comparison is ">=" or ">", it will return the higher priority amongst
+        amongst all the leafs of the tree.
+        """
         # We assume the dictionary is up-to-date
         if task[0] in self.__dict:
             return self.__dict[task[0]]
@@ -792,8 +797,12 @@ class Yat:
         u"""Compare two values of "column" with "comparison". The attribute
         "column" has to be provided to handle correctly the comparison of the
         "due_date" column. This method is a part of the quicksort algorithm.
+        
+        If depth isn't True, it will only compare the first member of the val[12]
+        tuples. This is mostly designed for non-tree values such as the (group, [tasks])
+        type tuples. If depth IS True, it will consider the most significant value
+        of each tree in the comparison.
         """
-        # Construct a datetime if the column is due_date
         if comparison not in self.__operators:
             raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
         if not depth:
@@ -890,6 +899,10 @@ class Yat:
         return return_value
 
     def __secondary_sort(self, list, remaining, primary_tuple):
+        u""" Takes a list of trees, the remaining sort arguments, and the main
+        sort argument (the main sorting task is supposed to be already done via
+        __quicksort & co), and sorts the trees until it runs out of sorting arguments
+        """
         for t in list:
             t = (t[0], self.__secondary_sort(t[1], remaining, primary_tuple))
         ordered_by = [primary_tuple]
