@@ -65,7 +65,7 @@ options:
     --config-file FILE, -c FILE
         Use FILE as a configuration file.
     --version, -v
-        Print the current version of yat and exit.
+        Print the current version of Yat.and exit.
 
 The different commands are:""".format(name = cli.name))
 

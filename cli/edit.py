@@ -85,7 +85,7 @@ The possible attributes for a list or a tag are:
     def execute(self, cmd, args):
 
         if len(args) == 0:
-            cli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'yat help edit'.", 
+            cli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'Yat.help edit'.", 
                     f = sys.stderr,
                     foreground = cli.colors.errf, background = cli.colors.errb,
                     bold = cli.colors.errbold)
@@ -135,7 +135,7 @@ The possible attributes for a list or a tag are:
                     try:
                         due_date = cli.parse_input_date(res)
                     except ValueError:
-                        cli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
+                        cli.output("[ERR] The due date isn't well formed. See 'Yat.help edit'.", 
                                 f = sys.stderr,
                                 foreground = cli.colors.errf, background =
                                 cli.colors.errb, bold = cli.colors.errbold)
@@ -174,7 +174,7 @@ The possible attributes for a list or a tag are:
             task = " ".join(task)
         
         if id == None:
-            cli.output(st = u"[ERR] You must provide an id to the edit command. See yat help edit.", 
+            cli.output(st = u"[ERR] You must provide an id to the edit command. See Yat.help edit.", 
                     f = sys.stderr,
                     foreground = cli.colors.errf, background = cli.colors.errb,
                     bold = cli.colors.errbold)
@@ -190,7 +190,7 @@ The possible attributes for a list or a tag are:
         if element == u"list":
             try:
                 cli.lib.edit_list(id, name, priority)
-            except yat.WrongListId:
+            except Yat.WrongListId:
                 cli.output(st = u"[ERR] {0} is not a valid list id.".format(id), 
                         f = sys.stderr,
                         foreground = cli.colors.errf, background =
@@ -198,7 +198,7 @@ The possible attributes for a list or a tag are:
         elif element == u"tag":
             try:
                 cli.lib.edit_tag(id, name, priority)
-            except yat.WrongTagId:
+            except Yat.WrongTagId:
                 cli.output(st = u"[ERR] {0} is not a valid tag id.".format(id), 
                         f = sys.stderr,
                         foreground = cli.colors.errf, background =

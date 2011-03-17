@@ -33,7 +33,7 @@ import optparse
 import re
 import sys
 
-import yat
+import Yat
 import cli
 from cli import *
 
@@ -159,7 +159,7 @@ def init():
     res = re.finditer("%(.)", cli.lib.config["cli.output_datetime"])
     for g in res:
         if not g.group(1) in ["d", "m", "Y", "H", "I", "M", "p"]:
-            cli.output(u"[ERR] Config file, option cli.output_datetime: '{0}' is not a valid format, it has to be '%d', '%m', '%Y', '%H', '%I', '%M' or '%p'. See yatrc.sample for an example".format(g.group(0)), f = sys.stderr,
+            cli.output(u"[ERR] Config file, option cli.output_datetime: '{0}' is not a valid format, it has to be '%d', '%m', '%Y', '%H', '%I', '%M' or '%p'. See Yat.c.sample for an example".format(g.group(0)), f = sys.stderr,
                 foreground = cli.colors.errf, background = cli.colors.errb, bold = cli.colors.errbold)
             cli.lib.config["cli.output_datetime"] = "%d/%m/%Y %H:%M"
             break
@@ -211,8 +211,8 @@ def main(argv):
 
     # Initialisation
     try:
-        cli.lib = yat.Yat(options["config-file"])
-    except yat.WrongConfigFile as e:
+        cli.lib = Yat.Yat(options["config-file"])
+    except Yat.WrongConfigFile as e:
         cli.output(u"[ERR] The file you want to use as a configuration file ({0}) doesn't exist.".format(e), 
                 foreground = cli.colors.errf, background = cli.colors.errb, 
                 bold = cli.colors.errbold, f = sys.stderr)
@@ -222,7 +222,7 @@ def main(argv):
 
     # Print current version if asked
     if options["version"]:
-        cli.output(u"""yat version {0}""".format(yat.VERSION), f = sys.stderr)
+        cli.output(u"""Yat.version {0}""".format(yat.VERSION), f = sys.stderr)
         exit(0)
 
     # Getting the name of the program
@@ -265,10 +265,10 @@ def main(argv):
     force_lock = False
     try:
         cli.lib.get_lock()
-    except yat.ExistingLock as e:
+    except Yat.ExistingLock as e:
         txt = u"A lock is already set up on the database by the application of"
         txt += u" pid: {0}. If you are sure that".format(e)
-        txt += u" you have no yat application running, you can decide to bypass"
+        txt += u" you have no Yat.application running, you can decide to bypass"
         txt += u" it. Do you want to bypass the lock ?"
         force_lock = cli.yes_no_question(txt)
     finally:
@@ -278,7 +278,7 @@ def main(argv):
         cli.lib.get_lock(force_lock)
         # Executing command with the rest of the arguments
         cmd.execute(cmd_alias, cmd_args)
-    except yat.ExistingLock:
+    except Yat.ExistingLock:
         cli.output(u"[ERR] A lock is already set up, the command was ignored.",
                 f = sys.stderr, foreground = cli.colors.errf, background =
                 cli.colors.errb, bold = cli.colors.errbold)

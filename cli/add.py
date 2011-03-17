@@ -46,7 +46,7 @@ Adding a task:
 
     '*' can be used to set the priority of the task, it must be followed by a number
     between 0 and 3. 
-    Example: yat add "do the laundry *2".
+    Example: Yat.add "do the laundry *2".
 
     '~' would be used if you want to make a subtask for an already existing task. It 
     must be followed by the id number of the parent task. If no list/deadline/priority
@@ -57,12 +57,12 @@ Adding a task:
     date of the form xx/xx/yyyy[:[h]h[:mm][am|pm]], where xx/xx is either dd/mm or
     mm/dd, depending of the cli.input_date option, and hh is the hour in 24 or
     12 hour format, depending of the cli.input_time option.
-    Example: yat add "go to the cinema with Wendy ^12/02/2011:20".
+    Example: Yat.add "go to the cinema with Wendy ^12/02/2011:20".
 
     '#' can be used to set the tags of the task, it must be followed by the name
     of a tag. The tag name can be composed of anything but spaces. You can set 
     multiple tags for a task. If the tag doesn't exist, it will be created.
-    Example: yat add "do my homework #work #important"
+    Example: Yat.add "do my homework #work #important"
 
     '>' can be used to set the list of the task, it must be followed by the name
     of a list. The list name can be composed of anything but spaces. If the list
@@ -83,14 +83,14 @@ Adding a list:
     argument can be the priority of the list. When the tasks will be displayed
     by lists, they will be ordered with this number. The default priority is 0
     and the "nolist" list has a priority of -1.
-    Example: yat add list groceries 1
+    Example: Yat.add list groceries 1
 
 Adding a tag:
     Just add a new tag. The name can contain anything but spaces. The second
     argument can be the priority of the tag. When the tasks will be displayed by
     tags, they will be ordered with this number. The default priority is 0 and
     the "notag" tag has a priority of -1.
-    Example: yat add tag work 5
+    Example: Yat.add tag work 5
 """
     
     alias = [u"add"]
@@ -175,7 +175,7 @@ Adding a tag:
                     try:
                         date = cli.parse_input_date(res)
                     except ValueError:
-                        cli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
+                        cli.output("[ERR] The due date isn't well formed. See 'Yat.help add'.", 
                                 f = sys.stderr,
                                 foreground = cli.colors.errf, background = 
                                 cli.colors.errb, bold = cli.colors.errbold)

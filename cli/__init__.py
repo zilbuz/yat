@@ -32,7 +32,7 @@ import datetime
 import inspect
 import os
 import sys
-import yat
+import Yat
 
 __all__ = [
         "command",

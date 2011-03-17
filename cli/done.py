@@ -55,7 +55,7 @@ the shell doesn't expand them.
 
     def execute(self, cmd, args):
         if len(args) == 0:
-            cli.output(st = u"[ERR] You must provide some informations to the command. See yat help done", 
+            cli.output(st = u"[ERR] You must provide some informations to the command. See Yat.help done", 
                     f = sys.stderr,
                     foreground = cli.colors.errf, background = cli.colors.errb,
                     bold = cli.colors.errbold)
