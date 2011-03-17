@@ -42,7 +42,32 @@ import sys
 import time
 
 # Current version of yat
+# Is of the form "last_tag-development_state"
 VERSION = u"0.1b-dev"
+
+class Task:
+    children_id = {}
+
+    def __init__(self, sql_line, lib):
+        u"""Constructs a Task from an sql entry and an instance of Yat
+        """
+        self.id = sql_line["id"]
+        self.parent_id = sql_line["parent"]
+
+        if self.parent_id not in Task.children_id:
+            Task.children_id[self.parent_id] = (None, [])
+        self.parent = Task.children_id[self.parent_id]
+        if self.id not in Task.children_id[self.parent_id][1]:
+            Task.children_id[self.parent_id][1].append(self.id)
+
+        self.content = sql_line["task"]
+        self.due_date = sql_line["due_date"]
+        self.priority = sql_line["priority"]
+        self.list = lib.get_list(sql_line["list"])
+        self.tags = lib.get_tags([int(i) for i in sql_line[tags].split(",")])
+        self.completed = sql_line["completed"]
+        self.last_modified = sql_line["last_modified"]
+        self.created = sql_line["created"]
 
 class Yat:
 
@@ -181,6 +206,12 @@ class Yat:
         self.__operators[">"] = lambda x, y: x > y
         self.__operators[">="] = lambda x, y: x >= y
         self.__operators["<="] = lambda x, y: x <= y
+
+        # Dictionary matching an task id to a tuple of the matching Task and a list of
+        # its children's ids.
+        Task.children_id = { 0:(None, [])}
+        self.__tag_id = {}
+        self.__list_id = {}
         pass
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
@@ -254,16 +285,16 @@ class Yat:
                                              (i,)).fetchone() for i in to_fetch])
 
         # Constructs a dictionary to identify the children of a given id
-        self.__child_dict = {0:(None, [])}
+        Task.children_id = {0:(None, [])}
         for t in tasks:
-            if t["id"] not in self.__child_dict:
-                self.__child_dict[t["id"]] = (t, [])
+            if t["id"] not in Task.children_id:
+                Task.children_id[t["id"]] = (t, [])
             else:
-                self.__child_dict[t["id"]] = (t, self.__child_dict[t["id"]][1])
+                Task.children_id[t["id"]] = (t, Task.children_id[t["id"]][1])
 
-            if t["parent"] not in self.__child_dict:
-                self.__child_dict[t["parent"]] = (None, [])
-            self.__child_dict[t["parent"]][1].append(t["id"])
+            if t["parent"] not in Task.children_id:
+                Task.children_id[t["parent"]] = (None, [])
+            Task.children_id[t["parent"]][1].append(t["id"])
 
         # Grouping tasks
         if group:
@@ -301,7 +332,7 @@ class Yat:
                         tmp = tree_construction(t, g[0])
                         ban_list.extend(tmp[1])
                         tmp_list.append(tmp[0])
-                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in self.__child_dict[0][1]]))
+                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in Task.children_id[0][1]]))
             grouped_tasks = tmp_grouped_tasks
         else:
             # Takes an id and returns the list associated
@@ -825,8 +856,8 @@ class Yat:
 
         # The tags are inherited, so passing to the children
         if inheritance or actual_tag:
-            for c in self.__child_dict[origin_task["id"]][1]:
-                tmp = self.__tree_construction_by_tag(self.__child_dict[c][0], tag)
+            for c in Task.children_id[origin_task["id"]][1]:
+                tmp = self.__tree_construction_by_tag(Task.children_id[c][0], tag)
                 return_value[0][1].extend(tmp[0])
                 return_value[1].extend(tmp[1])
         else:
@@ -835,14 +866,14 @@ class Yat:
         # If this is the first occurrence of the tag in the inheritance line,
         # It will add the direct ancestors.
         if not inheritance:
-            parent = self.__child_dict[origin_task["parent"]][0]
+            parent = Task.children_id[origin_task["parent"]][0]
             while parent != None:
                 return_value = ((parent, return_value[0]), return_value[1])
-                parent = self.__child_dict[parent["parent"]][0]
+                parent = Task.children_id[parent["parent"]][0]
         return return_value
 
     def __tag_present_in_parents(self, task, tag):
-        parent = self.__child_dict[task["parent"]][0]
+        parent = Task.children_id[task["parent"]][0]
         return parent != None and (str(tag["id"]) in parent["tags"].split(",") or self.__tag_present_in_parents(parent, tag))
 
 
@@ -850,12 +881,12 @@ class Yat:
         u""" Constructs a simple tree of the parent and its children.
         The return value is of the form (origin_task, [children's trees])
         """
-        if parent not in self.__child_dict:
+        if parent not in Task.children_id:
             raise WrongTaskId, parent 
-        return (self.__child_dict[parent][0], [tree_construction(child) for child in self.__child_dict[parent][1]])
+        return (Task.children_id[parent][0], [tree_construction(child) for child in Task.children_id[parent][1]])
 
     def __parents_on_list(self, task, list):
-        parent = self.__child_dict[task["parent"]][0]
+        parent = Task.children_id[task["parent"]][0]
         return parent != None and (list["id"] == int(parent["list"]) or self.__parents_on_list(parent, list))
 
     def __tree_construction_by_list(self, origin_task, list):
@@ -880,21 +911,21 @@ class Yat:
                                                  # origin_task wouldn't be analysed as first recursion.
 
         # Analysis of the children
-        for c in self.__child_dict[origin_task["id"]][1]:
-            tmp = self.__tree_construction_by_list(self.__child_dict[c][0], list)
+        for c in Task.children_id[origin_task["id"]][1]:
+            tmp = self.__tree_construction_by_list(Task.children_id[c][0], list)
             if tmp[0][0] != None:   # It means some of the children (or deeper) are on the list
                 return_value[0][1].append(tmp[0])
                 return_value[1].extend(tmp[1])
 
         # Analysis of the parents
-        parent = self.__child_dict[origin_task["parent"]][0]
+        parent = Task.children_id[origin_task["parent"]][0]
         if parent != None and int(parent["list"])!= list["id"]:
             if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
                 return ((None, []), [])
             elif not self.__parents_on_list(origin_task, list):
                 while parent != None:
                     return_value = ((parent, [return_value[0]]), return_value[1])
-                    parent = self.__child_dict[parent["parent"]][0]
+                    parent = Task.children_id[parent["parent"]][0]
 
         return return_value
 
