@@ -195,9 +195,9 @@ class Yat:
             order_by=["reverse:priority", "due_date"], select_children=True):
         u"""Method to get the tasks from the database, group them by list or
         tag, and order them according to the parameters. This function return an
-        array of tasks if group is False, and an array of tuple (group,
-        list_of_tasks) if group is True, where group is a list or a tag, and
-        list_of_tasks, well... a list of tasks...
+        array of trees if group is False, and an array of tuple (group,
+        list_of_trees) if group is True, where group is a list or a tag, and
+        list_of_trees, well... a list of trees...
 
         The grouping is done only if "group" is set to True
         
@@ -907,6 +907,7 @@ class Yat:
         return return_value
 
     def __secondary_sort(self, list, remaining, primary_tuple):
+
         u""" Takes a list of trees, the remaining sort arguments, and the main
         sort argument (the main sorting task is supposed to be already done via
         __quicksort & co), and sorts the trees until it runs out of sorting arguments
