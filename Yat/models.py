@@ -61,17 +61,22 @@ class Task:
         self.created = sql_line["created"]
 
     def parents_on_list(self, list):
+        u"""Returns True if at least one parent of self is listed in list, False otherwise."""
         return self.parent != None and (list == self.parent.list or self.parent.parents_on_list(list))
 
     def tag_present_in_parents(self, tag):
+        u"""Returns True if at least one parent of self is tagged with tag, False otherwise."""
         return self.parent != None and (tag in parent.tags or self.parent.tag_present_in_parents(tag))
 
     def get_list_parents(self):
+        u"""Returns a list of all the parents of self, beginning with the root ancestor."""
         if self.parent == None:
             return []
         return self.parent.get_list_parents().append(self.parent)
 
     def stack_up_parents(tree):
+        u"""Static function. Given a tree with a task as root, stacks up the ancestors of the said task
+        on top of is, in a straight line to the task. The added nodes are tagged as contextual."""
         parents = tree.parent.get_list_parents()
         def policy(t):
             if t == tree.parent:
@@ -85,7 +90,7 @@ class Task:
     stack_up_parents = staticmethod(stack_up_parents)
 
     def direct_children(self):
-        return children_id[self.id]
+        return Task.children_id[self.id]
 
     def child_policy(self, task):
         return Tree(task, self.child_policy)
@@ -106,6 +111,9 @@ class List:
         list_id[self.id] = self
 
     def child_policy(self, task):
+        u"""This policy excludes all the tasks that aren't on the list, except for those who have a child
+        on the list, and the immediate children of a member. The nodes with a task out of the list are 
+        tagged contextual."""
         tree = Tree(task, self.child_policy)
         if task.list == self:
             return tree
@@ -135,6 +143,18 @@ class Tag:
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
         tag_id[self.id] = self
+
+    def direct_children(self):
+        return [c for h,c in Task.children_id if (c != None and self in c.tags and not c.tag_present_in_parents(self))]
+
+    def child_policy(self, task):
+        u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
+        return Tree(task, self.child_policy)
+
+    def child_callback(self, tree):
+        if self in tree.parent.tags and tree.parent.parent != None and not tree.parent.tag_present_in_parents():
+            return Task.stack_up_parents(tree)
+        return tree
 
 class Tree:
     def __init__(self, parent = None, policy = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
