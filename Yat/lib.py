@@ -869,7 +869,7 @@ class Yat:
     def __tree_construction_by_list(self, origin_task, list):
         u"""Builds a tree of task originating from origin_task according to
         the specified list. If the task and its children don't belong to the list,
-        the result is a tree with a single node, which is the task. if the task doesn't belong,
+        the result is a tree with a single node, which is the task. If the task doesn't belong,
         but at least on of its children or grand-children (or deeper) does, the tree consists of
         a straight line to the belonging nodes.
 

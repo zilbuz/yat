@@ -60,6 +60,23 @@ class Task:
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
 
+    def parents_on_list(self, list):
+        return self.parent != None and (list == self.parent.list or self.parent.parents_on_list(list))
+
+    def tag_present_in_parents(self, tag):
+        return self.parent != None and (tag in parent.tags or self.parent.tag_present_in_parents(tag))
+
+    def get_list_parents(self):
+        if self.parent == None:
+            return []
+        return self.parent.get_list_parents().append(self.parent)
+
+    def direct_children(self):
+        return children_id[self.id]
+
+    def child_policy(self, task):
+        return Tree(task, self.child_policy)
+
 class List:
     list_id = {}
 
@@ -72,12 +89,33 @@ class List:
         self.created = sql_line["created"]
         list_id[self.id] = self
 
-    def construction_tree(self, tasks = None) :
-        if tasks == Non:
-            return Tree(self, [])
-        return_value = Tree(self, [])
-        for t in tasks :
-            task_tree = Tree(t, [])
+    def child_policy(self, task):
+        tree = Tree(task, self.child_policy)
+        if task.list == self:
+            return tree
+        if task.parent.list != self and tree.children == []:
+            return None
+        tree.context = True
+        return tree
+
+    def child_callback(self, tree):
+        u"""Appends the context tasks on top of the tree in the twisted cases :)"""
+        if tree.parent.list == list and (not tree.parent.parents_on_list(self)
+                                         and tree.parent.parent != None):
+            parents = tree.parent.get_list_parents()
+            def policy(t):
+                if t == tree.parent:
+                    return tree
+                if t in parents:
+                    l_tree = Tree(t, policy)
+                    l_tree.context = True
+                    return l_tree
+                return None
+            return Tree(parents[0], policy)
+
+    def direct_children(self):
+        return [c for h,c in Task.children_id if (c != None and c.list == self and not c.parents_on_list(self))]
+
 class Tag:
     tag_id = {}
 
@@ -91,8 +129,28 @@ class Tag:
         tag_id[self.id] = self
 
 class Tree:
-    def __init__(self, parent = None, children = []):
+    def __init__(self, parent = None, policy = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
         self.parent = parent
-        self.children = children
 
-    def 
+        # The context flag might be used in display
+        self.context = False
+
+        # The parent is the best placed to determine who are her children ;-)
+        direct_children = parent.direct_children()
+
+        # If the Power That Be (the caller) didn't specify a policy, once again ask the parent,
+        # she supposedly knows what's best for her children, right ?
+        if policy == None:
+            child_policy = parent.child_policy
+        else:
+            child_policy = policy
+
+        # Apply the policy to the children and filter the result to suppress the invalid ones
+        self.children = []
+        for c in direct_children:
+            tree = child_policy(c)
+            if tree != None:
+                if policy == None:
+                    tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
+                self.children.append(tree)
+
