@@ -276,8 +276,6 @@ class Yat:
             grouped_tasks = [Tree(t[0]) for t in Task.children_id.itervalues() if t[0] != None]
 
         # Ordering tasks (you can't order tasks if they aren't grouped
-        for t in grouped_tasks:
-            print t
         if order and group:
             # Ordering groups
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
