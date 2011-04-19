@@ -492,9 +492,6 @@ class Yat:
                     (regex,)).fetchall()
             return [Tag(t) for t in raw_tags]
 
-
-
-
     def add_tag(self, name, priority=0):
         u"""Add a tag to the database with a certain priority, and create it if
         it doesn't exist
@@ -797,93 +794,6 @@ class Yat:
 
         return self.__operators[comparison](self.__tree_extrem_value(val1, column, comparison),
                                             self.__tree_extrem_value(val2, column, comparison))
-
-    def __tree_construction_by_tag(self, origin_task, tag):
-        u"""Builds a tree of task originating from origin_task according to
-        the specified tag. Basically, it fetches all the children and children's tree,
-        and, if the parent tasks aren't tagged, they are fetched as well for clarity purpose.
-        The return value is of the form ((origin_task, [children's trees]), [tasks already in the tree])
-                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                                TREE
-        """
-        inheritance = self.__tag_present_in_parents(origin_task, task)
-        actual_tag = str(tag["id"]) in task["tags"].split(",")
-        return_value = ((origin_task, []), [origin_task])
-
-        # The tags are inherited, so passing to the children
-        if inheritance or actual_tag:
-            for c in Task.children_id[origin_task["id"]][1]:
-                tmp = self.__tree_construction_by_tag(Task.children_id[c][0], tag)
-                return_value[0][1].extend(tmp[0])
-                return_value[1].extend(tmp[1])
-        else:
-            raise IncoherentDBState, 'Errr... There is a problem in the hierarchy handling process'
-
-        # If this is the first occurrence of the tag in the inheritance line,
-        # It will add the direct ancestors.
-        if not inheritance:
-            parent = Task.children_id[origin_task["parent"]][0]
-            while parent != None:
-                return_value = ((parent, return_value[0]), return_value[1])
-                parent = Task.children_id[parent["parent"]][0]
-        return return_value
-
-    def __tag_present_in_parents(self, task, tag):
-        parent = Task.children_id[task["parent"]][0]
-        return parent != None and (str(tag["id"]) in parent["tags"].split(",") or self.__tag_present_in_parents(parent, tag))
-
-
-    def __simple_tree_construction(self, parent, bogus):
-        u""" Constructs a simple tree of the parent and its children.
-        The return value is of the form (origin_task, [children's trees])
-        """
-        if parent not in Task.children_id:
-            raise WrongTaskId, parent 
-        return (Task.children_id[parent][0], [tree_construction(child) for child in models.Task.children_id[parent][1]])
-
-    def __parents_on_list(self, task, list):
-        parent = Task.children_id[task["parent"]][0]
-        return parent != None and (list["id"] == int(parent["list"]) or self.__parents_on_list(parent, list))
-
-    def __tree_construction_by_list(self, origin_task, list):
-        u"""Builds a tree of task originating from origin_task according to
-        the specified list. If the task and its children don't belong to the list,
-        the result is a tree with a single node, which is the task. If the task doesn't belong,
-        but at least on of its children or grand-children (or deeper) does, the tree consists of
-        a straight line to the belonging nodes.
-
-        Finally, if the task belongs to the list, the tree has the task for root and the trees of its children
-        for immediate children. If none of the parents of the task belong to the list, they will be fetched
-        and placed at the root for clarity purpose.
-
-        The return value is of the form ((origin_task, [children's trees]), [tasks already in the tree])
-                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                                TREE
-        """
-        # Initiate the return value
-        return_value = ((origin_task, []), [origin_task])
-        if int(origin_task["list"]) != list["id"]:
-            return_value = (return_value[0], []) # There's no point in bloating the second list since
-                                                 # origin_task wouldn't be analysed as first recursion.
-
-        # Analysis of the children
-        for c in Task.children_id[origin_task["id"]][1]:
-            tmp = self.__tree_construction_by_list(Task.children_id[c][0], list)
-            if tmp[0][0] != None:   # It means some of the children (or deeper) are on the list
-                return_value[0][1].append(tmp[0])
-                return_value[1].extend(tmp[1])
-
-        # Analysis of the parents
-        parent = Task.children_id[origin_task["parent"]][0]
-        if parent != None and int(parent["list"])!= list["id"]:
-            if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
-                return ((None, []), [])
-            elif not self.__parents_on_list(origin_task, list):
-                while parent != None:
-                    return_value = ((parent, [return_value[0]]), return_value[1])
-                    parent = Task.children_id[parent["parent"]][0]
-
-        return return_value
 
     def __secondary_sort(self, list, remaining, primary_tuple):
 
