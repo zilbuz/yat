@@ -71,11 +71,27 @@ class Task:
             return []
         return self.parent.get_list_parents().append(self.parent)
 
+    def stack_up_parents(tree):
+        parents = tree.parent.get_list_parents()
+        def policy(t):
+            if t == tree.parent:
+                return tree
+            if t in parents:
+                l_tree = Tree(t, policy)
+                l_tree.context = True
+                return l_tree
+            return None
+        return Tree(parents[0], policy)
+    stack_up_parents = staticmethod(stack_up_parents)
+
     def direct_children(self):
         return children_id[self.id]
 
     def child_policy(self, task):
         return Tree(task, self.child_policy)
+
+    def child_callback(self, tree):
+        return tree
 
 class List:
     list_id = {}
@@ -102,16 +118,8 @@ class List:
         u"""Appends the context tasks on top of the tree in the twisted cases :)"""
         if tree.parent.list == list and (not tree.parent.parents_on_list(self)
                                          and tree.parent.parent != None):
-            parents = tree.parent.get_list_parents()
-            def policy(t):
-                if t == tree.parent:
-                    return tree
-                if t in parents:
-                    l_tree = Tree(t, policy)
-                    l_tree.context = True
-                    return l_tree
-                return None
-            return Tree(parents[0], policy)
+            return Task.stack_up_parents(tree)
+        return tree
 
     def direct_children(self):
         return [c for h,c in Task.children_id if (c != None and c.list == self and not c.parents_on_list(self))]
