@@ -243,11 +243,7 @@ class Yat:
                 tasks.extend(self.__sql.execute(
                     u"select * from tasks").fetchall())
 
-        print tasks
-
-
         # Pulls in the children of the selected tasks
-
         if select_children:
             to_examine = tasks
 
@@ -263,23 +259,7 @@ class Yat:
             tasks.extend([self.__sql.execute(u'''select * from tasks where id=?''',
                                              (i,)).fetchone() for i in to_fetch])
 
-        print tasks
         tasks = [Task(t, self) for t in tasks]
-        for t in tasks:
-            print t
-
-        # Constructs a dictionary to identify the children of a given id
-        """Task.children_id = {0:(None, [])}
-        for t in tasks:
-            if t["id"] not in Task.children_id:
-                Task.children_id[t["id"]] = (t, [])
-            else:
-                Task.children_id[t["id"]] = (t, models.Task.children_id[t["id"]][1])
-
-            if t["parent"] not in Task.children_id:
-                Task.children_id[t["parent"]] = (None, [])
-            Task.children_id[t["parent"]][1].append(t["id"])
-        """
 
         # Grouping tasks
         if group:
@@ -287,55 +267,13 @@ class Yat:
             tree_construction = None
             if group_by == "list":
                 grouped_tasks = [Tree(l) for l in List.list_id.itervalues()]
-                """
-                tree_construction = self.__tree_construction_by_list
-                lists = self.__sql.execute(u"select * from lists").fetchall()
-                for l in lists:
-                    index = len(grouped_tasks)
-                    grouped_tasks.append((l,[]))
-                    for t in tasks[:]:
-                        if t["list"] == str(l["id"]):
-                            grouped_tasks[index][1].append(t)
-                """
 
             elif group_by == "tag":
                 grouped_tasks = [Tree(t) for t in Tag.tag_id.itervalues()]
-                """
-                tree_construction = self.__tree_construction_by_tag
-                tags = self.__sql.execute(u"select * from tags").fetchall()
-                for tag in tags:
-                    index = len(grouped_tasks)
-                    grouped_tasks.append((tag,[]))
-                    for t in tasks:
-                        task_tags = t["tags"].split(",")
-                        if str(tag["id"]) in task_tags:
-                            grouped_tasks[index][1].append(t)
-                            # A task can be in different tags
-                """
 
-            """
-            # Construction of the trees
-            tmp_grouped_tasks = []
-            for g in grouped_tasks:
-                ban_list = []
-                tmp_list = []
-                for t in g[1]:
-                    if g[0] not in ban_list:
-                        tmp = tree_construction(t, g[0])
-                        ban_list.extend(tmp[1])
-                        tmp_list.append(tmp[0])
-                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in Task.children_id[0][1]]))
-            grouped_tasks = tmp_grouped_tasks
-            """
         else:
             # Takes an id and returns the list associated
-            grouped_tasks = [Tree(t) for t in Task.children_id[0][1]]
-            """
-            if select_children:
-                grouped_tasks = simple_tree_construction(0)[1]
-            else:
-                grouped_tasks = [(t, []) for t in tasks]
-            """
+            grouped_tasks = [Tree(t[0]) for t in Task.children_id.itervalues() if t[0] != None]
 
         # Ordering tasks (you can't order tasks if they aren't grouped
         for t in grouped_tasks:
@@ -527,8 +465,11 @@ class Yat:
             with self.__sql:
                 tag_row = None
                 if type_id:
-                    tag_row = self.__sql.execute(u'select * from tags where id=?',
-                            (t,)).fetchone()
+                    if int(t) in Tag.tag_id:
+                        res.append(Tag.tag_id[int(t)])
+                    else:
+                        tag_row = self.__sql.execute(u'select * from tags where id=?',
+                                (t,)).fetchone()
                 else:
                     tag_row = self.__sql.execute(u'select * from tags where name=?', 
                             (t,)).fetchone()
@@ -536,9 +477,12 @@ class Yat:
                         self.add_tag(t)
                         tag_row = self.__sql.execute(u'select * from tags where name=?', 
                             (t,)).fetchone()
+                    elif int(tag_row["id"]) in Tag.tag_id:
+                        res.append(Tag.tag_id[int(tag_row["id"])])
+                        tag_row = None
                 if tag_row != None:
-                    res.append(tag_row)
-        return [Tag(t) for t in res]
+                    res.append(Tag(tag_row))
+        return res
 
     def get_tags_regex(self, regex):
         u"""Extract from the database all the tags that match regex, where regex
@@ -621,8 +565,8 @@ class Yat:
         res = None
         with self.__sql:
             if type_id:
-                if list in List.list_id:
-                    return List.list_id[list]
+                if int(list) in List.list_id:
+                    return List.list_id[int(list)]
                 res = self.__sql.execute(u'select * from lists where id=?',
                         (list,)).fetchone()
             else:
@@ -632,8 +576,8 @@ class Yat:
                     self.add_list(list)
                     res = self.__sql.execute(u'select * from lists where name=?',
                             (list,)).fetchone()
-                elif res["id"] in List.list_id:
-                    return List.list_id[res["id"]]
+                elif int(res["id"]) in List.list_id:
+                    return List.list_id[int(res["id"])]
             return List(res)
 
     def get_lists_regex(self, regex):

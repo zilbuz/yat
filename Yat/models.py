@@ -71,13 +71,15 @@ class Task:
 
     def tag_present_in_parents(self, tag):
         u"""Returns True if at least one parent of self is tagged with tag, False otherwise."""
-        return self.parent != None and (tag in parent.tags or self.parent.tag_present_in_parents(tag))
+        return self.parent != None and (tag in self.parent.tags or self.parent.tag_present_in_parents(tag))
 
     def get_list_parents(self):
         u"""Returns a list of all the parents of self, beginning with the root ancestor."""
         if self.parent == None:
             return []
-        return self.parent.get_list_parents().append(self.parent)
+        list = self.parent.get_list_parents()
+        list.append(self.parent)
+        return list
 
     def stack_up_parents(tree):
         u"""Static function. Given a tree with a task as root, stacks up the ancestors of the said task
@@ -91,13 +93,12 @@ class Task:
                 l_tree.context = True
                 return l_tree
             return None
-        return Tree(parents[0], policy)
+        tree_return = Tree(parents[0], policy)
+        tree_return.context = True
+        return tree_return
     stack_up_parents = staticmethod(stack_up_parents)
 
     def direct_children(self):
-        print self
-        print Task.children_id
-        print [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
         return [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
 
     def child_policy(self, task):
@@ -111,7 +112,7 @@ class List:
 
     def __init__(self, sql_line):
         u"""Constructs a List from an sql entry."""
-        self.id = sql_line["id"]
+        self.id = int(sql_line["id"])
         self.content = sql_line["name"]
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
@@ -127,7 +128,6 @@ class List:
         on the list, and the immediate children of a member. The nodes with a task out of the list are 
         tagged contextual."""
         tree = Tree(task, self.child_policy)
-        print tree
         if task.list == self:
             return tree
         if task.parent.list != self and tree.children == []:
@@ -150,7 +150,7 @@ class Tag:
 
     def __init__(self, sql_line):
         u"""Constructs a Tag from an sql entry."""
-        self.id = sql_line["id"]
+        self.id = int(sql_line["id"])
         self.content = sql_line["name"]
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
@@ -158,14 +158,14 @@ class Tag:
         Tag.tag_id[self.id] = self
 
     def direct_children(self):
-        return [c for h,c in Task.children_id if (c != None and self in c.tags and not c.tag_present_in_parents(self))]
+        return [c[0] for c in Task.children_id.itervalues() if (c[0] != None and self in c[0].tags and not c[0].tag_present_in_parents(self))]
 
     def child_policy(self, task):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
         return Tree(task, self.child_policy)
 
     def child_callback(self, tree):
-        if self in tree.parent.tags and tree.parent.parent != None and not tree.parent.tag_present_in_parents():
+        if self in tree.parent.tags and tree.parent.parent != None and not tree.parent.tag_present_in_parents(self):
             return Task.stack_up_parents(tree)
         return tree
 
@@ -191,7 +191,6 @@ class Tree:
         for c in direct_children:
             tree = child_policy(c)
             if tree != None:
-                print tree
                 if policy == None:
                     tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
                 self.children.append(tree)

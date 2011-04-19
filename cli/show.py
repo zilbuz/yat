@@ -81,7 +81,6 @@ Options:
                 cli.lib.config["cli.display_group"], order_by =
                 cli.lib.config["cli.task_ordering"]):
                 # Print the tasks for each group
-                print tree
                 group = tree.parent
                 tasks = tree.children
                 text_group = u"{name} (Priority: {p}, id: {id})".format(name =

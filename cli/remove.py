@@ -115,11 +115,11 @@ Options:
 
                 for t in temp:
                     txt = u"Do you want to delete this " + cmd + u":\n" 
-                    txt += t["name"] 
-                    txt += u" (priority: " + str(t["priority"]) + u") ?"
+                    txt += t.content 
+                    txt += u" (priority: " + str(t.priority) + u") ?"
                     if not cli.yes_no_question(txt):
                         continue
-                    ids.append(str(t["id"]))
+                    ids.append(str(t.id))
 
             # Removing the tasks belonging to the list
             if cmd == u'list':
@@ -136,11 +136,11 @@ Options:
 
             for t in temp:
                 if self.interactive:
-                    txt = u"Do you want to delete this task:\n" + t[0]["task"] 
-                    txt += u" (priority: " + str(t[0]["priority"])
-                    txt += u", due date: " + cli.parse_output_date(t[0]["due_date"]) + u") ?"
+                    txt = u"Do you want to delete this task:\n" + t.parent.content
+                    txt += u" (priority: " + str(t.parent.priority)
+                    txt += u", due date: " + cli.parse_output_date(t.parent.due_date) + u") ?"
                     if not cli.yes_no_question(txt):
                         continue
-                ids.append(t[0]["id"])
+                ids.append(t.parent.id)
 
             cli.lib.remove_tasks(ids)
