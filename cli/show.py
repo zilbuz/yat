@@ -77,12 +77,15 @@ Options:
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
-            for group, tasks in cli.lib.get_tasks(group_by =
+            for tree in cli.lib.get_tasks(group_by =
                 cli.lib.config["cli.display_group"], order_by =
                 cli.lib.config["cli.task_ordering"]):
                 # Print the tasks for each group
+                print tree
+                group = tree.parent
+                tasks = tree.children
                 text_group = u"{name} (Priority: {p}, id: {id})".format(name =
-                        group["name"], p = group["priority"], id = group["id"])
+                        group.content, p = group.priority, id = group.id)
                 c = cli.lib.config["cli.color_group_name"]
                 cli.output(text_group, foreground = c[0], background = c[1], bold =
                         c[2])
@@ -102,12 +105,14 @@ Options:
             cli.output(u"<" + grp_by + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
                     foreground = c[0], background = c[1], bold = c[2])
             
-            for group, tasks in cli.lib.get_tasks(group_by = grp_by, order = False):
+            for tree in cli.lib.get_tasks(group_by = grp_by, order = False):
+                group = tree.parent
+                tasks = tree.children
                 n_tasks = len(tasks)
                 n_completed = 0
                 for t in tasks:
                     n_completed += t["completed"]
-                cli.output(u"\t- " + str(group["name"]) + u" (id: " + str(group["id"]) 
+                cli.output(u"\t- " + group.content + u" (id: " + str(group.id) 
                         + u") - " + str( n_completed) + u"/" + str(n_tasks))
 
     def __split_text(self, text, width=None):
@@ -129,17 +134,6 @@ Options:
         for i in range(len(splitted_text)):
             splitted_text[i] = " ".join(splitted_text[i])
         return splitted_text
-
-    def __get_tags(self, tags_nb):
-        u"""From a comma-separated list of tags ids, get the tags name and
-        return a comma separated list of tags name"""
-        tags = tags_nb.split(",")
-        tags_name = []
-        tags_rows = cli.lib.get_tags(tags)
-        for t in tags_rows:
-            if t["id"] != 1:
-                tags_name.append(t["name"])
-        return ", ".join(tags_name)
 
     def __output_tasks(self, tasks, list=None, tag=None):
         u"""Print the tasks. The parameter tasks have to be complete rows of
@@ -178,41 +172,40 @@ Options:
 
     def __print_tree(self, root, prefix="", done_column_middle="", list=None, tag=None, check_contextual=True):
         # Skip the task if it's completed
-        if (not self.show_completed) and root[0]["completed"] == 1:
+        if (not self.show_completed) and root.parent.completed == 1:
             return
 
         # Split task text
-        st = self.__split_text(root[0]["task"], self.textwidth - len(prefix))
+        st = self.__split_text(root.parent.content, self.textwidth - len(prefix))
 
         # Prepare and split tags
-        tags = self.__get_tags(root[0]["tags"])
+        tags = ", ".join([t.content for t in root.parent.tags])
         tags = self.__split_text(tags, self.tagswidth)
 
         # Print the first line of the current task
         done_column = ""
         if self.show_completed:
-            if root[0]["completed"] == 1:
+            if root.parent.completed == 1:
                 done_column = "|X"
             else:
                 done_column = "| "
 
         # Format the date column
-        date_column = cli.parse_output_date(root[0]["due_date"])
+        date_column = cli.parse_output_date(root.parent.due_date)
 
         # Select color
-        contextual = (list != None and int(root[0]["list"]) != list['id']) or (
-            tag != None and (str(tag["id"]) not in root[0]["tags"].split(",")))
+        contextual = root.context
         color_name = "cli.color_default"
         if check_contextual and contextual:
             color_name = "cli.color_contextual" 
-        elif root[0]["due_date"] < cli.lib.get_time():
+        elif root.parent.due_date < cli.lib.get_time():
             color_name = "cli.color_tasks_late"
         else:
-            color_name = "cli.color_priority" + str(root[0]["priority"])
+            color_name = "cli.color_priority" + str(root.parent.priority)
         c = cli.lib.config[color_name]
 
         cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-            done = done_column, p = root[0]["priority"], date = date_column, id = root[0]["id"], 
+            done = done_column, p = root.parent.priority, date = date_column, id = root.parent.id, 
             pref = prefix, pref_width = len(prefix),
             task = st.pop(0), textwidth = self.textwidth - len(prefix), 
             tags = tags.pop(0), tagswidth = self.tagswidth, 
@@ -243,5 +236,5 @@ Options:
 
         # Print the nodes of the root
         prefix = blank_prefix + "* "
-        for node in root[1]:
+        for node in root.children:
             self.__print_tree(node, prefix, list = list, tag = tag, check_contextual = check_contextual and (list != None or (tag != None and contextual)))

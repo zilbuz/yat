@@ -40,7 +40,7 @@ import re
 import sqlite3
 import sys
 import time
-import models
+from models import *
 
 # Current version of yat
 # Is of the form "last_tag-development_state"
@@ -186,7 +186,7 @@ class Yat:
 
         # Dictionary matching an task id to a tuple of the matching Task and a list of
         # its children's ids.
-        models.Task.children_id = { 0:(None, [])}
+        Task.children_id = { 0:(None, [])}
         self.__tag_id = {}
         self.__list_id = {}
         pass
@@ -243,6 +243,8 @@ class Yat:
                 tasks.extend(self.__sql.execute(
                     u"select * from tasks").fetchall())
 
+        print tasks
+
 
         # Pulls in the children of the selected tasks
 
@@ -261,23 +263,31 @@ class Yat:
             tasks.extend([self.__sql.execute(u'''select * from tasks where id=?''',
                                              (i,)).fetchone() for i in to_fetch])
 
-        # Constructs a dictionary to identify the children of a given id
-        models.Task.children_id = {0:(None, [])}
+        print tasks
+        tasks = [Task(t, self) for t in tasks]
         for t in tasks:
-            if t["id"] not in models.Task.children_id:
-                models.Task.children_id[t["id"]] = (t, [])
-            else:
-                models.Task.children_id[t["id"]] = (t, models.Task.children_id[t["id"]][1])
+            print t
 
-            if t["parent"] not in models.Task.children_id:
-                models.Task.children_id[t["parent"]] = (None, [])
-            models.Task.children_id[t["parent"]][1].append(t["id"])
+        # Constructs a dictionary to identify the children of a given id
+        """Task.children_id = {0:(None, [])}
+        for t in tasks:
+            if t["id"] not in Task.children_id:
+                Task.children_id[t["id"]] = (t, [])
+            else:
+                Task.children_id[t["id"]] = (t, models.Task.children_id[t["id"]][1])
+
+            if t["parent"] not in Task.children_id:
+                Task.children_id[t["parent"]] = (None, [])
+            Task.children_id[t["parent"]][1].append(t["id"])
+        """
 
         # Grouping tasks
         if group:
             grouped_tasks = []
             tree_construction = None
             if group_by == "list":
+                grouped_tasks = [Tree(l) for l in List.list_id.itervalues()]
+                """
                 tree_construction = self.__tree_construction_by_list
                 lists = self.__sql.execute(u"select * from lists").fetchall()
                 for l in lists:
@@ -286,8 +296,11 @@ class Yat:
                     for t in tasks[:]:
                         if t["list"] == str(l["id"]):
                             grouped_tasks[index][1].append(t)
+                """
 
             elif group_by == "tag":
+                grouped_tasks = [Tree(t) for t in Tag.tag_id.itervalues()]
+                """
                 tree_construction = self.__tree_construction_by_tag
                 tags = self.__sql.execute(u"select * from tags").fetchall()
                 for tag in tags:
@@ -298,7 +311,9 @@ class Yat:
                         if str(tag["id"]) in task_tags:
                             grouped_tasks[index][1].append(t)
                             # A task can be in different tags
+                """
 
+            """
             # Construction of the trees
             tmp_grouped_tasks = []
             for g in grouped_tasks:
@@ -309,23 +324,31 @@ class Yat:
                         tmp = tree_construction(t, g[0])
                         ban_list.extend(tmp[1])
                         tmp_list.append(tmp[0])
-                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in models.Task.children_id[0][1]]))
+                tmp_grouped_tasks.append((g[0], [t for t in tmp_list if t[0]['id'] in Task.children_id[0][1]]))
             grouped_tasks = tmp_grouped_tasks
+            """
         else:
             # Takes an id and returns the list associated
+            grouped_tasks = [Tree(t) for t in Task.children_id[0][1]]
+            """
             if select_children:
                 grouped_tasks = simple_tree_construction(0)[1]
             else:
                 grouped_tasks = [(t, []) for t in tasks]
+            """
 
         # Ordering tasks (you can't order tasks if they aren't grouped
+        for t in grouped_tasks:
+            print t
         if order and group:
             # Ordering groups
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
                 "priority", group = True)
 
             # Ordering tasks according to the first criterion
-            for group, tasks in ordered_tasks:
+            for t in ordered_tasks:
+                group = t.parent
+                tasks = t.children
                 tmp = order_by[0].split(":")
                 if tmp[0] == "reverse":
                     comparison = ">"
@@ -515,14 +538,15 @@ class Yat:
                             (t,)).fetchone()
                 if tag_row != None:
                     res.append(tag_row)
-        return res
+        return [Tag(t) for t in res]
 
     def get_tags_regex(self, regex):
         u"""Extract from the database all the tags that match regex, where regex
         is an expression with * and ? jokers"""
         with self.__sql:
-            return self.__sql.execute(u'select * from tags where name regexp ?',
+            raw_tags = self.__sql.execute(u'select * from tags where name regexp ?',
                     (regex,)).fetchall()
+            return [Tag(t) for t in raw_tags]
 
 
 
@@ -597,6 +621,8 @@ class Yat:
         res = None
         with self.__sql:
             if type_id:
+                if list in List.list_id:
+                    return List.list_id[list]
                 res = self.__sql.execute(u'select * from lists where id=?',
                         (list,)).fetchone()
             else:
@@ -606,14 +632,23 @@ class Yat:
                     self.add_list(list)
                     res = self.__sql.execute(u'select * from lists where name=?',
                             (list,)).fetchone()
-        return res
+                elif res["id"] in List.list_id:
+                    return List.list_id[res["id"]]
+            return List(res)
 
     def get_lists_regex(self, regex):
         u"""Extract from the database the lists that match regex, where regex is
         an expression with * and ? jokers."""
         with self.__sql:
-            return self.__sql.execute('select * from lists where name regexp ?',
+            raw_lists = self.__sql.execute('select * from lists where name regexp ?',
                     (regex,)).fetchall()
+            lists = []
+            for l in raw_lists:
+                if l["id"] in List.list_id:
+                    lists.append(List.list_id[l["id"]])
+                else:
+                    lists.append(List(l))
+            return lists
             
 
     def add_list(self, name, priority=0):
@@ -739,7 +774,7 @@ class Yat:
         if depth and not group:
             for e in list:
                 if e != []:
-                    self.__quicksort(e[1], column, left, right, order, group, True)
+                    self.__quicksort(e.children, column, left, right, order, group, True)
 
         # If left and right are not provided, assuming sorting on all the list
         if left == None:
@@ -767,8 +802,8 @@ class Yat:
             swap = False
 
             if group:
-                if self.__compare(column, order, list[i][0],
-                        pivotValue[0], depth = False):
+                if self.__compare(column, order, list[i].parent,
+                        pivotValue.parent ,depth = False):
                     swap = True
             else:
                 if self.__compare(column, order, list[i],
@@ -781,20 +816,20 @@ class Yat:
         list[storeIndex], list[right] = list[right], list[storeIndex]
         return storeIndex
 
-    def __tree_extrem_value(self, task, column, comparison):
+    def __tree_extrem_value(self, tree, column, comparison):
         u"""Returns the most significant value for the given comparison,
         column and task tree. For instance, if the column is priority and the
         comparison is ">=" or ">", it will return the higher priority amongst
         amongst all the leafs of the tree.
         """
         # We assume the dictionary is up-to-date
-        if task[0] in self.__dict:
-            return self.__dict[task[0]]
+        if tree.parent in self.__dict:
+            return self.__dict[tree.parent]
         if comparison not in self.__operators:
             raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
-        return_value = task[0][column]
-        if task[1] != []:
-            subvalues = map(lambda x: self.__tree_extrem_value(x, column, comparison), task[1])
+        return_value = tree.parent.__dict__[column]
+        if tree.children != []:
+            subvalues = map(lambda x: self.__tree_extrem_value(x, column, comparison), tree.children)
             extrem_subvalue = reduce((lambda x,y: x if self.__operators[comparison](x, y) else y), subvalues)
             return_value = return_value if self.__operators[comparison](return_value, extrem_subvalue) else extrem_subvalue
         return return_value
@@ -814,7 +849,7 @@ class Yat:
         if comparison not in self.__operators:
             raise AttributeError, 'order argument should be in {0}'.format(self.__operators.keys())
         if not depth:
-            return self.__operators[comparison](val1[column], val2[column])
+            return self.__operators[comparison](val1.__dict__[column], val2.__dict__[column])
 
         return self.__operators[comparison](self.__tree_extrem_value(val1, column, comparison),
                                             self.__tree_extrem_value(val2, column, comparison))
@@ -833,8 +868,8 @@ class Yat:
 
         # The tags are inherited, so passing to the children
         if inheritance or actual_tag:
-            for c in models.Task.children_id[origin_task["id"]][1]:
-                tmp = self.__tree_construction_by_tag(models.Task.children_id[c][0], tag)
+            for c in Task.children_id[origin_task["id"]][1]:
+                tmp = self.__tree_construction_by_tag(Task.children_id[c][0], tag)
                 return_value[0][1].extend(tmp[0])
                 return_value[1].extend(tmp[1])
         else:
@@ -843,14 +878,14 @@ class Yat:
         # If this is the first occurrence of the tag in the inheritance line,
         # It will add the direct ancestors.
         if not inheritance:
-            parent = models.Task.children_id[origin_task["parent"]][0]
+            parent = Task.children_id[origin_task["parent"]][0]
             while parent != None:
                 return_value = ((parent, return_value[0]), return_value[1])
-                parent = models.Task.children_id[parent["parent"]][0]
+                parent = Task.children_id[parent["parent"]][0]
         return return_value
 
     def __tag_present_in_parents(self, task, tag):
-        parent = models.Task.children_id[task["parent"]][0]
+        parent = Task.children_id[task["parent"]][0]
         return parent != None and (str(tag["id"]) in parent["tags"].split(",") or self.__tag_present_in_parents(parent, tag))
 
 
@@ -858,12 +893,12 @@ class Yat:
         u""" Constructs a simple tree of the parent and its children.
         The return value is of the form (origin_task, [children's trees])
         """
-        if parent not in models.Task.children_id:
+        if parent not in Task.children_id:
             raise WrongTaskId, parent 
-        return (models.Task.children_id[parent][0], [tree_construction(child) for child in models.Task.children_id[parent][1]])
+        return (Task.children_id[parent][0], [tree_construction(child) for child in models.Task.children_id[parent][1]])
 
     def __parents_on_list(self, task, list):
-        parent = models.Task.children_id[task["parent"]][0]
+        parent = Task.children_id[task["parent"]][0]
         return parent != None and (list["id"] == int(parent["list"]) or self.__parents_on_list(parent, list))
 
     def __tree_construction_by_list(self, origin_task, list):
@@ -888,21 +923,21 @@ class Yat:
                                                  # origin_task wouldn't be analysed as first recursion.
 
         # Analysis of the children
-        for c in models.Task.children_id[origin_task["id"]][1]:
-            tmp = self.__tree_construction_by_list(models.Task.children_id[c][0], list)
+        for c in Task.children_id[origin_task["id"]][1]:
+            tmp = self.__tree_construction_by_list(Task.children_id[c][0], list)
             if tmp[0][0] != None:   # It means some of the children (or deeper) are on the list
                 return_value[0][1].append(tmp[0])
                 return_value[1].extend(tmp[1])
 
         # Analysis of the parents
-        parent = models.Task.children_id[origin_task["parent"]][0]
+        parent = Task.children_id[origin_task["parent"]][0]
         if parent != None and int(parent["list"])!= list["id"]:
             if return_value[0][1] == [] and int(origin_task["list"]) != list["id"]:
                 return ((None, []), [])
             elif not self.__parents_on_list(origin_task, list):
                 while parent != None:
                     return_value = ((parent, [return_value[0]]), return_value[1])
-                    parent = models.Task.children_id[parent["parent"]][0]
+                    parent = Task.children_id[parent["parent"]][0]
 
         return return_value
 
@@ -913,7 +948,7 @@ class Yat:
         __quicksort & co), and sorts the trees until it runs out of sorting arguments
         """
         for t in list:
-            t = (t[0], self.__secondary_sort(t[1], remaining, primary_tuple))
+            t = (t.parent, self.__secondary_sort(t.children, remaining, primary_tuple))
         ordered_by = [primary_tuple]
         for c in remaining:
             l = 0

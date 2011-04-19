@@ -41,7 +41,7 @@ class Task:
 
         if self.parent_id not in Task.children_id:
             Task.children_id[self.parent_id] = (None, [])
-        self.parent = Task.children_id[self.parent_id]
+        self.parent = Task.children_id[self.parent_id][0]
         if self.id not in Task.children_id[self.parent_id][1]:
             Task.children_id[self.parent_id][1].append(self.id)
         if self.id not in Task.children_id:
@@ -55,10 +55,15 @@ class Task:
         self.due_date = sql_line["due_date"]
         self.priority = sql_line["priority"]
         self.list = lib.get_list(sql_line["list"])
-        self.tags = lib.get_tags([int(i) for i in sql_line[tags].split(",")])
+        self.tags = lib.get_tags([int(i) for i in sql_line['tags'].split(",")])
         self.completed = sql_line["completed"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
+
+    def __str__(self):
+        retour = "Task "
+        retour += str(self.id)
+        return retour
 
     def parents_on_list(self, list):
         u"""Returns True if at least one parent of self is listed in list, False otherwise."""
@@ -90,7 +95,10 @@ class Task:
     stack_up_parents = staticmethod(stack_up_parents)
 
     def direct_children(self):
-        return Task.children_id[self.id]
+        print self
+        print Task.children_id
+        print [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
+        return [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
 
     def child_policy(self, task):
         return Tree(task, self.child_policy)
@@ -108,13 +116,18 @@ class List:
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
-        list_id[self.id] = self
+        List.list_id[self.id] = self
+
+    def __str__(self):
+        retour = "List " + str(self.id)
+        return retour
 
     def child_policy(self, task):
         u"""This policy excludes all the tasks that aren't on the list, except for those who have a child
         on the list, and the immediate children of a member. The nodes with a task out of the list are 
         tagged contextual."""
         tree = Tree(task, self.child_policy)
+        print tree
         if task.list == self:
             return tree
         if task.parent.list != self and tree.children == []:
@@ -130,7 +143,7 @@ class List:
         return tree
 
     def direct_children(self):
-        return [c for h,c in Task.children_id if (c != None and c.list == self and not c.parents_on_list(self))]
+        return [c[0] for c in Task.children_id.itervalues() if (c[0] != None and c[0].list == self)]
 
 class Tag:
     tag_id = {}
@@ -142,7 +155,7 @@ class Tag:
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
-        tag_id[self.id] = self
+        Tag.tag_id[self.id] = self
 
     def direct_children(self):
         return [c for h,c in Task.children_id if (c != None and self in c.tags and not c.tag_present_in_parents(self))]
@@ -178,7 +191,13 @@ class Tree:
         for c in direct_children:
             tree = child_policy(c)
             if tree != None:
+                print tree
                 if policy == None:
                     tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
                 self.children.append(tree)
+
+    def __str__(self):
+        retour = "Tree :"
+        retour += str(self.parent) + ", " + str([str(c) for c in self.children])
+        return retour
 
