@@ -661,7 +661,7 @@ class Yat:
         """
         with self.__sql:
             for i in ids:
-                if i != "1": # It's not possible to remove the "nolist" list
+                if int(i) != 1: # It's not possible to remove the "nolist" list
                     # Delete list
                     self.__sql.execute(u'delete from lists where id=?', (i,))
                     # Delete tasks
