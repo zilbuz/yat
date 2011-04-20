@@ -51,11 +51,11 @@ class Task:
             for t in Task.children_id[self.id][1]:
                 t.parent = self
 
-        self.content = sql_line["task"]
+        self.content = sql_line["content"]
         self.due_date = sql_line["due_date"]
         self.priority = sql_line["priority"]
         self.list = lib.get_list(sql_line["list"])
-        self.tags = lib.get_tags([int(i) for i in sql_line['tags'].split(",")])
+        self.tags = lib.get_tags_from_task(self.id)
         self.completed = sql_line["completed"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
@@ -113,7 +113,7 @@ class List:
     def __init__(self, sql_line):
         u"""Constructs a List from an sql entry."""
         self.id = int(sql_line["id"])
-        self.content = sql_line["name"]
+        self.content = sql_line["content"]
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
@@ -145,13 +145,16 @@ class List:
     def direct_children(self):
         return [c[0] for c in Task.children_id.itervalues() if (c[0] != None and c[0].list == self)]
 
+    def associated_tasks_nb(self, lib):
+        return lib.nb_on_list(self.id)
+
 class Tag:
     tag_id = {}
 
     def __init__(self, sql_line):
         u"""Constructs a Tag from an sql entry."""
         self.id = int(sql_line["id"])
-        self.content = sql_line["name"]
+        self.content = sql_line["content"]
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
@@ -168,6 +171,9 @@ class Tag:
         if self in tree.parent.tags and tree.parent.parent != None and not tree.parent.tag_present_in_parents(self):
             return Task.stack_up_parents(tree)
         return tree
+
+    def associated_tasks_nb(self, lib):
+        return lib.nb_tagged(self.id)
 
 class Tree:
     def __init__(self, parent = None, policy = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children

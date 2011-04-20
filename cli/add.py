@@ -133,6 +133,7 @@ Adding a tag:
                 priority = 0
 
             if cmd == "tag":
+                print "edbug1"
                 cli.lib.add_tag(args[0], priority)
             elif cmd == "list":
                 cli.lib.add_list(args[0], priority)

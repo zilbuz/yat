@@ -207,14 +207,16 @@ The possible attributes for a list or a tag are:
             # Process the tag names
             add_tags_ids = []
             if add_tags != None:
-                for tag in cli.lib.get_tags(add_tags.split(","), type_id = False,
-                        can_create = True):
-                    add_tags_ids.append(tag["id"])
+                add_tags = add_tags.split(",")
+                print add_tags
+            else:
+                add_tags = []
 
             remove_tags_ids = []
             if remove_tags != None:
-                for tag in cli.lib.get_tags(remove_tags.split(","), type_id = False):
-                    remove_tags_ids.append(tag["id"])
+                remove_tags = remove_tags.split(",")
+            else:
+                remove_tags = []
 
             # Process the list name
             if list != None:
@@ -223,6 +225,6 @@ The possible attributes for a list or a tag are:
             else:
                 list_id = None
 
-            cli.lib.edit_task(id, task, parent, priority, due_date, list_id, add_tags_ids,
-                    remove_tags_ids)
+            cli.lib.edit_task(id, task, parent, priority, due_date, list_id, add_tags,
+                    remove_tags)
         pass

@@ -104,13 +104,30 @@ Options:
             cli.output(u"<" + grp_by + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
                     foreground = c[0], background = c[1], bold = c[2])
             
+            if cmd == u'lists':
+                groups = set(cli.lib.get_lists_regex(u"*"))
+            else:
+                groups = set(cli.lib.get_tags_regex(u'*'))
             for tree in cli.lib.get_tasks(group_by = grp_by, order = False):
+                group = tree.parent
+                groups.discard(group)
+                tasks = tree.children
+                n_tasks = len(tasks)
+                n_completed = 0
+                for t in tasks:
+                    n_completed += t.parent.completed
+                cli.output(u"\t- " + group.content + u" (id: " + str(group.id) 
+                        + u") - " + str( n_completed) + u"/" + str(n_tasks))
+
+            groups = [Tree(g) for f in groups]
+
+            for tree in groups:
                 group = tree.parent
                 tasks = tree.children
                 n_tasks = len(tasks)
                 n_completed = 0
                 for t in tasks:
-                    n_completed += t["completed"]
+                    n_completed += t.parent.completed
                 cli.output(u"\t- " + group.content + u" (id: " + str(group.id) 
                         + u") - " + str( n_completed) + u"/" + str(n_tasks))
 
