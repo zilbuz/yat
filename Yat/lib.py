@@ -566,10 +566,8 @@ class Yat:
         with self.__sql:
             # Update tasks
             for t in ids:
-                task_ids = [i[0] for i in self.__sql.execute(u'select task from tagging where tag=?', (t,)).fetchall()]
-                for i in task_ids:
-                    if len(self.__sql.execute(u'select tag from tagging where task=?', (i,)).fetchall()) <= 1:
-                        self.__sql.execute('insert into tagging values(1, ?)', (i,))
+                if len(self.__sql.execute(u'select tagging.tag from tagging, task where tagging.task=task.id').fetchall()) <= 1:
+                    self.__sql.execute('insert into tagging values(1, ?)', (i,))
 
                 # Remove tags
                 if t != "1": # it's not possible to remove the "notag" tag
