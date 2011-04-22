@@ -136,7 +136,8 @@ class Yat:
                         content text,
                         priority integer,
                         last_modified real,
-                        created real
+                        created real,
+                        hash_id varchar(64)
                         )""")
                 self.__sql.execute("""
                     create table tags (
@@ -144,7 +145,8 @@ class Yat:
                         content text,
                         priority integer,
                         last_modified real,
-                        created real
+                        created real,
+                        hash_id varchar(64)
                         )""")
                 self.__sql.execute("""
                     create table tasks (
@@ -156,7 +158,8 @@ class Yat:
                         list integer references lists(id) on delete cascade,
                         completed integer,
                         last_modified real,
-                        created real
+                        created real,
+                        hash_id varchar(64)
                     )""")
                 self.__sql.execute("""
                     create table tagging (
@@ -164,9 +167,9 @@ class Yat:
                         task integer references tasks(id) on delete cascade
                         )""")
                 self.__sql.execute("""insert into tags values (null, "notag", -1,
-                        ?, ?)""", (self.get_time(), self.get_time()))
+                        ?, ?, ?)""", (self.get_time(), self.get_time(), "nohash"))
                 self.__sql.execute("""insert into lists values (null, "nolist",
-                        -1, ?, ?)""", (time.time(), self.get_time()))
+                        -1, ?, ?, ?)""", (time.time(), self.get_time(), "nohash"))
                 self.__sql.commit()
 
         # Get application pid
@@ -379,9 +382,9 @@ class Yat:
         # Add the task to the bdd
         with self.__sql:
             creation_time = self.get_time()
-            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?)',
+            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     (text, parent_id, priority, due_date, list, completed,
-                        creation_time, creation_time))
+                        creation_time, creation_time, "nohash"))
             self.__sql.commit()
             if parent_id == None:
                 parent_id = "null"
@@ -716,8 +719,8 @@ class Yat:
             c = self.__sql.execute('select count(*) as nb from %s where content=?' %
                     table, (name,))
             if c.fetchone()[0] == 0:
-                self.__sql.execute('insert into %s values(null, ?, ?, ?, ?)' % table,
-                    (name, priority, self.get_time(), self.get_time()))
+                self.__sql.execute('insert into %s values(null, ?, ?, ?, ?, ?)' % table,
+                    (name, priority, self.get_time(), self.get_time(), "nohash"))
                 self.__sql.commit()
 
     def __get_id(self, table, name):
