@@ -266,6 +266,7 @@ Options:
 
             # Print the nodes of the root
             arguments['prefix'] = blank_prefix + "* "
+            return arguments
 
         cli.Yat.Task.tree_display = task_tree_display
         cli.Yat.Task.display_callback = task_display_callback
