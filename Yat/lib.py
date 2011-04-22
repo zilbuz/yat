@@ -207,7 +207,8 @@ class Yat:
         pass
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
-            order_by=["reverse:priority", "due_date"], select_children=True):
+            order_by=["reverse:priority", "due_date"],
+                 select_children=True, regroup_family=True):
         u"""Method to get the tasks from the database, group them by list or
         tag, and order them according to the parameters. This function return an
         array of trees if group is False, and an array of tuple (group,
@@ -277,18 +278,21 @@ class Yat:
         tasks = [Task(t, self) for t in tasks]
 
         # Grouping tasks
+        tree_parameters = {'no_family': not regroup_family}
         if group:
             grouped_tasks = []
             tree_construction = None
             if group_by == "list":
-                grouped_tasks = [Tree(l) for l in List.list_id.itervalues()]
+                grouped_tasks = [Tree(l, None, tree_parameters) for l in List.list_id.itervalues()]
 
             elif group_by == "tag":
-                grouped_tasks = [Tree(t) for t in Tag.tag_id.itervalues()]
+                grouped_tasks = [Tree(t, None, tree_parameters) for t in Tag.tag_id.itervalues()]
 
         else:
             # Takes an id and returns the list associated
-            grouped_tasks = [Tree(t[0]) for t in Task.children_id.itervalues() if t[0] != None]
+            grouped_tasks = [Tree(t[0], None, tree_parameters)
+                             for t in Task.children_id.itervalues()
+                             if t[0] != None]
 
         # Ordering tasks (you can't order tasks if they aren't grouped
         if order and group:

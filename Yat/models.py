@@ -149,11 +149,11 @@ class List(Group):
     def related_with(self, task):
         return task.list == self
 
-    def child_policy(self, task):
+    def child_policy(self, task, params):
         u"""This policy excludes all the tasks that aren't on the list, except for those who have a child
         on the list, and the immediate children of a member. The nodes with a task out of the list are 
         tagged contextual."""
-        tree = Tree(task, self.child_policy)
+        tree = Tree(task, self.child_policy, params)
         if task.list == self:
             return tree
         if task.parent.list != self and tree.children == []:
@@ -169,9 +169,9 @@ class Tag(Group):
         super(Tag, self).__init__(sql_line)
         Tag.tag_id[self.id] = self
 
-    def child_policy(self, task):
+    def child_policy(self, task, params):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
-        return Tree(task, self.child_policy)
+        return Tree(task, self.child_policy, params)
 
     def related_with(self, task):
         return self in task.tags
@@ -220,7 +220,7 @@ class Tree:
         # Apply the policy to the children and filter the result to suppress the invalid ones
         self.children = []
         for c in direct_children:
-            tree = child_policy(c)
+            tree = child_policy(c, search_parameters)
             if tree != None:
                 if policy == None:
                     tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
