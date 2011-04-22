@@ -85,7 +85,7 @@ The possible attributes for a list or a tag are:
     def execute(self, cmd, args):
 
         if len(args) == 0:
-            cli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'Yat.help edit'.", 
+            cli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'yat help edit'.", 
                     f = sys.stderr,
                     foreground = cli.colors.errf, background = cli.colors.errb,
                     bold = cli.colors.errbold)
@@ -135,7 +135,7 @@ The possible attributes for a list or a tag are:
                     try:
                         due_date = cli.parse_input_date(res)
                     except ValueError:
-                        cli.output("[ERR] The due date isn't well formed. See 'Yat.help edit'.", 
+                        cli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
                                 f = sys.stderr,
                                 foreground = cli.colors.errf, background =
                                 cli.colors.errb, bold = cli.colors.errbold)
@@ -174,7 +174,7 @@ The possible attributes for a list or a tag are:
             task = " ".join(task)
         
         if id == None:
-            cli.output(st = u"[ERR] You must provide an id to the edit command. See Yat.help edit.", 
+            cli.output(st = u"[ERR] You must provide an id to the edit command. See 'yat help edit'.", 
                     f = sys.stderr,
                     foreground = cli.colors.errf, background = cli.colors.errb,
                     bold = cli.colors.errbold)
