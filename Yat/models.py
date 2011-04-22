@@ -33,7 +33,7 @@ import lib
 class Task(object):
     children_id = {}
 
-    def __init__(self, sql_line, lib):
+    def __init__(self, sql_line, lib, no_family=False):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
         self.id = sql_line["id"]
@@ -94,7 +94,12 @@ class Task(object):
         return tree_return
     stack_up_parents = staticmethod(stack_up_parents)
 
-    def direct_children(self):
+    def direct_children(self, search_parameters):
+        try:
+            if search_parameters['no_family']:
+                return []
+        except:
+            pass
         return [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
 
     def child_policy(self, task):
@@ -112,9 +117,14 @@ class Group(object):
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
 
-    def direct_children(self):
-        return [c[0] for c in Task.children_id.itervalues() if (c[0] != None and self.related_with(c[0])
-                                                               and not c[0].parents_in_group(self))]
+    def direct_children(self, search_parameters):
+        try:
+            no_family = search_parameters['no_family']
+        except:
+            no_family = False
+        return [c[0] for c in Task.children_id.itervalues()
+                if (c[0] != None and self.related_with(c[0]) and
+                    (not c[0].parents_in_group(self) or no_family))]
 
     def child_callback(self, tree):
         u"""Appends the context tasks on top of the tree in the twisted cases :)"""
@@ -163,18 +173,42 @@ class Tag(Group):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
         return Tree(task, self.child_policy)
 
-    def related_with(task):
+    def related_with(self, task):
         return self in task.tags
 
+class NoGroup(object):
+    def __init__(self):
+        self.id = None
+
+    direct_children = Group.direct_children
+    child_callback = Group.child_callback
+
+class NoList(NoGroup):
+    def __init__(self):
+        super(NoList, self).__init__()
+        List.list_id[None] = self
+
+    child_policy = List.child_policy
+    related_with = List.related_with
+
+class NoTag(NoGroup):
+    def __init__(self):
+        super(NoTag, self).__init__()
+
+    def related_with(self, task):
+        return task.tags == []
+
+    child_policy = Tag.child_policy
+
 class Tree:
-    def __init__(self, parent = None, policy = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
+    def __init__(self, parent = None, policy = None, search_parameters = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
         self.parent = parent
 
         # The context flag might be used in display
         self.context = False
 
         # The parent is the best placed to determine who are her children ;-)
-        direct_children = parent.direct_children()
+        direct_children = parent.direct_children(search_parameters)
 
         # If the Power That Be (the caller) didn't specify a policy, once again ask the parent,
         # she supposedly knows what's best for her children, right ?

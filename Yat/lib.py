@@ -293,8 +293,19 @@ class Yat:
         # Ordering tasks (you can't order tasks if they aren't grouped
         if order and group:
             # Ordering groups
+            if group_by == 'list':
+                try:
+                    # Extract the tree of NoList...
+                    nolist = [grouped_tasks.pop(grouped_tasks.index(List.list_id[None]))]
+                except:
+                    nolist = []
+            else:
+                nolist = []
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
                 "priority", group = True)
+
+            # And then make a reinsertion at the end of the sorted list.
+            ordered_tasks.extend(nolist)
 
             # Ordering tasks according to the first criterion
             for t in ordered_tasks:
@@ -599,6 +610,10 @@ class Yat:
         list name provided doesn't exist, it will be created.
         """
         res = None
+        if list == None:
+            if None in List.list_id:
+                return List.list_id[None]
+            return NoList()
         with self.__sql:
             if type_id:
                 if int(list) in List.list_id:
