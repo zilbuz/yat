@@ -208,7 +208,6 @@ The possible attributes for a list or a tag are:
             add_tags_ids = []
             if add_tags != None:
                 add_tags = add_tags.split(",")
-                print add_tags
             else:
                 add_tags = []
 
