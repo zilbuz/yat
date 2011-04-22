@@ -176,16 +176,20 @@ class Tag(Group):
     def related_with(self, task):
         return self in task.tags
 
-class NoGroup(Group):
+class NoGroup(object):
     def __init__(self):
+        self.content = ''
+        self.priority = ''
         self.id = None
 
 class NoList(NoGroup, List):
+    __mro__ = (NoGroup, List, Group, object)
     def __init__(self):
         super(NoList, self).__init__()
         List.list_id[None] = self
 
 class NoTag(NoGroup, Tag):
+    __mro__ = (NoGroup, List, Group, object)
     def __init__(self):
         super(NoTag, self).__init__()
 

@@ -386,7 +386,7 @@ class Yat:
                 list = None
             else:
                 list = p['list']
-                list_flag = False
+            list_flag = False
         if list_flag:
             self.__add_tag_or_list("lists", list, 0)
             list = self.__get_id("lists", list)
