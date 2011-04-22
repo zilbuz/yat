@@ -176,29 +176,21 @@ class Tag(Group):
     def related_with(self, task):
         return self in task.tags
 
-class NoGroup(object):
+class NoGroup(Group):
     def __init__(self):
         self.id = None
 
-    direct_children = Group.direct_children
-    child_callback = Group.child_callback
-
-class NoList(NoGroup):
+class NoList(NoGroup, List):
     def __init__(self):
         super(NoList, self).__init__()
         List.list_id[None] = self
 
-    child_policy = List.child_policy
-    related_with = List.related_with
-
-class NoTag(NoGroup):
+class NoTag(NoGroup, Tag):
     def __init__(self):
         super(NoTag, self).__init__()
 
     def related_with(self, task):
         return task.tags == []
-
-    child_policy = Tag.child_policy
 
 class Tree:
     def __init__(self, parent = None, policy = None, search_parameters = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
