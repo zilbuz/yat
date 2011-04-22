@@ -166,6 +166,13 @@ class Yat:
                         tag integer references tags(id) on delete cascade,
                         task integer references tasks(id) on delete cascade
                         )""")
+                self.__sql.execute("""
+                    create table metadata (
+                        key varchar(30),
+                        value varchar(128)
+                        )""")
+                self.__sql.execute("""insert into metadata values ("version",
+                        ?)""", (VERSION,))
                 self.__sql.execute("""insert into tags values (null, "notag", -1,
                         ?, ?, ?)""", (self.get_time(), self.get_time(), "nohash"))
                 self.__sql.execute("""insert into lists values (null, "nolist",
