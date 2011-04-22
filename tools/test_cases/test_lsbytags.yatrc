@@ -1,0 +1,3 @@
+# Config file to test the tags display
+yatdir = ./yatdir
+cli.display_group = tags

@@ -1,0 +1,3 @@
+# Config file to test the list display
+yatdir = ./yatdir
+cli.display_group = list

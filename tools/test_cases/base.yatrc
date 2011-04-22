@@ -1,0 +1,2 @@
+# Basic yatrc to use when testing yat
+yatdir = ./yatdir

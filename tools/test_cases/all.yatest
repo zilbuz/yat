@@ -1,0 +1,164 @@
+# Option to add before each command
+>>>"--c base.yatrc"
+
+# Options
+""
+--version
+-v
+--help
+-h
+>>>""
+--config-file test.yatrc
+>>>"--c base.yatrc"
+
+# Remove all the data from the db
+rm "*"
+
+# Tests for help (basic help, then before each command test, help <command> will
+# be called
+help
+
+# Tests for add
+help add
+    # Basic add
+add "task 1"
+add task "task 2"
+add tag "tag1"
+add list "list1"
+    # Priority (*)
+add "task 3 priority 3 *3"
+add "task 4 priority 2 *2"
+add "task 5 priority 1 *1"
+add "task 6 priority 0 *0"
+    # Parents (~)
+add "task 7 parent with 1 ~1"
+add "task 8 parent with 1 ~1"
+add "task 9 parent with 5 ~5"
+add "task 10 parent with 7 ~7"
+add "task 11 parent with 8 ~8"
+    # Due date (^)
+add "task 12 due 27/04/2025 ^27/04/2025"
+add "task 13 due 13/01/2001 ^13/01/2001"
+add "task 14 due 20/05/2015 at 16h ^20/05/2015:16"
+add "task 15 due 4/12/2020 at 3h48 ^4/12/2020:3:48"
+-c test_12hformat.yatrc "task 16 due 9/11/2033 at 7h12 pm ^9/11/2033:7:12pm"
+    # Tags (#)
+add "task 17 in tag 1 #tag1"
+add "task 18 in tag 2 #tag2"
+add "task 19 in tags 1 and 2 #tag1 #tag2"
+add "task 20 in tags 1, 2 and 3 #tag1 #tag2 #tag3"
+    # Lists (>)
+add "task 21 in list 1 >list1"
+add "task 22 in list 2 >list2"
+    # Escape sequence
+add "task 23 with priority not 3 \*3"
+add "task 24 with parent not 10 \~10"
+add "task 25 with due date not 24/12/2012 \^24/12/2012"
+add "task 26 with no tag 1 \#tag1"
+add "task 27 with no list 2 \>list2"
+    # Priority tags
+add tag tag4 -4
+add tag tag5 10
+    # Priority lists
+add list list3 -10
+add list list4 4
+    # Mixed symbols
+add "task 28 with priority 2 *2, due date 20/10/2020 ^20/10/2020 and 15 for parent ~15"
+add "task 29 with tags 1 and 2 #tag1 #tag2 list 1 >list1 and 22 for parent ~22"
+
+# Tests for done
+help done
+help undone
+    # Adding a bunch of tasks to test
+add "task 30 done"
+add "task 31 done then undone"
+add "task 32 done with regexp"
+add "task 33 done then undone with regexp"
+    # Testing done
+done id=30
+done id=31
+done "task 32 done with regexp"
+done "task 33 done*"
+    # Testing undone
+undone id=31
+undone "task 33 done then undone *"
+
+# Tests for edit
+help edit
+    # Adding a bunch of tasks to test
+add "task 34 to edit"
+add "task 35 to edit (list4 to list5) >list4"
+add "task 36 to edit (tag3 and tag4 to tag4, tag5 and tag6) #tag3 #tag4"
+    # Testing name, due date and priority
+edit id=34 task="task 34 to edit -> name, due date and priority edited" due_date=12/08/2014 priority=3
+    # Testing list
+edit id=35 list=list5
+    # Testing tags
+edit id=36 add_tags="tag5,tag6" remove_tags=tag4
+    # Adding some tags and lists to test
+add tag tag7 5
+add list list8 5
+    # Editing tag
+edit tag id=7 name=tag7_edited priority=10
+    # Editing list
+edit list id=8 name=list8_edited priority=-5
+
+# Tests for clean
+help clean
+    # Adding a bunch of completed tasks
+add "task 37 to clean"
+add "task 38 to clean"
+add "task 39 to clean"
+add "task 40 to clean"
+add "task 41 to not clean"
+done "task 37 to clean"
+done "task 38 to clean"
+    # Cleaning
+clean --force
+    # Complete another bunch of tasks
+done "task 39 to clean"
+done "task 40 to clean"
+done "task 41 to not clean"
+    # Cleaning
+clean --interactive
+
+# Tests for remove
+help remove
+help rm
+    # Adding a bunch of tasks, tags and lists to test
+add "task 42 to remove 1"
+add "task 43 to remove 2"
+add "task 44 to remove 3"
+add "task 45 to not remove first 4"
+add "task 46 to remove 5"
+add "task 47 to not remove first 6"
+add "task 48 to remove 7"
+add list list9_toremove
+add list list10_toremove
+add tag tag8_toremove
+add tag tag9_toremove
+    # Removing
+remove id=42
+remove task id=43
+rm --interactive "task 4? to *"
+rm --force "task 4? to *"
+rm list id=9
+rm list list10_toremove
+rm tag id=8
+rm tag tag9_toremove
+
+# Tests for show
+help show
+help ls
+help tasks
+help lists
+help tags
+    # Testing
+show
+tasks --completed
+ls -a
+lists
+tags
+-c test_lsbylist.yatrc ls
+-c test_lsbytags.yatrc ls
+

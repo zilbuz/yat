@@ -1,0 +1,3 @@
+# Config file to test the 12h input format
+yatdir = ./yatdir
+cli.input_time = 12
