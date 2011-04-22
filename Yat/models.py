@@ -143,7 +143,8 @@ class List:
         return tree
 
     def direct_children(self):
-        return [c[0] for c in Task.children_id.itervalues() if (c[0] != None and c[0].list == self)]
+        return [c[0] for c in Task.children_id.itervalues() if (c[0] != None and c[0].list == self
+                                                               and not c[0].parents_on_list(self))]
 
     def associated_tasks_nb(self, lib):
         return lib.nb_on_list(self.id)
