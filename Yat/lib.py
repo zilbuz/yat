@@ -171,8 +171,6 @@ class Yat:
                         )""")
                 self.__sql.execute("""insert into metadata values ("version",
                         ?)""", (VERSION,))
-                self.__sql.execute("""insert into lists values (null, "nolist",
-                        -1, ?, ?, ?)""", (time.time(), self.get_time(), "nohash"))
                 self.__sql.commit()
 
         # Get application pid
@@ -385,7 +383,7 @@ class Yat:
         list_flag = True
         if list == None or list == u"":
             if parent_id == None:
-                list = self.config["default_list"]
+                list = None
             else:
                 list = p['list']
                 list_flag = False
@@ -445,6 +443,8 @@ class Yat:
             due_date = t["due_date"]
         if list == None:
             list = t["list"]
+        elif list == '':
+            list = None
         if completed == None:
             completed = t["completed"]
         elif completed:
@@ -679,11 +679,7 @@ class Yat:
         """
         with self.__sql:
             for i in ids:
-                if int(i) != 1: # It's not possible to remove the "nolist" list
-                    # Delete list
-                    self.__sql.execute(u'delete from lists where id=?', (i,))
-                    # Delete tasks
-                    self.__sql.execute(u'delete from tasks where list=?', (i,))
+                self.__sql.execute(u'delete from lists where id=?', (i,))
             self.__sql.commit()
         pass
 
