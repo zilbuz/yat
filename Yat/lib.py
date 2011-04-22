@@ -283,6 +283,9 @@ class Yat:
 
             elif group_by == "tag":
                 grouped_tasks = [Tree(t, None, tree_parameters) for t in Tag.tag_id.itervalues()]
+                notag_tree = Tree(NoTag(), None, tree_parameters)
+                if notag_tree.children != []:
+                    grouped_tasks.append(notag_tree)
 
         else:
             # Takes an id and returns the list associated
@@ -296,16 +299,17 @@ class Yat:
             if group_by == 'list':
                 try:
                     # Extract the tree of NoList...
-                    nolist = [grouped_tasks.pop(grouped_tasks.index(List.list_id[None]))]
+                    nogroup = [grouped_tasks.pop(grouped_tasks.index(List.list_id[None]))]
                 except:
-                    nolist = []
+                    nogroup = []
             else:
-                nolist = []
+                if grouped_tasks[-1].parent.id == None:
+                    nogroup = [grouped_tasks.pop()]
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
                 "priority", group = True)
 
             # And then make a reinsertion at the end of the sorted list.
-            ordered_tasks.extend(nolist)
+            ordered_tasks.extend(nogroup)
 
             # Ordering tasks according to the first criterion
             for t in ordered_tasks:
