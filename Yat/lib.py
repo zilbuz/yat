@@ -87,8 +87,6 @@ class Yat:
 
         # For each option, loading default if it isn't defined
         self.config["yatdir"] = self.config.get("yatdir", "~/.yat")
-        self.config["default_list"] = self.config.get("default_list", "nolist")
-        self.config["default_tag"] = self.config.get("default_tag", "notag")
         self.config["default_priority"] = self.config.get("default_priority", "1")
 
         # Default timestamp: infinite
@@ -173,8 +171,6 @@ class Yat:
                         )""")
                 self.__sql.execute("""insert into metadata values ("version",
                         ?)""", (VERSION,))
-                self.__sql.execute("""insert into tags values (null, "notag", -1,
-                        ?, ?, ?)""", (self.get_time(), self.get_time(), "nohash"))
                 self.__sql.execute("""insert into lists values (null, "nolist",
                         -1, ?, ?, ?)""", (time.time(), self.get_time(), "nohash"))
                 self.__sql.commit()
@@ -376,8 +372,6 @@ class Yat:
                 due_date = p['due_date']
 
         # Get the ids of the tags
-        if tags == None or tags == []:
-            tags.append(self.config["default_tag"])
         tags_id = []
         for t in tags:
             self.__add_tag_or_list("tags", t, 0)
@@ -459,8 +453,6 @@ class Yat:
         tags = self.get_tags_from_task(t["id"])
         tags_id_to_process = []
         if add_tags != [] :
-            if [tt for tt in tags if tt.id == 1] != [] :
-                tags_id_to_process.append(-1)
             for tag in add_tags:
                 if not str(tag) in [tt.id for tt in tags]:
                     self.__add_tag_or_list("tags", str(tag), 0)
@@ -469,7 +461,6 @@ class Yat:
             for tag in remove_tags:
                 if str(tag) in [tt.content for tt in tags]:
                     tags_id_to_process.append(-int(self.__get_id("tags", str(tag))))
-        tags = [tag for tag in tags if tag.id != 1]
 
         with self.__sql:
             self.__sql.execute(u'update tasks set content=?, parent=?, priority=?, due_date=?, list=?, completed=?, last_modified=? where id=?',
@@ -591,17 +582,9 @@ class Yat:
         with self.__sql:
             # Update tasks
             for t in ids:
-                for i in self.__sql.execute(u'''
-                                            select task from tagging where tag=?
-                                            except
-                                            select task from tagging where tag!=?
-                                            ''', (t, t)).fetchall():
-                    self.__sql.execute('insert into tagging values(1, ?)', (i[0],))
-
                 # Remove tags
-                if t != "1": # it's not possible to remove the "notag" tag
-                    self.__sql.execute(u'delete from tags where id=?', (t,))
-                self.__sql.commit()
+                self.__sql.execute(u'delete from tags where id=?', (t,))
+            self.__sql.commit()
         pass
 
     def get_list(self, list, type_id = True, can_create = False):
