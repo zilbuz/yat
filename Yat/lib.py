@@ -106,17 +106,22 @@ class Yat:
 
         # Add a function to support the REGEXP() operator
         def regexp(expr, item):
-            # Replace all * and ? with .* and .? (but not \* and \?)
-            regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
-            regex = re.sub(r'([^\\])\?', r'\1.?', regex)
-            # Replace other \ with \\
-            regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
-            # Replace ^ and $ by \^ and \$
-            regex = re.sub(r'\^', r'\^', regex)
-            regex = re.sub(r'\$', r'\$', regex)
-            # Add ^ and $ to the regexp
-            regex = r'^' + regex + r'$'
-            return len(re.findall(regex, item)) > 0
+            try:
+                # Replace all * and ? with .* and .? (but not \* and \?)
+                regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
+                regex = re.sub(r'([^\\])\?', r'\1.?', regex)
+                # Replace other \ with \\
+                regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
+                # Replace ^ and $ by \^ and \$
+                regex = re.sub(r'\^', r'\^', regex)
+                regex = re.sub(r'\$', r'\$', regex)
+                # Add ^ and $ to the regexp
+                regex = r'^' + regex + r'$'
+                return len(re.findall(regex, item)) > 0
+            except Exception as e:
+                print e
+                print expr
+                print item
         self.__sql.create_function("regexp", 2, regexp)
 
         # Verify the existence of the database and create it if it doesn't exist
@@ -413,7 +418,7 @@ class Yat:
         pass
 
     def edit_task(self, id, task = None, parent = None, priority = None, due_date = None, 
-            list = None, add_tags = [], remove_tags = [], completed = None):
+            list = -1, add_tags = [], remove_tags = [], completed = None):
         u"""Edit the task with the given id.
         params:
             - id (int)
@@ -441,7 +446,7 @@ class Yat:
             priority = t["priority"]
         if due_date == None:
             due_date = t["due_date"]
-        if list == None:
+        if list == -1:
             list = t["list"]
         elif list == '':
             list = None
@@ -601,7 +606,7 @@ class Yat:
         list name provided doesn't exist, it will be created.
         """
         res = None
-        if list == None:
+        if (list == None and type_id) or (list == '' and not type_id):
             if None in List.list_id:
                 return List.list_id[None]
             return NoList()

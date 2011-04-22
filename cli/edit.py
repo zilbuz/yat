@@ -220,9 +220,9 @@ The possible attributes for a list or a tag are:
             # Process the list name
             if list != None:
                 list_id = cli.lib.get_list(list, type_id = False, 
-                        can_create = True)["id"]
+                        can_create = True).id
             else:
-                list_id = None
+                list_id = -1 
 
             cli.lib.edit_task(id, task, parent, priority, due_date, list_id, add_tags,
                     remove_tags)
