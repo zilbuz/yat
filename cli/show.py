@@ -60,6 +60,7 @@ Options:
             res = re.match("^(--show-completed|-a)$", a)
             if res != None:
                 self.show_completed = True
+        self.check_contextual = True    # Until an option is implemented
 
         # Testing the alias used to call ListCommand
         if cmd in [u'show', u'ls', u'tasks']:
@@ -77,59 +78,30 @@ Options:
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
-            for tree in cli.lib.get_tasks(group_by =
+            groups = cli.lib.get_tasks(group_by =
                 cli.lib.config["cli.display_group"], order_by =
-                cli.lib.config["cli.task_ordering"]):
-                # Print the tasks for each group
-                group = tree.parent
-                tasks = tree.children
-                text_group = u"{name} (Priority: {p}, id: {id})".format(name =
-                        group.content, p = group.priority, id = group.id)
-                c = cli.lib.config["cli.color_group_name"]
-                cli.output(text_group, foreground = c[0], background = c[1], bold =
-                        c[2])
-                length = len(text_group)
-                cli.output(u"{s:*<{lgth}}".format(s = "*", 
-                    lgth = length))
-                if cli.lib.config["cli.display_group"] == "list":
-                    self.__output_tasks(tasks, list=group);
-                elif cli.lib.config["cli.display_group"] == "tag":
-                    self.__output_tasks(tasks, tag=group);
-                cli.output()
+                cli.lib.config["cli.task_ordering"])
 
         elif cmd in [u'lists', u'tags'] :
-            grp_by = cmd[0:-1]
-
             c = cli.lib.config["cli.color_group_name"]
-            cli.output(u"<" + grp_by + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
+            cli.output(u"<" + cmd[0:-1] + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
                     foreground = c[0], background = c[1], bold = c[2])
             
             if cmd == u'lists':
                 groups = set(cli.lib.get_lists_regex(u"*"))
             else:
                 groups = set(cli.lib.get_tags_regex(u'*'))
-            for tree in cli.lib.get_tasks(group_by = grp_by, order = False):
-                group = tree.parent
-                groups.discard(group)
-                tasks = tree.children
-                n_tasks = len(tasks)
-                n_completed = 0
-                for t in tasks:
-                    n_completed += t.parent.completed
-                cli.output(u"\t- " + group.content + u" (id: " + str(group.id) 
-                        + u") - " + str( n_completed) + u"/" + str(n_tasks))
 
-            groups = [Tree(g) for f in groups]
+            # Load all the tasks in memory
+            cli.lib.get_tasks(group = False, order = False,
+                              select_children = False,
+                              regroup_family = False)
 
-            for tree in groups:
-                group = tree.parent
-                tasks = tree.children
-                n_tasks = len(tasks)
-                n_completed = 0
-                for t in tasks:
-                    n_completed += t.parent.completed
-                cli.output(u"\t- " + group.content + u" (id: " + str(group.id) 
-                        + u") - " + str( n_completed) + u"/" + str(n_tasks))
+            groups = [cli.Yat.Tree(g, None, {'no_family':True}) for g in groups]
+
+        self.__load_display(cmd in [u'lists', u'tags'])
+        for item in groups:
+            item.display()
 
     def __split_text(self, text, width=None):
         u"""Split the text so each chunk isn't longer than the textwidth
@@ -151,10 +123,7 @@ Options:
             splitted_text[i] = " ".join(splitted_text[i])
         return splitted_text
 
-    def __output_tasks(self, tasks, list=None, tag=None):
-        u"""Print the tasks. The parameter tasks have to be complete rows of
-        the tasks table."""
-        # Print header, depending on show_completed
+    def __load_display(self, groups):
         done_column_top = ""
         done_column_middle = ""
         done_column_bottom = ""
@@ -163,94 +132,152 @@ Options:
             done_column_middle = "| "
             done_column_bottom = "--"
 
-        c = cli.lib.config["cli.color_header"]
-        cli.output(u" {done}__________{t:_<{datewidth}}______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
-            done=done_column_top, t="_", textwidth=self.textwidth,
-            tagswidth=self.tagswidth, datewidth=self.datewidth), 
-            foreground = c[0], background = c[1], bold = c[2])
-        cli.output(u"{done}|Priority |{date:^{datewidth}}| Id| {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
-            done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
-            task = "Task", textwidth = self.textwidth, tags = " Tags",
-            tagswidth = self.tagswidth),
-            foreground = c[0], background = c[1], bold = c[2])
-        cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-            done=done_column_bottom, t="-", textwidth=self.textwidth,
-            tagswidth=self.tagswidth, datewidth=self.datewidth),
-            foreground = c[0], background = c[1], bold = c[2])
 
-        for r in tasks:
-            self.__print_tree(r, "", done_column_middle, list=list, tag=tag, check_contextual=True)
+        def group_header(group):
+            return u"{name} (Priority: {p}, id: {id})".format(name =
+                    group.content, p = group.priority, id = group.id)
 
-            # Print the separator
+        def notag_header(group):
+            return u"Not tagged"
+
+        def nolist_header(group):
+            return u"Not listed"
+
+        def group_tree_display(group, recursion_arguments, contextual):
+            u"""Print the tasks. The parameter tasks have to be complete rows of
+            the tasks table."""
+            cli.output()
+            text_group = group.group_header()
+            c = cli.lib.config["cli.color_group_name"]
+            cli.output(text_group, foreground = c[0], background = c[1], bold =
+                    c[2])
+            length = len(text_group)
+            cli.output(u"{s:*<{lgth}}".format(s = "*", 
+                lgth = length))
+
+            # Print header, depending on show_completed
+            c = cli.lib.config["cli.color_header"]
+            cli.output(u" {done}__________{t:_<{datewidth}}______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
+                done=done_column_top, t="_", textwidth=self.textwidth,
+                tagswidth=self.tagswidth, datewidth=self.datewidth), 
+                foreground = c[0], background = c[1], bold = c[2])
+            cli.output(u"{done}|Priority |{date:^{datewidth}}| Id| {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
+                done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
+                task = "Task", textwidth = self.textwidth, tags = " Tags",
+                tagswidth = self.tagswidth),
+                foreground = c[0], background = c[1], bold = c[2])
             cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-                done = done_column_bottom, t="-", textwidth=self.textwidth,
-                tagswidth=self.tagswidth, datewidth = self.datewidth))
+                done=done_column_bottom, t="-", textwidth=self.textwidth,
+                tagswidth=self.tagswidth, datewidth=self.datewidth),
+                foreground = c[0], background = c[1], bold = c[2])
 
-    def __print_tree(self, root, prefix="", done_column_middle="", list=None, tag=None, check_contextual=True):
-        # Skip the task if it's completed
-        if (not self.show_completed) and root.parent.completed == 1:
-            return
+        def group_display_callback(group):
+                # Print the separator
+                cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+                    done = done_column_bottom, t="-", textwidth=self.textwidth,
+                    tagswidth=self.tagswidth, datewidth = self.datewidth))
 
-        # Split task text
-        st = self.__split_text(root.parent.content, self.textwidth - len(prefix))
+        def tree_print(tree, recursion_arguments = None):
+            try:
+                next_recursion = tree.parent.tree_display(recursion_arguments, tree.context)
+            except InterruptDisplay:
+                return
+            for t in tree.children:
+                t.display(next_recursion)
+                tree.parent.display_callback()
 
-        # Prepare and split tags
-        tags = ", ".join([t.content for t in root.parent.tags])
-        tags = self.__split_text(tags, self.tagswidth)
+        def tree_print_group(tree):
+                n_tasks = len(tree.children)
+                n_completed = 0
+                for t in tree.children:
+                    n_completed += t.parent.completed
+                cli.output(u"\t- " + tree.parent.content + u" (id: " +
+                           str(tree.parent.id) + u") - " +
+                           str( n_completed) + u"/" + str(n_tasks))
 
-        # Print the first line of the current task
-        done_column = ""
-        if self.show_completed:
-            if root.parent.completed == 1:
-                done_column = "|X"
+        def task_display_callback(task):
+            pass
+
+        def task_tree_display(task, arguments, contextual):
+            if (not self.show_completed) and task.completed == 1:
+                raise InterruptDisplay()
+
+            if arguments == None:
+                arguments = {'prefix':''}
+
+            # Split task text
+            st = self.__split_text(task.content, self.textwidth -
+                                   len(arguments['prefix']))
+
+            # Prepare and split tags
+            tags = ", ".join([t.content for t in task.tags])
+            tags = self.__split_text(tags, self.tagswidth)
+
+            # Print the first line of the current task
+            done_column = ""
+            if self.show_completed:
+                if task.completed == 1:
+                    done_column = "|X"
+                else:
+                    done_column = "| "
+
+            # Format the date column
+            date_column = cli.parse_output_date(task.due_date)
+
+            # Select color
+            color_name = "cli.color_default"
+            if self.check_contextual and contextual:
+                color_name = "cli.color_contextual" 
+            elif task.due_date < cli.lib.get_time():
+                color_name = "cli.color_tasks_late"
             else:
-                done_column = "| "
+                color_name = "cli.color_priority" + str(task.priority)
+            c = cli.lib.config[color_name]
 
-        # Format the date column
-        date_column = cli.parse_output_date(root.parent.due_date)
-
-        # Select color
-        contextual = root.context
-        color_name = "cli.color_default"
-        if check_contextual and contextual:
-            color_name = "cli.color_contextual" 
-        elif root.parent.due_date < cli.lib.get_time():
-            color_name = "cli.color_tasks_late"
-        else:
-            color_name = "cli.color_priority" + str(root.parent.priority)
-        c = cli.lib.config[color_name]
-
-        cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-            done = done_column, p = root.parent.priority, date = date_column, id = root.parent.id, 
-            pref = prefix, pref_width = len(prefix),
-            task = st.pop(0), textwidth = self.textwidth - len(prefix), 
-            tags = tags.pop(0), tagswidth = self.tagswidth, 
-            datewidth = self.datewidth),
-            foreground = c[0], background = c[1], bold = c[2])
-
-        # Blanking the prefix
-        blank_prefix = ""
-        for i in range(len(prefix)):
-            blank_prefix = blank_prefix + " "
-
-        # Print the rest of the current task
-        for i in range(max(len(st),len(tags))):
-            if i < len(st):
-                te = st[i]
-            else:
-                te = u""
-            if i < len(tags):
-                ta = tags[i]
-            else:
-                ta = u""
-            cli.output(u"{done}|         |{t: <{datewidth}}|   | {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                done = done_column_middle, task = te, textwidth = self.textwidth - len(blank_prefix),
-                tags=ta, pref = blank_prefix, pref_width = len(blank_prefix),
-                tagswidth = self.tagswidth, t = " ", 
+            cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                done = done_column, p = task.priority, date = date_column, id = task.id, 
+                pref = arguments['prefix'], pref_width = len(arguments['prefix']),
+                task = st.pop(0), textwidth = self.textwidth - len(arguments['prefix']), 
+                tags = tags.pop(0), tagswidth = self.tagswidth, 
                 datewidth = self.datewidth),
                 foreground = c[0], background = c[1], bold = c[2])
 
-        # Print the nodes of the root
-        prefix = blank_prefix + "* "
-        for node in root.children:
-            self.__print_tree(node, prefix, list = list, tag = tag, check_contextual = check_contextual and (list != None or (tag != None and contextual)))
+            # Blanking the prefix
+            blank_prefix = ""
+            for i in range(len(arguments['prefix'])):
+                blank_prefix = blank_prefix + " "
+
+            # Print the rest of the current task
+            for i in range(max(len(st),len(tags))):
+                if i < len(st):
+                    te = st[i]
+                else:
+                    te = u""
+                if i < len(tags):
+                    ta = tags[i]
+                else:
+                    ta = u""
+                cli.output(u"{done}|         |{t: <{datewidth}}|   | {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                    done = done_column_middle, task = te, textwidth = self.textwidth - len(blank_prefix),
+                    tags=ta, pref = blank_prefix, pref_width = len(blank_prefix),
+                    tagswidth = self.tagswidth, t = " ", 
+                    datewidth = self.datewidth),
+                    foreground = c[0], background = c[1], bold = c[2])
+
+            # Print the nodes of the root
+            arguments['prefix'] = blank_prefix + "* "
+
+        cli.Yat.Task.tree_display = task_tree_display
+        cli.Yat.Task.display_callback = task_display_callback
+        cli.Yat.Group.tree_display = group_tree_display
+        cli.Yat.Group.display_callback = group_display_callback
+        cli.Yat.Group.group_header = group_header
+        cli.Yat.NoList.group_header = nolist_header
+        cli.Yat.NoTag.group_header = notag_header
+        if groups:
+            cli.Yat.Tree.display = tree_print_group
+        else:
+            cli.Yat.Tree.display = tree_print
+
+class InterruptDisplay(Exception):
+    u'''For internal use.'''
