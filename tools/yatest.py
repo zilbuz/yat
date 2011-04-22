@@ -43,8 +43,10 @@ test_cases ../yat test_cases/all.yatest" """
 
     parser.add_option( "-d", "--directory", 
             dest = "directory", default = os.getcwd(),
-            help = "The directory where you want to execute the tested yat. (default: current directory)"
-        )
+            help = "The directory where you want to execute the tested yat. (default: current directory)" )
+    parser.add_option( "-s", "--step-by-step",
+            action = "store_true", dest = "sbs", default = False,
+            help = "Execute one test at a time, asking you to continue between each. (default: False)" )
 
     (options, args) = parser.parse_args()
 
@@ -95,8 +97,11 @@ test_cases ../yat test_cases/all.yatest" """
         print "Calling programme with arguments : " + test
         print "\tconfig-file: " + metadata["config-file"]
         subprocess.call([yat, cfg, test])
-
-        sys.stdin.readline()
+        print "\t-> done"
+        
+        if options.sbs:
+            sys.stdout.write("Press enter to launch the next test")
+            sys.stdin.readline()
 
 if __name__ == "__main__":
     main()
