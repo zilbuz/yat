@@ -67,7 +67,8 @@ class Task(object):
 
     def parents_in_group(self, group):
         u"""Returns True if at least one parent of self is in the group, False otherwise."""
-        return self.parent != None and (group.related_with(self) or self.parent.parents_in_group(group))
+        return self.parent != None and (group.related_with(self.parent) or
+                                        self.parent.parents_in_group(group))
 
     def get_list_parents(self):
         u"""Returns a list of all the parents of self, beginning with the root ancestor."""
@@ -81,11 +82,11 @@ class Task(object):
         u"""Static function. Given a tree with a task as root, stacks up the ancestors of the said task
         on top of is, in a straight line to the task. The added nodes are tagged as contextual."""
         parents = tree.parent.get_list_parents()
-        def policy(t):
+        def policy(t, p):
             if t == tree.parent:
                 return tree
             if t in parents:
-                l_tree = Tree(t, policy)
+                l_tree = Tree(t, policy, p)
                 l_tree.context = True
                 return l_tree
             return None
@@ -102,8 +103,8 @@ class Task(object):
             pass
         return [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
 
-    def child_policy(self, task):
-        return Tree(task, self.child_policy)
+    def child_policy(self, task, params):
+        return Tree(task, self.child_policy, params)
 
     def child_callback(self, tree):
         return tree
