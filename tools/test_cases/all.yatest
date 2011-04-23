@@ -41,8 +41,8 @@ add task task 12 due 27/04/2025 ^27/04/2025
 add task task 13 due 13/01/2001 ^13/01/2001
 add task task 14 due 20/05/2015 at 16h ^20/05/2015:16
 add task task 15 due 4/12/2020 at 3h48 ^4/12/2020:3:48
->>>config-file: ""
--c test_12hformat.yatrc add task task 16 due 9/11/2033 at 7h12 pm ^9/11/2033:7:12pm
+>>>config-file: "test_12hformat.yatrc"
+add task task 16 due 9/11/2033 at 7h12 pm ^9/11/2033:7:12pm
 >>>config-file: "base.yatrc"
     # Tags (#)
 add task task 17 in tag 1 #tag1
@@ -161,8 +161,9 @@ tasks --show-completed
 ls -a
 lists
 tags
->>>config-file: ""
--c test_lsbylist.yatrc ls
--c test_lsbytags.yatrc ls
+>>>config-file: "test_lsbylist.yatrc"
+ls
+>>>config_file: "test_lsbytags.yatrc"
+ls
 >>>config-file: "base.yatrc"
 
