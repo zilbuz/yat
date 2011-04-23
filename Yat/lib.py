@@ -184,7 +184,7 @@ class Yat:
         # Hidden config (regexp)
         self.config["re.id"] = u"\d*?"
         self.config["re.priority"] = u"\d"
-        self.config["re.date"] = u"(?P<x1>\d\d)/(?P<x2>\d\d)/(?P<year>\d{4})(:(?P<hour>\d?\d)(:(?P<minute>\d\d))?(?P<apm>am|pm)?)?"
+        self.config["re.date"] = u"(?P<x1>\d?\d)/(?P<x2>\d\d)/(?P<year>\d{4})(:(?P<hour>\d?\d)(:(?P<minute>\d\d))?(?P<apm>am|pm)?)?"
         self.config["re.tag_name"] = u".*"
         self.config["re.tags_list"] = u"{0}?(,{0}?)*".format(
                 self.config["re.tag_name"])

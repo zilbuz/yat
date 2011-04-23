@@ -44,7 +44,7 @@ provided, "task" is assumed.
 The possible attributes for a task are:
     task: the text of the task.
     due_date: the due date of the task, the value must have the same format than
-        in the 'add' command: xx/xx/yyyy[:[h]h[:mm][am|pm]]
+        in the 'add' command: [x]x/xx/yyyy[:[h]h[:mm][am|pm]]
     priority: the priority of the task, must be an integer from 0 (lowest
         priority) to 3 (highest priority)
     list: the task will be deleted from its current list and added to the one

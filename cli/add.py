@@ -54,7 +54,7 @@ Adding a task:
     one(s) of the parent task.
 
     '^' can be used to set the due date of the task, it must be followed by a
-    date of the form xx/xx/yyyy[:[h]h[:mm][am|pm]], where xx/xx is either dd/mm or
+    date of the form [x]x/xx/yyyy[:[h]h[:mm][am|pm]], where xx/xx is either dd/mm or
     mm/dd, depending of the cli.input_date option, and hh is the hour in 24 or
     12 hour format, depending of the cli.input_time option.
     Example: yat add "go to the cinema with Wendy ^12/02/2011:20".
