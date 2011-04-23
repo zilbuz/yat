@@ -65,7 +65,7 @@ add tag tag5 10
 add list list3 -10
 add list list4 4
     # Mixed symbols
-add task task 28 with priority 2 *2, due date 20/10/2020 ^20/10/2020 and 15 for parent ~15
+add task task 28 with priority 2 *2 , due date 20/10/2020 ^20/10/2020 and 15 for parent ~15
 add task task 29 with tags 1 and 2 #tag1 #tag2 list 1 >list1 and 22 for parent ~22
 
 # Tests for done
