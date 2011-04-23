@@ -26,24 +26,39 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from lib import *
-
-import lib
-
 class Task(object):
     children_id = {}
 
-    def __init__(self, sql_line, lib, no_family=False):
+    def __setattr__(self, attr, value):
+        super(Task, self).__setattr__('changed', True)
+        super(Task, self).__setattr__(attr, value)
+
+    def __init__(self, sql_line=None, lib=None, no_family=False):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
+        save_setattr = Task.__setattr__
+        Task.__setattr__ = object.__setattr__
+        self.changed = False
+        if sql_line == None:
+            self.id = None
+            self.parent=None
+            self.content=''
+            self.due_date=0
+            self.priority=0
+            self.list = List(None)
+            self.tags = set()
+            self.completed = 0
+            self.last_modified = 0
+            self.created = 0
+            return
         self.id = sql_line["id"]
-        self.parent_id = sql_line["parent"]
+        parent_id = sql_line["parent"]
 
-        if self.parent_id not in Task.children_id:
-            Task.children_id[self.parent_id] = (None, [])
-        self.parent = Task.children_id[self.parent_id][0]
-        if self.id not in Task.children_id[self.parent_id][1]:
-            Task.children_id[self.parent_id][1].append(self.id)
+        if parent_id not in Task.children_id:
+            Task.children_id[parent_id] = (None, [])
+        self.parent = Task.children_id[parent_id][0]
+        if self.id not in Task.children_id[parent_id][1]:
+            Task.children_id[parent_id][1].append(self.id)
         if self.id not in Task.children_id:
             Task.children_id[self.id] = (self, [])
         else:
@@ -55,10 +70,62 @@ class Task(object):
         self.due_date = sql_line["due_date"]
         self.priority = sql_line["priority"]
         self.list = lib.get_list(sql_line["list"])
-        self.tags = lib.get_tags_from_task(self.id)
+        self.tags = set(lib.get_tags_from_task(self.id))
         self.completed = sql_line["completed"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
+
+        Task.__setattr__ = save__setattr
+
+    def check_values(self, lib):
+        u'''Checks the values of the object, and correct them
+        if needed by using the default values provided by lib.
+        '''
+
+        if self.id != None:
+            return
+        if self.priority == None:
+            if self.parent != None:
+                self.priority = self.parent.priority
+            else:
+                priority = lib.config["default_priority"]
+        elif self.priority > 3:
+            self.priority = 3
+
+        for t in self.tags:
+            t.check_values()
+
+        self.list.check_values()
+
+        if self.due_date == None:
+            if self.parent == None:
+                self.due_date = lib.config["default_date"]
+            else:
+                self.due_date = self.parent.due_date
+
+        if self.created <= 0:
+            self.created = self.get_time()
+
+        if self.completed == True or self.completed == 1:
+            self.completed = 1
+        else:
+            self.completed = 0
+
+    def save(self, lib):
+        self.list.save(lib)
+        for t in self.tags:
+            t.save(lib)
+        if self.parent != None:
+            self.parent.save()
+
+        if self.id == None:
+            save_function = lib.add_task(self.content, self.parent,
+                                         self.due_date, self.tags, self.list,
+                                         self.completed)
+        else:
+            save_functon = lib.edit_task(self.id, self.content, self.parent,
+                                         self.priority, self.due_date,
+                                         self.list, self.tags, self.completed)
 
     def __str__(self):
         retour = "Task "
@@ -138,6 +205,14 @@ class Group(object):
 class List(Group):
     list_id = {}
 
+    def __new__(cls, sql_line = None):
+        if sql_line == None and cls != NoList: # Last condition to avoid infinite recursion
+            try:
+                return list_id[None]
+            except:
+                return NoList()
+        return super(List, cls).__new__(cls)
+
     def __init__(self, sql_line):
         u"""Constructs a List from an sql entry."""
         super(List, self).__init__(sql_line)
@@ -179,13 +254,19 @@ class Tag(Group):
 
 class NoGroup(object):
     def __init__(self):
-        self.content = ''
-        self.priority = ''
         self.id = None
+
+    def save(self, lib):
+        pass
+
+    def check_values(self):
+        pass
 
 class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
-    __mro__ = (NoGroup, Group, List, object)
+    __mro__ = (NoGroup, Group, object, List)
+    def __new__(cls):
+        return super(NoList, cls).__new__(cls)
 
     def __init__(self):
         super(NoList, self).__init__()

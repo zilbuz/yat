@@ -206,8 +206,8 @@ class Yat:
         pass
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
-            order_by=["reverse:priority", "due_date"],
-                 select_children=True, regroup_family=True):
+                  order_by=["reverse:priority", "due_date"], fetch_children=True,
+                  fetch_parents=True, regroup_family=True):
         u"""Method to get the tasks from the database, group them by list or
         tag, and order them according to the parameters. This function return an
         array of trees if group is False, and an array of tuple (group,
@@ -259,7 +259,7 @@ class Yat:
                     u"select * from tasks").fetchall())
 
         # Pulls in the children of the selected tasks
-        if select_children:
+        if fetch_children:
             to_examine = tasks
 
             while to_examine != []:
@@ -270,9 +270,13 @@ class Yat:
                     new_children.extend([c for c in tmp if c not in tasks])
                 to_examine = new_children
                 tasks.extend(new_children)
-            to_fetch = set([t['parent'] for t in tasks]) - set([t['id'] for t in tasks]) - set([None])
-            tasks.extend([self.__sql.execute(u'''select * from tasks where id=?''',
-                                             (i,)).fetchone() for i in to_fetch])
+        if fetch_parents:
+            to_fetch = (set([t['parent'] for t in tasks]) -
+                        set([t['id'] for t in tasks]) -
+                        set([None]))
+            tasks.extend([
+                self.__sql.execute(u'''select * from tasks where id=?''',
+                                   (i,)).fetchone() for i in to_fetch])
 
         tasks = [Task(t, self) for t in tasks]
 
@@ -340,6 +344,24 @@ class Yat:
 
         return ordered_tasks
 
+    def add_task(self, task):
+        u'''Adds a task to the DB.
+        '''
+        task.check_values(self)
+        if task.parent == None:
+            parent_id = None
+        else:
+            parent_id = task.parent.id
+
+        with self.__sql:
+            self.__sql.execute(u'''insert into tasks
+                               values(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               ''',
+                               (task.content, parent_id, task.priority,
+                                task.due_date, task.list.id, task.completed,
+                                task.creation_time, self.get_time(), "nohash"))
+            self.__sql.commit()
+
     def add_task(self, text, parent_id=None, priority=None, due_date=None, tags=None, list=None, completed=False):
         u"""Add a task to the database with the informations provided. Use
         default informations if None is provided
@@ -352,69 +374,11 @@ class Yat:
             - completed (bool)
             - parent_id (int)
         """
-
-        # Check the parent
-        if parent_id == 0:
-            parent_id = None
-        if parent_id != None:
-            with self.__sql:
-                p = self.__sql.execute(u'select * from tasks where id=?', (parent_id,)).fetchone()
-            if p == None:
-                raise WrongTaskId
-
-        # Set the priority
-        if priority == None:
-            if parent_id == None:
-                priority = self.config["default_priority"]
-            else:
-                priority = p['priority']
-        elif priority > 3:
-            priority = 3
-
-        # Set the due date
-        if due_date == None:
-            if parent_id == None:
-                due_date = self.config["default_date"]
-            else:
-                due_date = p['due_date']
-
-        # Get the ids of the tags
-        tags_id = []
-        for t in tags:
-            self.__add_tag_or_list("tags", t, 0)
-            tags_id.append(self.__get_id("tags", t))
-
         # Get the id of the list
-        list_flag = True
-        if list == None or list == u"":
-            if parent_id == None:
-                list = None
-            else:
-                list = p['list']
-            list_flag = False
-        if list_flag:
-            self.__add_tag_or_list("lists", list, 0)
-            list = self.__get_id("lists", list)
 
         # Set completed
-        if completed:
-            completed = 1
-        else:
-            completed = 0
 
         # Add the task to the bdd
-        with self.__sql:
-            creation_time = self.get_time()
-            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    (text, parent_id, priority, due_date, list, completed,
-                        creation_time, creation_time, "nohash"))
-            self.__sql.commit()
-            if parent_id == None:
-                parent_id = "null"
-            task_id = self.__sql.execute('select id from tasks where created=? and content=?', (creation_time, text)).fetchone()[0]
-            for i in tags_id:
-                self.__sql.execute('insert into tagging values(?,?)', (i, task_id))
-            self.__sql.commit()
         pass
 
     def edit_task(self, id, task = None, parent = None, priority = None, due_date = None, 
