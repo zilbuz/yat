@@ -134,7 +134,9 @@ Options:
                                          order = False, fetch_children = False,
                                          fetch_parents = False)
             else:
-                temp = cli.lib.get_tasks(regexp = a, group = False, order = False, select_children = False)
+                temp = cli.lib.get_tasks(regexp = a, group = False,
+                                         order = False, fetch_parents = False,
+                                         fetch_children = False)
 
             for t in temp:
                 if self.interactive:
