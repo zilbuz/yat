@@ -286,7 +286,7 @@ class Yat:
             grouped_tasks = []
             tree_construction = None
             if group_by == "list":
-                nogroup = Tree(List(), None, tree_parameters)
+                nogroup = Tree(NoList(), None, tree_parameters)
                 grouped_tasks = [Tree(l, None, tree_parameters)
                                  for l in List.list_id.itervalues()
                                  if l.id != None]
@@ -353,7 +353,13 @@ class Yat:
                                ''',
                                (task.content, parent_id, task.priority,
                                 task.due_date, task.list.id, task.completed,
-                                task.created, self.get_time(), "nohash"))
+                                self.get_time(), task.created, "nohash"))
+            self.__sql.commit()
+            if parent_id == None:
+                parent_id = "null"
+            task.id = self.__sql.execute('select id from tasks where created=? and content=?', (task.created, task.content)).fetchone()[0]
+            for i in task.tags:
+                self.__sql.execute('insert into tagging values(?,?)', (i.id, task.id))
             self.__sql.commit()
 
     def edit_task(self, id, task = None, parent = None, priority = None, due_date = None, 
@@ -459,7 +465,7 @@ class Yat:
                     tag_row = self.__sql.execute(u'select * from tags where content=?', 
                             (t,)).fetchone()
                     if can_create and tag_row == None:
-                        self.add_tag(t)
+                        self._add_tag_or_list("tags", t, 0)
                         tag_row = self.__sql.execute(u'select * from tags where content=?', 
                             (t,)).fetchone()
                     elif int(tag_row["id"]) in Tag.tag_id:
@@ -549,7 +555,7 @@ class Yat:
                 res = self.__sql.execute(u'select * from lists where content=?',
                         (list,)).fetchone()
                 if res == None and can_create:
-                    self.add_list(list)
+                    self._add_tag_or_list("lists", list, 0)
                     res = self.__sql.execute(u'select * from lists where content=?',
                             (list,)).fetchone()
                 elif int(res["id"]) in List.list_id:

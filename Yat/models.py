@@ -43,7 +43,7 @@ class Task(object):
             self.content=''
             self.due_date=None
             self.priority=None
-            self.list = List(None)
+            self.list = NoList()
             self.tags = set()
             self.completed = 0
             self.last_modified = 0
@@ -80,9 +80,6 @@ class Task(object):
         u'''Checks the values of the object, and correct them
         if needed by using the default values provided by lib.
         '''
-
-        if self.id != None:
-            return
         if self.priority == None:
             if self.parent != None:
                 self.priority = self.parent.priority
@@ -115,13 +112,16 @@ class Task(object):
         for t in self.tags:
             t.save(lib)
         if self.parent != None:
-            self.parent.save()
+            self.parent.save(lib)
 
         if self.id == None:
+            lib._add_task(self)
+        '''
             save_function = lib._add_task
         else:
             save_function = lib._edit_task
         save_function(self)
+        '''
 
     def __str__(self):
         retour = "Task "
@@ -175,6 +175,13 @@ class Task(object):
 class Group(object):
     def __init__(self, sql_line):
         u"""Constructs a group from an sql row"""
+        if sql_line == None:
+            self.id = None
+            self.content = ''
+            self.priority = None
+            self.last_modified = 0
+            self.created = 0
+            return
         self.id = int(sql_line["id"])
         self.content = sql_line["content"]
         self.priority = sql_line["priority"]
@@ -198,30 +205,26 @@ class Group(object):
         return tree
 
     def check_values(self):
-        self.content = str(self.content)
-        self.priority = int(self.priority)
+        if self.priority == None:
+            self.priority = lib.config["default_priority"]
+
+        if self.created <= 0:
+            self.created = lib.get_time()
 
     def save(self, lib):
         self.check_values()
-        lib.__add_tag_or_list(self.__table_name, self.content, self.priority)
+        lib._add_tag_or_list(self._table_name, self.content, self.priority)
 
 
 class List(Group):
     list_id = {}
-    __table_name = 'lists'
+    _table_name = 'lists'
 
-    def __new__(cls, sql_line = None):
-        if sql_line == None and cls != NoList: # Last condition to avoid infinite recursion
-            try:
-                return cls.list_id[None]
-            except:
-                return NoList()
-        return super(List, cls).__new__(cls)
-
-    def __init__(self, sql_line):
+    def __init__(self, sql_line = None):
         u"""Constructs a List from an sql entry."""
         super(List, self).__init__(sql_line)
-        List.list_id[self.id] = self
+        if self.id != None:
+            List.list_id[self.id] = self
 
     def __str__(self):
         retour = "List " + str(self.id)
@@ -244,12 +247,13 @@ class List(Group):
 
 class Tag(Group):
     tag_id = {}
-    __table_name = 'tags'
+    _table_name = 'tags'
 
-    def __init__(self, sql_line):
+    def __init__(self, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
         super(Tag, self).__init__(sql_line)
-        Tag.tag_id[self.id] = self
+        if self.id != None:
+            Tag.tag_id[self.id] = self
 
     def child_policy(self, task, params):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
@@ -272,9 +276,12 @@ class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
     __mro__ = (NoGroup, Group, object, List)
     def __new__(cls):
-        return super(NoList, cls).__new__(cls)
+        try:
+            return List.list_id[None]
+        except:
+            return super(NoList, cls).__new__(cls)
 
-    def __init__(self, lib=None):
+    def __init__(self):
         super(NoList, self).__init__()
         List.list_id[None] = self
 
