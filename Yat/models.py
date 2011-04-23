@@ -36,20 +36,19 @@ class Task(object):
     def __init__(self, sql_line=None, lib=None, no_family=False):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
-        save_setattr = Task.__setattr__
-        Task.__setattr__ = object.__setattr__
         self.changed = False
         if sql_line == None:
             self.id = None
             self.parent=None
             self.content=''
-            self.due_date=0
-            self.priority=0
+            self.due_date=None
+            self.priority=None
             self.list = List(None)
             self.tags = set()
             self.completed = 0
             self.last_modified = 0
             self.created = 0
+            self.changed = False
             return
         self.id = sql_line["id"]
         parent_id = sql_line["parent"]
@@ -75,7 +74,7 @@ class Task(object):
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
 
-        Task.__setattr__ = save__setattr
+        self.changed = False
 
     def check_values(self, lib):
         u'''Checks the values of the object, and correct them
@@ -88,7 +87,7 @@ class Task(object):
             if self.parent != None:
                 self.priority = self.parent.priority
             else:
-                priority = lib.config["default_priority"]
+                self.priority = lib.config["default_priority"]
         elif self.priority > 3:
             self.priority = 3
 
@@ -104,7 +103,7 @@ class Task(object):
                 self.due_date = self.parent.due_date
 
         if self.created <= 0:
-            self.created = self.get_time()
+            self.created = lib.get_time()
 
         if self.completed == True or self.completed == 1:
             self.completed = 1
@@ -119,13 +118,10 @@ class Task(object):
             self.parent.save()
 
         if self.id == None:
-            save_function = lib.add_task(self.content, self.parent,
-                                         self.due_date, self.tags, self.list,
-                                         self.completed)
+            save_function = lib._add_task
         else:
-            save_functon = lib.edit_task(self.id, self.content, self.parent,
-                                         self.priority, self.due_date,
-                                         self.list, self.tags, self.completed)
+            save_function = lib._edit_task
+        save_function(self)
 
     def __str__(self):
         retour = "Task "
@@ -201,14 +197,23 @@ class Group(object):
             return Task.stack_up_parents(tree)
         return tree
 
+    def check_values(self):
+        self.content = str(self.content)
+        self.priority = int(self.priority)
+
+    def save(self, lib):
+        self.check_values()
+        lib.__add_tag_or_list(self.__table_name, self.content, self.priority)
+
 
 class List(Group):
     list_id = {}
+    __table_name = 'lists'
 
     def __new__(cls, sql_line = None):
         if sql_line == None and cls != NoList: # Last condition to avoid infinite recursion
             try:
-                return list_id[None]
+                return cls.list_id[None]
             except:
                 return NoList()
         return super(List, cls).__new__(cls)
@@ -239,6 +244,7 @@ class List(Group):
 
 class Tag(Group):
     tag_id = {}
+    __table_name = 'tags'
 
     def __init__(self, sql_line):
         u"""Constructs a Tag from an sql entry."""
@@ -268,7 +274,7 @@ class NoList(NoGroup, List):
     def __new__(cls):
         return super(NoList, cls).__new__(cls)
 
-    def __init__(self):
+    def __init__(self, lib=None):
         super(NoList, self).__init__()
         List.list_id[None] = self
 
