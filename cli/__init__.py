@@ -29,6 +29,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import datetime
+import time
 import inspect
 import os
 import sys
