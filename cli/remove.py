@@ -130,7 +130,9 @@ Options:
         else: # removing a task
             ids = []
             if operation == u'=':
-                temp = cli.lib.get_tasks(ids = [int(a)], group = False, order = False, select_children = False)
+                temp = cli.lib.get_tasks(ids = [int(a)], group = False,
+                                         order = False, fetch_children = False,
+                                         fetch_parents = False)
             else:
                 temp = cli.lib.get_tasks(regexp = a, group = False, order = False, select_children = False)
 
