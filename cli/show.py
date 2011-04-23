@@ -198,12 +198,14 @@ Options:
         def task_display_callback(task):
             pass
 
-        def task_tree_display(task, arguments, contextual):
+        def task_tree_display(task, rec_arguments, contextual):
             if (not self.show_completed) and task.completed == 1:
                 raise InterruptDisplay()
 
-            if arguments == None:
+            if rec_arguments == None:
                 arguments = {'prefix':''}
+            else:
+                arguments = rec_arguments.copy()
 
             # Split task text
             st = self.__split_text(task.content, self.textwidth -
