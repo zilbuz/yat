@@ -48,6 +48,23 @@ VERSION = u"0.1b-dev"
 
 class Yat:
 
+    @staticmethod
+    def regexp(expr, item):
+        u'''Compare an expression to a string and returns True if there
+        is a match.
+        '''
+        # Replace all * and ? with .* and .? (but not \* and \?)
+        regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
+        regex = re.sub(r'([^\\])\?', r'\1.?', regex)
+        # Replace other \ with \\
+        regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
+        # Replace ^ and $ by \^ and \$
+        regex = re.sub(r'\^', r'\^', regex)
+        regex = re.sub(r'\$', r'\$', regex)
+        # Add ^ and $ to the regexp
+        regex = r'^' + regex + r'$'
+        return len(re.findall(regex, item)) > 0
+
     def __init__(self, config_file_path = None):
         u"""Constructor:
             * load the configuration file
@@ -105,19 +122,7 @@ class Yat:
         self.__sql.row_factory = sqlite3.Row
 
         # Add a function to support the REGEXP() operator
-        def regexp(expr, item):
-            # Replace all * and ? with .* and .? (but not \* and \?)
-            regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
-            regex = re.sub(r'([^\\])\?', r'\1.?', regex)
-            # Replace other \ with \\
-            regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
-            # Replace ^ and $ by \^ and \$
-            regex = re.sub(r'\^', r'\^', regex)
-            regex = re.sub(r'\$', r'\$', regex)
-            # Add ^ and $ to the regexp
-            regex = r'^' + regex + r'$'
-            return len(re.findall(regex, item)) > 0
-        self.__sql.create_function("regexp", 2, regexp)
+        self.__sql.create_function("regexp", 2, Yat.regexp)
 
         # Verify the existence of the database and create it if it doesn't exist
         # (very basic)
@@ -199,6 +204,15 @@ class Yat:
         self.__tag_id = {}
         self.__list_id = {}
         pass
+
+    def _get_tasks(self, ids=None, regexp=None):
+        return [t.parent for t in self.get_tasks(ids, regexp, False, False,
+                                                 '', [], False, True,
+                                                 False)
+               if ((ids != None and t.parent.id in ids) or
+                   (regexp != None and self.regexp(regexp,
+                                                  t.parent.content)) or
+                   (regexp == None and ids == None))]
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
                   order_by=["reverse:priority", "due_date"], fetch_children=True,

@@ -45,12 +45,8 @@ class Task(object):
                     raise Exception('internal')
                 tasks.append(t)
             except:
-                ids_to_fetch.append(i)
-        tasks.extend([tree.parent for tree in
-                     cls.class_lib.get_tasks(ids, regexp, group=False,
-                                             order=False, fetch_children=False,
-                                             fetch_parents=True,
-                                             regroup_family=False)])
+                ids_to_fetch.append(int(i))
+        tasks.extend(cls.class_lib._get_tasks(ids_to_fetch, regexp))
         return tasks
 
     def __setattr__(self, attr, value):
