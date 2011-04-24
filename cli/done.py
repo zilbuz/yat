@@ -72,10 +72,13 @@ the shell doesn't expand them.
         regexp = " ".join(regexp)
 
         if id != None:
-            tasks = cli.lib.get_tasks(ids=[int(id)], group=False, order=False)
+            tasks = cli.lib.get_tasks(ids=[int(id)], group=False, order=False,
+                                     fetch_parents=False, regroup_family=False)
         else:
-            tasks = cli.lib.get_tasks(regexp = regexp, group=False, order = False)
+            tasks = cli.lib.get_tasks(regexp = regexp, group=False, order=False,
+                                     fetch_parents=False, regroup_family=False)
 
         done = cmd == u"done"
         for task in tasks:
-            cli.lib.edit_task(task["id"], completed = done)
+            task.parent.completed = done
+            task.parent.save()
