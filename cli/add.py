@@ -142,7 +142,7 @@ Adding a tag:
             pass
         else: # Adding a task
             # Init params
-            new_task = cli.Yat.Task(None, cli.lib)
+            new_task = cli.Yat.Task(cli.lib)
             tag_names = []
             text = []
 

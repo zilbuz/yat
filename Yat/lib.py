@@ -273,7 +273,7 @@ class Yat:
                 self.__sql.execute(u'''select * from tasks where id=?''',
                                    (i,)).fetchone() for i in to_fetch])
 
-        tasks = [Task(t, self) for t in tasks]
+        tasks = [Task(self, t) for t in tasks]
 
         # Grouping tasks
         tree_parameters = {'no_family': not regroup_family}

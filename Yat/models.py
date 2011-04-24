@@ -57,7 +57,7 @@ class Task(object):
         super(Task, self).__setattr__('changed', True)
         super(Task, self).__setattr__(attr, value)
 
-    def __init__(self, sql_line=None, lib=None, no_family=False):
+    def __init__(self, lib=None, sql_line=None, no_family=False):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
         self.lib = lib
