@@ -148,29 +148,27 @@ Adding a tag:
 
             # Look for symbols
             for a in args:
-                symbol = False
                 # Priority
                 res = self.re_priority.match(a)
                 if res != None:
                     new_task.priority = int(res.group(1))
-                    symbol = True
+                    continue
                 # Tags
                 res = self.re_tag.match(a)
                 if res != None:
                     tag_names.append(res.group(1))
-                    symbol = True
+                    continue
                 # List
                 res = self.re_list.match(a)
                 if res != None:
                     new_task.list = cli.lib.get_list(res.group(1), type_id=False,
                                                  can_create=True)
-                    symbol = True
-
+                    continue
                 # Parent task
                 res = self.re_parent.match(a)
                 if res != None:
                     new_task.parent = new_task.get_task(res.group(1))
-                    symbol = True
+                    continue
                 # Date
                 res = self.re_date.match(a)
                 if res != None:
@@ -182,11 +180,9 @@ Adding a tag:
                                 foreground = cli.colors.errf, background = 
                                 cli.colors.errb, bold = cli.colors.errbold)
                         return
-                    symbol = True
-
+                    continue
                 # Regular text
-                if not symbol:
-                    text.append(a)
+                text.append(a)
 
             new_task.content = " ".join(text)
             new_task.tags = cli.lib.get_tags(tag_names, type_id=False,
