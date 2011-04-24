@@ -71,14 +71,13 @@ the shell doesn't expand them.
 
         regexp = " ".join(regexp)
 
+        cli.Yat.Task.class_lib = cli.lib
         if id != None:
-            tasks = cli.lib.get_tasks(ids=[int(id)], group=False, order=False,
-                                     fetch_parents=False, regroup_family=False)
+            tasks = cli.Yat.Task.get_tasks(ids=[int(id)])
         else:
-            tasks = cli.lib.get_tasks(regexp = regexp, group=False, order=False,
-                                     fetch_parents=False, regroup_family=False)
+            tasks = cli.lib.Task.get_tasks(regexp=regexp)
 
         done = cmd == u"done"
         for task in tasks:
-            task.parent.completed = done
-            task.parent.save()
+            task.completed = done
+            task.save()

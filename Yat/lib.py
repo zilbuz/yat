@@ -477,8 +477,8 @@ class Yat:
             self.__sql.commit()
         pass
 
-    def __get_group_rows(self, table, ids=None, regex=None):
-        if ids == None and regex == None:
+    def __get_group_rows(self, table, ids=None, regexp=None):
+        if ids == None and regexp == None:
             sql_rows = set(self.__sql.execute(u'select * from lists'))
         else:
             sql_rows = set()
@@ -488,23 +488,23 @@ class Yat:
                                                     select * from %s
                                                     where id=?''' % table,
                                                     (i,)).fetchone())
-            if regex != None:
+            if regexp != None:
                 sql_rows |= set(self.__sql.execute(u'''
                                                    select * from %s 
                                                    where content regexp ?
                                                    ''' % table,
-                                                   (regex)).fetchall())
+                                                   (regexp)).fetchall())
         return sql_rows
 
     #Only temporary until complete redesign
-    def _get_lists(self, ids = None, regex = None):
+    def _get_lists(self, ids = None, regexp = None):
         return [List(self, r) for r in self.__get_group_rows('lists',
-                                                             ids, regex)]
+                                                             ids, regexp)]
 
     # Same as _get_lists
-    def _get_tags_v2(self, ids = None, regex = None):
+    def _get_tags_v2(self, ids = None, regexp = None):
         return [Tag(self, r) for r in self.__get_group_rows('tags',
-                                                            ids, regex)]
+                                                            ids, regexp)]
 
     def get_list(self, list, type_id = True, can_create = False):
         u"""Extract a list from the database. The parameter list has to be a

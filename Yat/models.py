@@ -35,7 +35,7 @@ class Task(object):
         return cls.get_tasks([id])[0]
 
     @classmethod
-    def get_tasks(cls, ids = None, regex = None):
+    def get_tasks(cls, ids = None, regexp = None):
         tasks = []
         ids_to_fetch = []
         for i in ids:
@@ -47,7 +47,7 @@ class Task(object):
             except:
                 ids_to_fetch.append(i)
         tasks.extend([tree.parent for tree in
-                     cls.class_lib.get_tasks(ids, regex, group=False,
+                     cls.class_lib.get_tasks(ids, regexp, group=False,
                                              order=False, fetch_children=False,
                                              fetch_parents=True,
                                              regroup_family=False)])
@@ -232,7 +232,7 @@ class Group(object):
         self.changed = False
 
     @classmethod
-    def get_groups(cls, loaded, fetch_function, ids=None, regex=None):
+    def get_groups(cls, loaded, fetch_function, ids=None, regexp=None):
         groups = []
         ids_to_fetch = None
         if ids != None:
@@ -242,7 +242,7 @@ class Group(object):
                     groups.append(loaded[i])
                 except:
                     ids_to_fetch.append(i)
-        groups.extend(fetch_function(ids_to_fetch, regex))
+        groups.extend(fetch_function(ids_to_fetch, regexp))
         return groups
     def direct_children(self, search_parameters):
         try:
@@ -289,8 +289,8 @@ class List(Group):
         return cls.class_lib.get_list(id, True, False)
 
     @classmethod
-    def get_lists(cls, ids=None, regex=None):
-        return cls.get_groups(cls.list_id, cls.class_lib.get_lists, ids, regex)
+    def get_lists(cls, ids=None, regexp=None):
+        return cls.get_groups(cls.list_id, cls.class_lib.get_lists, ids, regexp)
 
     def __init__(self, lib, sql_line = None):
         u"""Constructs a List from an sql entry."""
@@ -326,8 +326,8 @@ class Tag(Group):
         return cls.class_lib.get_tags(id, True, False)[0]
 
     @classmethod
-    def get_tags(cls, ids=None, regex=None):
-        return cls.get_groups(cls.tag_id, cls.class_lib.get_tags_v2, ids, regex)
+    def get_tags(cls, ids=None, regexp=None):
+        return cls.get_groups(cls.tag_id, cls.class_lib.get_tags_v2, ids, regexp)
 
     def __init__(self, lib, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
