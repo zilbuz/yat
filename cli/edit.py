@@ -97,133 +97,83 @@ The possible attributes for a list or a tag are:
         else:
             element = u"task"
 
-        id = None
-        task = None
-        parent = None
-        name = None
-        due_date = None
-        priority = None
-        list = None
-        add_tags = None
-        remove_tags = None
+        to_edit = None
 
+        task = []
         for a in args:
             res = self.re_id.match(a)
-            if id == None and res != None:
-                id = res.group(1)
+            if to_edit == None and res != None:
+                if element == u'task':
+                    to_edit = cli.lib.get_tasks(ids=[res.group(1)],
+                                                group=False, order=False,
+                                                fetch_children=False,
+                                                fetch_parents=False,
+                                                regroup_family=False)[0].parent
+                elif element == u'tag':
+                    to_edit = cli.lib.get_tags(res.group(1))[0]
+                elif element == u'list':
+                    to_edit = cli.lib.get_list(res.group(1))
+                continue
 
             if element in [u"list", u"tag"]:
                 res = self.re_tol_priority.match(a)
-                if priority == None and res != None:
-                    priority = int(res.group(1))
-
-                res = self.re_tol_name.match(a)
-                if name == None and res != None:
-                    name = res.group(1)
-
             else:
-                symbol = False
                 res = self.re_priority.match(a)
-                if priority == None and res != None:
-                    priority = int(res.group(1))
-                    if priority > 3:
-                        priority = 3
-                    symbol = True
-                
-                res = self.re_due_date.match(a)
-                if due_date == None and res != None:
-                    try:
-                        due_date = cli.parse_input_date(res)
-                    except ValueError:
-                        cli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
-                                f = sys.stderr,
-                                foreground = cli.colors.errf, background =
-                                cli.colors.errb, bold = cli.colors.errbold)
-                        return
-                    symbol = True
+            if res != None:
+                to_edit.priority = int(res.group(1))
+                continue
 
-                res = self.re_parent.match(a)
-                if parent == None and res != None:
-                    parent = res.group(1)
-                    symbol = True
+            if element in [u"list", u"tag"]:
+                res = self.re_tol_name.match(a)
+                if res != None:
+                    to_edit.content = res.group(1)
+                    continue
 
-                res = self.re_list.match(a)
-                if list == None and res != None:
-                    list = res.group(1)
-                    symbol = True
+            res = self.re_due_date.match(a)
+            if res != None:
+                try:
+                    to_edit.due_date = cli.parse_input_date(res)
+                except ValueError:
+                    cli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
+                            f = sys.stderr,
+                            foreground = cli.colors.errf, background =
+                            cli.colors.errb, bold = cli.colors.errbold)
+                    return
+                continue
 
-                res = self.re_add_tags.match(a)
-                if add_tags == None and res != None:
-                    add_tags = res.group(1)
-                    symbol = True
+            res = self.re_parent.match(a)
+            if res != None:
+                to_edit.parent = cli.lib.get_tasks(ids=[res.group(1)],
+                                                group=False, order=False,
+                                                fetch_children=False,
+                                                fetch_parents=False,
+                                                regroup_family=False)[0].parent
+                continue
 
-                res = self.re_remove_tags.match(a)
-                if remove_tags == None and res != None:
-                    remove_tags = res.group(1)
-                    symbol = True
+            res = self.re_list.match(a)
+            if res != None:
+                to_edit.list = cli.lib.get_list(res.group(1), True, True) 
+                continue
 
-                res = self.re_name.match(a)
-                if task == None and res != None:
-                    task = [res.group(1)]
-                    symbol = True
+            res = self.re_add_tags.match(a)
+            if res != None:
+                to_edit.tags |= set(cli.lib.get_tags(res.group(1).split(','), False, True))
+                continue
 
-                if task != None and not symbol:
-                    task.append(a)
+            res = self.re_remove_tags.match(a)
+            if res != None:
+                to_edit.tags -= set(cli.lib.get_tags(res.group(1).split(','), False, False))
+                continue
 
-        if task != None:
+            res = self.re_name.match(a)
+            if task == None and res != None:
+                task = [res.group(1)]
+                continue
+
+            task.append(a)
+
+        if task != []:
             task = " ".join(task)
-        
-        if id == None:
-            cli.output(st = u"[ERR] You must provide an id to the edit command. See 'yat help edit'.", 
-                    f = sys.stderr,
-                    foreground = cli.colors.errf, background = cli.colors.errb,
-                    bold = cli.colors.errbold)
-            return
-
-        if id == "1" and element in [u"tag", u"list"]:
-            cli.output(st = u"[ERR] You can't modify 'notag' or 'nolist'", f =
-                    sys.stderr,
-                    foreground = cli.colors.errf, background = cli.colors.errb,
-                    bold = cli.colors.errbold)
-            return
-
-        if element == u"list":
-            try:
-                cli.lib.edit_list(id, name, priority)
-            except Yat.WrongListId:
-                cli.output(st = u"[ERR] {0} is not a valid list id.".format(id), 
-                        f = sys.stderr,
-                        foreground = cli.colors.errf, background =
-                        cli.colors.errb, bold = cli.colors.errbold)
-        elif element == u"tag":
-            try:
-                cli.lib.edit_tag(id, name, priority)
-            except Yat.WrongTagId:
-                cli.output(st = u"[ERR] {0} is not a valid tag id.".format(id), 
-                        f = sys.stderr,
-                        foreground = cli.colors.errf, background =
-                        cli.colors.errb, bold = cli.colors.errbold)
-        else:
-            # Process the tag names
-            add_tags_ids = []
-            if add_tags != None:
-                add_tags = add_tags.split(",")
-            else:
-                add_tags = []
-
-            remove_tags_ids = []
-            if remove_tags != None:
-                remove_tags = remove_tags.split(",")
-            else:
-                remove_tags = []
-
-            # Process the list name
-            if list != None:
-                list_id = cli.lib.get_list(list, type_id = False, 
-                        can_create = True).id
-            else:
-                list_id = -1 
-
-            cli.lib.edit_task(id, task, parent, priority, due_date, list_id, add_tags,
-                    remove_tags)
-        pass
+            if element == 'task': 
+                to_edit.content = task
+        to_edit.save()

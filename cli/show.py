@@ -94,7 +94,8 @@ Options:
 
             # Load all the tasks in memory
             cli.lib.get_tasks(group = False, order = False,
-                              select_children = False,
+                              fetch_children = False,
+                              fetch_parents = False,
                               regroup_family = False)
 
             groups = [cli.Yat.Tree(g, None, {'no_family':True}) for g in groups]

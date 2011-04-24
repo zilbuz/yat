@@ -126,54 +126,60 @@ Adding a tag:
 
         # Process command
         if cmd in ["tag", "list"]:
+            if cmd == "tag":
+                group = cli.Yat.Tag(cli.lib)
+            elif cmd == "list":
+                group = cli.Yat.List(cli.lib)
+            group.content = args[0]
             if len(args) > 1:
                 # The second argument is the priority
-                priority = int(args[1])
+                group.priority = int(args[1])
             else:
-                priority = 0
+                group.priority = 0
 
-            if cmd == "tag":
-                cli.lib.add_tag(args[0], priority)
-            elif cmd == "list":
-                cli.lib.add_list(args[0], priority)
+            group.save(cli.lib)
+
             pass
         else: # Adding a task
             # Init params
-            priority = None
-            parent_id = 0
-            tags = []
-            list = None
-            date = None
+            new_task = cli.Yat.Task(None, cli.lib)
+            tag_names = []
             text = []
+
             # Look for symbols
             for a in args:
                 symbol = False
                 # Priority
                 res = self.re_priority.match(a)
                 if res != None:
-                    priority = int(res.group(1))
+                    new_task.priority = int(res.group(1))
                     symbol = True
                 # Tags
                 res = self.re_tag.match(a)
                 if res != None:
-                    tags.append(res.group(1))
+                    tag_names.append(res.group(1))
                     symbol = True
                 # List
                 res = self.re_list.match(a)
                 if res != None:
-                    list = res.group(1)
+                    new_task.list = cli.lib.get_list(res.group(1), type_id=False,
+                                                 can_create=True)
                     symbol = True
 
                 # Parent task
                 res = self.re_parent.match(a)
                 if res != None:
-                    parent_id = int(res.group(1))
+                    new_task.parent = cli.lib.get_tasks([res.group(1)],
+                                                    group=False, order=False,
+                                                    fetch_children=False,
+                                                    fetch_parents=False,
+                                                    regroup_family=False)[0].parent
                     symbol = True
                 # Date
                 res = self.re_date.match(a)
                 if res != None:
                     try:
-                        date = cli.parse_input_date(res)
+                        new_task.due_date = cli.parse_input_date(res)
                     except ValueError:
                         cli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
                                 f = sys.stderr,
@@ -186,8 +192,8 @@ Adding a tag:
                 if not symbol:
                     text.append(a)
 
-            text = " ".join(text)
+            new_task.content = " ".join(text)
+            new_task.tags = cli.lib.get_tags(tag_names, type_id=False,
+                                         can_create=True)
+            new_task.save(cli.lib)
 
-            # Add the task with the correct parameters
-            cli.lib.add_task(text, parent_id, priority, date, tags, list)
-    pass

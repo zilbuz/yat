@@ -106,22 +106,17 @@ class Yat:
 
         # Add a function to support the REGEXP() operator
         def regexp(expr, item):
-            try:
-                # Replace all * and ? with .* and .? (but not \* and \?)
-                regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
-                regex = re.sub(r'([^\\])\?', r'\1.?', regex)
-                # Replace other \ with \\
-                regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
-                # Replace ^ and $ by \^ and \$
-                regex = re.sub(r'\^', r'\^', regex)
-                regex = re.sub(r'\$', r'\$', regex)
-                # Add ^ and $ to the regexp
-                regex = r'^' + regex + r'$'
-                return len(re.findall(regex, item)) > 0
-            except Exception as e:
-                print e
-                print expr
-                print item
+            # Replace all * and ? with .* and .? (but not \* and \?)
+            regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
+            regex = re.sub(r'([^\\])\?', r'\1.?', regex)
+            # Replace other \ with \\
+            regex = re.sub(r'\\([^*?])', r'\\\\\1', regex)
+            # Replace ^ and $ by \^ and \$
+            regex = re.sub(r'\^', r'\^', regex)
+            regex = re.sub(r'\$', r'\$', regex)
+            # Add ^ and $ to the regexp
+            regex = r'^' + regex + r'$'
+            return len(re.findall(regex, item)) > 0
         self.__sql.create_function("regexp", 2, regexp)
 
         # Verify the existence of the database and create it if it doesn't exist
@@ -206,8 +201,8 @@ class Yat:
         pass
 
     def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
-            order_by=["reverse:priority", "due_date"],
-                 select_children=True, regroup_family=True):
+                  order_by=["reverse:priority", "due_date"], fetch_children=True,
+                  fetch_parents=True, regroup_family=True):
         u"""Method to get the tasks from the database, group them by list or
         tag, and order them according to the parameters. This function return an
         array of trees if group is False, and an array of tuple (group,
@@ -259,7 +254,7 @@ class Yat:
                     u"select * from tasks").fetchall())
 
         # Pulls in the children of the selected tasks
-        if select_children:
+        if fetch_children:
             to_examine = tasks
 
             while to_examine != []:
@@ -270,9 +265,13 @@ class Yat:
                     new_children.extend([c for c in tmp if c not in tasks])
                 to_examine = new_children
                 tasks.extend(new_children)
-            to_fetch = set([t['parent'] for t in tasks]) - set([t['id'] for t in tasks]) - set([None])
-            tasks.extend([self.__sql.execute(u'''select * from tasks where id=?''',
-                                             (i,)).fetchone() for i in to_fetch])
+        if fetch_parents:
+            to_fetch = (set([t['parent'] for t in tasks]) -
+                        set([t['id'] for t in tasks]) -
+                        set([None]))
+            tasks.extend([
+                self.__sql.execute(u'''select * from tasks where id=?''',
+                                   (i,)).fetchone() for i in to_fetch])
 
         tasks = [Task(t, self) for t in tasks]
 
@@ -282,13 +281,14 @@ class Yat:
             grouped_tasks = []
             tree_construction = None
             if group_by == "list":
-                grouped_tasks = [Tree(l, None, tree_parameters) for l in List.list_id.itervalues()]
+                nogroup = Tree(NoList(), None, tree_parameters)
+                grouped_tasks = [Tree(l, None, tree_parameters)
+                                 for l in List.list_id.itervalues()
+                                 if l.id != None]
 
             elif group_by == "tag":
                 grouped_tasks = [Tree(t, None, tree_parameters) for t in Tag.tag_id.itervalues()]
-                notag_tree = Tree(NoTag(), None, tree_parameters)
-                if notag_tree.children != []:
-                    grouped_tasks.append(notag_tree)
+                nogroup = Tree(NoTag(), None, tree_parameters)
 
         else:
             # Takes an id and returns the list associated
@@ -299,20 +299,12 @@ class Yat:
         # Ordering tasks (you can't order tasks if they aren't grouped
         if order and group:
             # Ordering groups
-            if group_by == 'list':
-                try:
-                    # Extract the tree of NoList...
-                    nogroup = [grouped_tasks.pop(grouped_tasks.index(List.list_id[None]))]
-                except:
-                    nogroup = []
-            else:
-                if grouped_tasks[-1].parent.id == None:
-                    nogroup = [grouped_tasks.pop()]
             ordered_tasks = self.__quicksort(list = grouped_tasks, column =
                 "priority", group = True)
 
             # And then make a reinsertion at the end of the sorted list.
-            ordered_tasks.extend(nogroup)
+            if nogroup.children != []:
+                ordered_tasks.append(nogroup)
 
             # Ordering tasks according to the first criterion
             for t in ordered_tasks:
@@ -340,146 +332,59 @@ class Yat:
 
         return ordered_tasks
 
-    def add_task(self, text, parent_id=None, priority=None, due_date=None, tags=None, list=None, completed=False):
-        u"""Add a task to the database with the informations provided. Use
-        default informations if None is provided
-        params:
-            - text (string)
-            - priority (int)
-            - due_date (float)
-            - tags (array<string>)
-            - list (string)
-            - completed (bool)
-            - parent_id (int)
-        """
-
-        # Check the parent
-        if parent_id == 0:
+    def _add_task(self, task):
+        u'''Adds a task to the DB.
+        '''
+        task.check_values(self)
+        if task.parent == None:
             parent_id = None
-        if parent_id != None:
-            with self.__sql:
-                p = self.__sql.execute(u'select * from tasks where id=?', (parent_id,)).fetchone()
-            if p == None:
-                raise WrongTaskId
-
-        # Set the priority
-        if priority == None:
-            if parent_id == None:
-                priority = self.config["default_priority"]
-            else:
-                priority = p['priority']
-        elif priority > 3:
-            priority = 3
-
-        # Set the due date
-        if due_date == None:
-            if parent_id == None:
-                due_date = self.config["default_date"]
-            else:
-                due_date = p['due_date']
-
-        # Get the ids of the tags
-        tags_id = []
-        for t in tags:
-            self.__add_tag_or_list("tags", t, 0)
-            tags_id.append(self.__get_id("tags", t))
-
-        # Get the id of the list
-        list_flag = True
-        if list == None or list == u"":
-            if parent_id == None:
-                list = None
-            else:
-                list = p['list']
-            list_flag = False
-        if list_flag:
-            self.__add_tag_or_list("lists", list, 0)
-            list = self.__get_id("lists", list)
-
-        # Set completed
-        if completed:
-            completed = 1
         else:
-            completed = 0
+            parent_id = task.parent.id
 
-        # Add the task to the bdd
         with self.__sql:
-            creation_time = self.get_time()
-            self.__sql.execute('insert into tasks values(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    (text, parent_id, priority, due_date, list, completed,
-                        creation_time, creation_time, "nohash"))
+            self.__sql.execute(u'''insert into tasks
+                               values(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               ''',
+                               (task.content, parent_id, task.priority,
+                                task.due_date, task.list.id, task.completed,
+                                self.get_time(), task.created, "nohash"))
             self.__sql.commit()
             if parent_id == None:
                 parent_id = "null"
-            task_id = self.__sql.execute('select id from tasks where created=? and content=?', (creation_time, text)).fetchone()[0]
-            for i in tags_id:
-                self.__sql.execute('insert into tagging values(?,?)', (i, task_id))
+            task.id = self.__sql.execute('select id from tasks where created=? and content=?', (task.created, task.content)).fetchone()[0]
+            for i in task.tags:
+                self.__sql.execute('insert into tagging values(?,?)', (i.id, task.id))
             self.__sql.commit()
-        pass
 
-    def edit_task(self, id, task = None, parent = None, priority = None, due_date = None, 
-            list = -1, add_tags = [], remove_tags = [], completed = None):
-        u"""Edit the task with the given id.
-        params:
-            - id (int)
-            - task (string)
-            - priority (int)
-            - due_date (string)
-            - list (int)
-            - add_tags (array<int>)
-            - remove_tags (array<int>)
-            - completed (bool)
-        """
-
-        with self.__sql:
-            t = self.__sql.execute(u'select * from tasks where id=?',
-                    (id,)).fetchone()
-
-        if t == None:
-            raise WrongTaskId
-
-        if task == None:
-            task = t["content"]
-        if parent == None:
-            parent = t["parent"]
-        if priority == None:
-            priority = t["priority"]
-        if due_date == None:
-            due_date = t["due_date"]
-        if list == -1:
-            list = t["list"]
-        elif list == '':
-            list = None
-        if completed == None:
-            completed = t["completed"]
-        elif completed:
-            completed = 1
-
+    def _edit_task(self, task):
+        if task.id == None:
+            return
+        task.check_values()
+        if task.parent == None:
+            parent_id = None
         else:
-            completed = 0
+            parent_id = task.parent.id
 
         # Process add_tags and remove_tags
-        tags = self.get_tags_from_task(t["id"])
-        tags_id_to_process = []
-        if add_tags != [] :
-            for tag in add_tags:
-                if not str(tag) in [tt.id for tt in tags]:
-                    self.__add_tag_or_list("tags", str(tag), 0)
-                    tags_id_to_process.append(int(self.__get_id("tags", str(tag))))
-        if remove_tags != []:
-            for tag in remove_tags:
-                if str(tag) in [tt.content for tt in tags]:
-                    tags_id_to_process.append(-int(self.__get_id("tags", str(tag))))
+        tags = set(self.get_tags_from_task(task.id))
+        tags_to_add = task.tags - tags
+        tags_to_rm = tags - task.tags
 
         with self.__sql:
-            self.__sql.execute(u'update tasks set content=?, parent=?, priority=?, due_date=?, list=?, completed=?, last_modified=? where id=?',
-                    (task, parent, priority, due_date, list, completed,
-                        self.get_time(), t["id"]))
-            for i in tags_id_to_process:
-                if i < 0:
-                    self.__sql.execute(u'delete from tagging where tag=? and task=?', (-i,t["id"]))
-                else:
-                    self.__sql.execute(u'insert into tagging values(?, ?)', (i, t["id"]))
+            self.__sql.execute(u'''update tasks set
+                               content=?, parent=?, priority=?, due_date=?,
+                               list=?, completed=?, last_modified=?
+                               where id=?''', (task.content, parent_id,
+                                               task.priority, task.due_date,
+                                               task.list.id, task.completed,
+                                               self.get_time(), task.id))
+            for t in tags_to_rm:
+                self.__sql.execute(u'''delete from tagging
+                                  where tag=? and task=?''', (t.id,task.id))
+            for t in tags_to_add:
+                self.__sql.execute(u'''insert into tagging
+                                  values(?, ?)''', (t.id, task.id))
+            self.__sql.commit()
 
         pass
 
@@ -520,14 +425,14 @@ class Yat:
                     tag_row = self.__sql.execute(u'select * from tags where content=?', 
                             (t,)).fetchone()
                     if can_create and tag_row == None:
-                        self.add_tag(t)
+                        self._add_tag_or_list("tags", t, 0)
                         tag_row = self.__sql.execute(u'select * from tags where content=?', 
                             (t,)).fetchone()
                     elif int(tag_row["id"]) in Tag.tag_id:
                         res.append(Tag.tag_id[int(tag_row["id"])])
                         tag_row = None
                 if tag_row != None:
-                    res.append(Tag(tag_row))
+                    res.append(Tag(self, tag_row))
         return res
 
     def get_tags_regex(self, regex):
@@ -536,7 +441,7 @@ class Yat:
         with self.__sql:
             raw_tags = self.__sql.execute(u'select * from tags where content regexp ?',
                     (regex,)).fetchall()
-            return [Tag(t) for t in raw_tags]
+            return [Tag(self, t) for t in raw_tags]
 
     def get_tags_from_task(self, task_id):
         u"""Extract from the DB all the tags associated with the id provided"""
@@ -547,40 +452,16 @@ class Yat:
                 try:
                     return_list.append(Tag.tag_id[i])
                 except:
-                    return_list.append(Tag(self.__sql.execute('select * from tags where id=?', (i,)).fetchone()))
+                    return_list.append(Tag(self, self.__sql.execute('select * from tags where id=?', (i,)).fetchone()))
             return return_list
 
-    def add_tag(self, name, priority=0):
-        u"""Add a tag to the database with a certain priority, and create it if
-        it doesn't exist
-        params:
-            - name (string)
-            - priority=0 (int)
-        """
-        self.__add_tag_or_list("tags", name, priority)
-        pass
-
-    def edit_tag(self, id, name = None, priority = None):
-        u"""Edit the tag with the given id.
-        params:
-            - name (string)
-            - priority (int)
-        """
-        with self.__sql:
-            tag = self.__sql.execute(u'select * from tags where id=?', (id,)).fetchone()
-        
-        if tag == None:
-            raise WrongTagId
-
-        if name == None:
-            name = tag["name"]
-
-        if priority == None:
-            priority = tag["priority"]
-
+    def _edit_group(table_name, group):
+        group.check_values()
+        if group.id == None:
+            return
         with self.__sql:
             self.__sql.execute(u'update tags set content=?, priority=?, last_modified=? where id=?',
-                    (name, priority, self.get_time(), tag["id"]))
+                    (group.content, group.priority, self.get_time(), group.id))
         pass
 
     def remove_tags(self, ids):
@@ -620,12 +501,12 @@ class Yat:
                 res = self.__sql.execute(u'select * from lists where content=?',
                         (list,)).fetchone()
                 if res == None and can_create:
-                    self.add_list(list)
+                    self._add_tag_or_list("lists", list, 0)
                     res = self.__sql.execute(u'select * from lists where content=?',
                             (list,)).fetchone()
                 elif int(res["id"]) in List.list_id:
                     return List.list_id[int(res["id"])]
-            return List(res)
+            return List(self, res)
 
     def get_lists_regex(self, regex):
         u"""Extract from the database the lists that match regex, where regex is
@@ -638,44 +519,9 @@ class Yat:
                 if l["id"] in List.list_id:
                     lists.append(List.list_id[l["id"]])
                 else:
-                    lists.append(List(l))
+                    lists.append(List(self, l))
             return lists
-            
 
-    def add_list(self, name, priority=0):
-        u"""Add a list to the database with a certain priority and create it if 
-        it doesn't exist.
-        params:
-            - name (string)
-            - priority=0 (int)
-        """
-        self.__add_tag_or_list("lists", name, priority)
-        pass
-
-    def edit_list(self, id, name = None, priority = None):
-        u"""Edit the list with the given id.
-        params:
-            - id (int)
-            - name (string)
-            - priority (int)
-        """
-        with self.__sql:
-            list = self.__sql.execute(u'select * from lists where id=?', (id,)).fetchone()
-        
-        if list == None:
-            raise WrongListId
-
-        if name == None:
-            name = list["content"]
-
-        if priority == None:
-            priority = list["priority"]
-
-        with self.__sql:
-            self.__sql.execute(u'update lists set content=?, priority=?, last_modified=? where id=?',
-                    (name, priority, self.get_time(), list["id"]))
-        pass
-    
     def remove_lists(self, ids):
         u"""Remove lists by their ids. Be careful, when deleting a list, every
         task that it contains will be deleted too.
@@ -726,7 +572,7 @@ class Yat:
 
         return delete
 
-    def __add_tag_or_list(self, table, name, priority):
+    def _add_tag_or_list(self, table, name, priority):
         u"""Add an element "name" to the "table" if it doesn't exist. It is
         meant to be used with table="lists" or table="tags" """
         with self.__sql:

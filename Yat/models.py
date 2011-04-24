@@ -26,24 +26,38 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from lib import *
-
-import lib
-
 class Task(object):
     children_id = {}
 
-    def __init__(self, sql_line, lib, no_family=False):
+    def __setattr__(self, attr, value):
+        super(Task, self).__setattr__('changed', True)
+        super(Task, self).__setattr__(attr, value)
+
+    def __init__(self, sql_line=None, lib=None, no_family=False):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
+        self.lib = lib
+        if sql_line == None:
+            self.id = None
+            self.parent=None
+            self.content=''
+            self.due_date=None
+            self.priority=None
+            self.list = NoList()
+            self.tags = set()
+            self.completed = 0
+            self.last_modified = 0
+            self.created = 0
+            self.changed = False
+            return
         self.id = sql_line["id"]
-        self.parent_id = sql_line["parent"]
+        parent_id = sql_line["parent"]
 
-        if self.parent_id not in Task.children_id:
-            Task.children_id[self.parent_id] = (None, [])
-        self.parent = Task.children_id[self.parent_id][0]
-        if self.id not in Task.children_id[self.parent_id][1]:
-            Task.children_id[self.parent_id][1].append(self.id)
+        if parent_id not in Task.children_id:
+            Task.children_id[parent_id] = (None, [])
+        self.parent = Task.children_id[parent_id][0]
+        if self.id not in Task.children_id[parent_id][1]:
+            Task.children_id[parent_id][1].append(self.id)
         if self.id not in Task.children_id:
             Task.children_id[self.id] = (self, [])
         else:
@@ -55,10 +69,60 @@ class Task(object):
         self.due_date = sql_line["due_date"]
         self.priority = sql_line["priority"]
         self.list = lib.get_list(sql_line["list"])
-        self.tags = lib.get_tags_from_task(self.id)
+        self.tags = set(lib.get_tags_from_task(self.id))
         self.completed = sql_line["completed"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
+
+        self.changed = False
+
+    def check_values(self, lib = None):
+        u'''Checks the values of the object, and correct them
+        if needed by using the default values provided by lib.
+        '''
+        if lib == None:
+            lib = self.lib
+        if self.priority == None:
+            if self.parent != None:
+                self.priority = self.parent.priority
+            else:
+                self.priority = lib.config["default_priority"]
+        elif self.priority > 3:
+            self.priority = 3
+
+        for t in self.tags:
+            t.check_values()
+
+        self.list.check_values()
+
+        if self.due_date == None:
+            if self.parent == None:
+                self.due_date = lib.config["default_date"]
+            else:
+                self.due_date = self.parent.due_date
+
+        if self.created <= 0:
+            self.created = lib.get_time()
+
+        if self.completed == True or self.completed == 1:
+            self.completed = 1
+        else:
+            self.completed = 0
+
+    def save(self, lib = None):
+        if lib == None:
+            lib = self.lib
+        self.list.save(lib)
+        for t in self.tags:
+            t.save(lib)
+        if self.parent != None:
+            self.parent.save(lib)
+
+        if self.id == None:
+            save_function = lib._add_task
+        else:
+            save_function = lib._edit_task
+        save_function(self)
 
     def __str__(self):
         retour = "Task "
@@ -110,13 +174,27 @@ class Task(object):
         return tree
 
 class Group(object):
-    def __init__(self, sql_line):
+    def __setattr__(self, attr, value):
+        super(Group, self).__setattr__('changed', True)
+        super(Group, self).__setattr__(attr, value)
+
+    def __init__(self, lib, sql_line):
         u"""Constructs a group from an sql row"""
+        self.lib = lib
+        if sql_line == None:
+            self.id = None
+            self.content = ''
+            self.priority = None
+            self.last_modified = 0
+            self.created = 0
+            self.changed = False
+            return
         self.id = int(sql_line["id"])
         self.content = sql_line["content"]
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
+        self.changed = False
 
     def direct_children(self, search_parameters):
         try:
@@ -134,14 +212,32 @@ class Group(object):
             return Task.stack_up_parents(tree)
         return tree
 
+    def check_values(self):
+        if self.priority == None:
+            self.priority = self.lib.config["default_priority"]
+
+        if self.created <= 0:
+            self.created = lib.get_time()
+
+    def save(self, lib = None):
+        self.check_values()
+        if lib == None:
+            lib = self.lib
+        if self.id == None:
+            lib._add_tag_or_list(self._table_name, self.content, self.priority)
+        elif self.changed:
+            lib._edit_group(self._table_name, self)
+
 
 class List(Group):
     list_id = {}
+    _table_name = 'lists'
 
-    def __init__(self, sql_line):
+    def __init__(self, lib, sql_line = None):
         u"""Constructs a List from an sql entry."""
-        super(List, self).__init__(sql_line)
-        List.list_id[self.id] = self
+        super(List, self).__init__(lib, sql_line)
+        if self.id != None:
+            List.list_id[self.id] = self
 
     def __str__(self):
         retour = "List " + str(self.id)
@@ -164,11 +260,13 @@ class List(Group):
 
 class Tag(Group):
     tag_id = {}
+    _table_name = 'tags'
 
-    def __init__(self, sql_line):
+    def __init__(self, lib, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
-        super(Tag, self).__init__(sql_line)
-        Tag.tag_id[self.id] = self
+        super(Tag, self).__init__(lib, sql_line)
+        if self.id != None:
+            Tag.tag_id[self.id] = self
 
     def child_policy(self, task, params):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
@@ -179,13 +277,22 @@ class Tag(Group):
 
 class NoGroup(object):
     def __init__(self):
-        self.content = ''
-        self.priority = ''
         self.id = None
+
+    def save(self, lib = None):
+        pass
+
+    def check_values(self):
+        pass
 
 class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
-    __mro__ = (NoGroup, Group, List, object)
+    __mro__ = (NoGroup, Group, object, List)
+    def __new__(cls):
+        try:
+            return List.list_id[None]
+        except:
+            return super(NoList, cls).__new__(cls)
 
     def __init__(self):
         super(NoList, self).__init__()
