@@ -455,7 +455,7 @@ class Yat:
                     return_list.append(Tag(self, self.__sql.execute('select * from tags where id=?', (i,)).fetchone()))
             return return_list
 
-    def _edit_group(table_name, group):
+    def _edit_group(self, table_name, group):
         group.check_values()
         if group.id == None:
             return
