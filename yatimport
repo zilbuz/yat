@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+from Yat import *
+
+import datetime
+import locale
+import os
+import pickle
+import re
+import sqlite3
+import sys
+import time
+
+current_lib = Yat()
+
+class v0_1:
+    def __init__(self, current_lib, db):
+        self.enc = current_lib.config 
+
+        self.config = current_lib.config
+
+        self.__sql = sqlite3.connect(db)
+        self.__sql.row_factory = sqlite3.Row
+
+    def get_tasks(self, ids=None, regexp=None, group=True, order=True, fetch_children=True, fetch_parents=True
