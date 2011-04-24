@@ -91,9 +91,9 @@ class Task(object):
             self.priority = 3
 
         for t in self.tags:
-            t.check_values()
+            t.check_values(lib)
 
-        self.list.check_values()
+        self.list.check_values(lib)
 
         if self.due_date == None:
             if self.parent == None:
@@ -212,17 +212,20 @@ class Group(object):
             return Task.stack_up_parents(tree)
         return tree
 
-    def check_values(self):
+    def check_values(self, lib = None):
+        if lib == None:
+            lib = self.lib
+
         if self.priority == None:
-            self.priority = self.lib.config["default_priority"]
+            self.priority = lib.config["default_priority"]
 
         if self.created <= 0:
             self.created = lib.get_time()
 
     def save(self, lib = None):
-        self.check_values()
         if lib == None:
             lib = self.lib
+        self.check_values(lib)
         if self.id == None:
             lib._add_tag_or_list(self._table_name, self.content, self.priority)
         elif self.changed:
@@ -282,7 +285,7 @@ class NoGroup(object):
     def save(self, lib = None):
         pass
 
-    def check_values(self):
+    def check_values(self, lib = None):
         pass
 
 class NoList(NoGroup, List):
