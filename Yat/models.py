@@ -28,6 +28,30 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 class Task(object):
     children_id = {}
+    class_lib
+
+    @classmethod
+    def get_task(cls, id):
+        return cls.get_tasks([id])[0]
+
+    @classmethod
+    def get_tasks(cls, ids):
+        tasks = []
+        ids_to_fetch = []
+        for i in ids:
+            try:
+                t = cls.children_id[i][0]
+                if t == None:
+                    raise Exception('internal')
+                tasks.append(t)
+            except:
+                ids_to_fetch.append(i)
+        tasks.extend([tree.parent for tree in
+                     cls.class_lib.get_tasks(ids, group=False, order=False,
+                                             fetch_children=False,
+                                             fetch_parents=True,
+                                             regroup_family=False)])
+        return tasks
 
     def __setattr__(self, attr, value):
         super(Task, self).__setattr__('changed', True)
@@ -37,6 +61,10 @@ class Task(object):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
         self.lib = lib
+        if Task.class_lib == None:
+            Task.class_lib = self.lib
+        elif self.lib == None:
+            self.lib = Task.class_lib
         if sql_line == None:
             self.id = None
             self.parent=None
@@ -63,7 +91,9 @@ class Task(object):
         else:
             Task.children_id[self.id] = (self, Task.children_id[self.id][1])
             for t in Task.children_id[self.id][1]:
-                t.parent = self
+                t_changed = Task.children_id[t][0].changed
+                Task.children_id[t][0].parent = self
+                Task.children_id[t][0].changed = t_changed
 
         self.content = sql_line["content"]
         self.due_date = sql_line["due_date"]

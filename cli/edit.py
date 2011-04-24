@@ -100,15 +100,12 @@ The possible attributes for a list or a tag are:
         to_edit = None
 
         task = []
+        cli.Yat.Task.class_lib = cli.lib
         for a in args:
             res = self.re_id.match(a)
             if to_edit == None and res != None:
                 if element == u'task':
-                    to_edit = cli.lib.get_tasks(ids=[res.group(1)],
-                                                group=False, order=False,
-                                                fetch_children=False,
-                                                fetch_parents=False,
-                                                regroup_family=False)[0].parent
+                    to_edit = cli.Yat.Task.get_task(res.group(1))
                 elif element == u'tag':
                     to_edit = cli.lib.get_tags(res.group(1))[0]
                 elif element == u'list':
@@ -143,11 +140,7 @@ The possible attributes for a list or a tag are:
 
             res = self.re_parent.match(a)
             if res != None:
-                to_edit.parent = cli.lib.get_tasks(ids=[res.group(1)],
-                                                group=False, order=False,
-                                                fetch_children=False,
-                                                fetch_parents=False,
-                                                regroup_family=False)[0].parent
+                to_edit.parent = cli.Yat.Task.get_task(res.group(1))
                 continue
 
             res = self.re_list.match(a)

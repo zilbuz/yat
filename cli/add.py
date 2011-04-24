@@ -169,11 +169,7 @@ Adding a tag:
                 # Parent task
                 res = self.re_parent.match(a)
                 if res != None:
-                    new_task.parent = cli.lib.get_tasks([res.group(1)],
-                                                    group=False, order=False,
-                                                    fetch_children=False,
-                                                    fetch_parents=False,
-                                                    regroup_family=False)[0].parent
+                    new_task.parent = new_task.get_task(res.group(1))
                     symbol = True
                 # Date
                 res = self.re_date.match(a)
