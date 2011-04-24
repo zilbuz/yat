@@ -442,11 +442,10 @@ class Yat:
                         self._add_tag_or_list("tags", t, 0)
                         tag_row = self.__sql.execute(u'select * from tags where content=?', 
                             (t,)).fetchone()
-                    elif int(tag_row["id"]) in Tag.tag_id:
+                    elif tag_row != None and int(tag_row["id"]) in Tag.tag_id:
                         res.append(Tag.tag_id[int(tag_row["id"])])
                         tag_row = None
-                if tag_row != None:
-                    res.append(Tag(self, tag_row))
+                res.append(Tag(self, tag_row))
         return res
 
     def get_tags_regex(self, regex):
@@ -547,7 +546,7 @@ class Yat:
                     self._add_tag_or_list("lists", list, 0)
                     res = self.__sql.execute(u'select * from lists where content=?',
                             (list,)).fetchone()
-                elif int(res["id"]) in List.list_id:
+                elif res != None and int(res["id"]) in List.list_id:
                     return List.list_id[int(res["id"])]
             return List(self, res)
 
