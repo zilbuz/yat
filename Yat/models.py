@@ -220,7 +220,7 @@ class Group(object):
             self.priority = lib.config["default_priority"]
 
         if self.created <= 0:
-            self.created = lib.get_time()
+            self.created = self.lib.get_time()
 
     def save(self, lib = None):
         if lib == None:
