@@ -28,14 +28,14 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 class Task(object):
     children_id = {}
-    class_lib
+    class_lib = None
 
     @classmethod
     def get_task(cls, id):
         return cls.get_tasks([id])[0]
 
     @classmethod
-    def get_tasks(cls, ids):
+    def get_tasks(cls, ids = None, regex = None):
         tasks = []
         ids_to_fetch = []
         for i in ids:
@@ -47,8 +47,8 @@ class Task(object):
             except:
                 ids_to_fetch.append(i)
         tasks.extend([tree.parent for tree in
-                     cls.class_lib.get_tasks(ids, group=False, order=False,
-                                             fetch_children=False,
+                     cls.class_lib.get_tasks(ids, regex, group=False,
+                                             order=False, fetch_children=False,
                                              fetch_parents=True,
                                              regroup_family=False)])
         return tasks
@@ -204,6 +204,7 @@ class Task(object):
         return tree
 
 class Group(object):
+    class_lib = None
     def __setattr__(self, attr, value):
         super(Group, self).__setattr__('changed', True)
         super(Group, self).__setattr__(attr, value)
@@ -211,6 +212,10 @@ class Group(object):
     def __init__(self, lib, sql_line):
         u"""Constructs a group from an sql row"""
         self.lib = lib
+        if Group.class_lib == None:
+            Group.class_lib = self.lib
+        elif self.lib == None:
+            self.lib = Group.class_lib
         if sql_line == None:
             self.id = None
             self.content = ''
@@ -226,6 +231,19 @@ class Group(object):
         self.created = sql_line["created"]
         self.changed = False
 
+    @classmethod
+    def get_groups(cls, loaded, fetch_function, ids=None, regex=None):
+        groups = []
+        ids_to_fetch = None
+        if ids != None:
+            ids_to_fetch = []
+            for i in ids:
+                try:
+                    groups.append(loaded[i])
+                except:
+                    ids_to_fetch.append(i)
+        groups.extend(fetch_function(ids_to_fetch, regex))
+        return groups
     def direct_children(self, search_parameters):
         try:
             no_family = search_parameters['no_family']
@@ -266,6 +284,14 @@ class List(Group):
     list_id = {}
     _table_name = 'lists'
 
+    @classmethod
+    def get_list(cls, id):
+        return cls.class_lib.get_list(id, True, False)
+
+    @classmethod
+    def get_lists(cls, ids=None, regex=None):
+        return cls.get_groups(cls.list_id, cls.class_lib.get_lists, ids, regex)
+
     def __init__(self, lib, sql_line = None):
         u"""Constructs a List from an sql entry."""
         super(List, self).__init__(lib, sql_line)
@@ -294,6 +320,14 @@ class List(Group):
 class Tag(Group):
     tag_id = {}
     _table_name = 'tags'
+
+    @classmethod
+    def get_tag(cls, id):
+        return cls.class_lib.get_tags(id, True, False)[0]
+
+    @classmethod
+    def get_tags(cls, ids=None, regex=None):
+        return cls.get_groups(cls.tag_id, cls.class_lib.get_tags_v2, ids, regex)
 
     def __init__(self, lib, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
