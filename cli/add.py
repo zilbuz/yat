@@ -127,9 +127,9 @@ Adding a tag:
         # Process command
         if cmd in ["tag", "list"]:
             if cmd == "tag":
-                group = cli.Yat.Tag()
+                group = cli.Yat.Tag(cli.lib)
             elif cmd == "list":
-                group = cli.Yat.List()
+                group = cli.Yat.List(cli.lib)
             group.content = args[0]
             if len(args) > 1:
                 # The second argument is the priority
