@@ -66,16 +66,16 @@ Options:
             if not cli.yes_no_question(u"Are you sure you want to delete all your completed tasks ?"):
                 return
 
-        tasks = cli.lib.get_tasks(order = False, group = False)
+        tasks = cli.lib.get_tasks(order = False, group = False, regroup_family=False)
         tasks_ids = []
         for t in tasks:
-            if t["completed"] == 1:
+            if t.parent.completed == 1:
                 if self.interactive:
-                    txt = u"Do you want to delete this task:\n" + t["task"] 
-                    txt += u" (priority: " + str(t["priority"])
-                    txt += u", due date: " + cli.parse_output_date(t["due_date"]) + u") ?"
+                    txt = u"Do you want to delete this task:\n" + t.parent.content 
+                    txt += u" (priority: " + str(t.parent.priority)
+                    txt += u", due date: " + cli.parse_output_date(t.parent.due_date) + u") ?"
                     if not cli.yes_no_question(txt):
                         continue
-                tasks_ids.append(t["id"])
+                tasks_ids.append(t.parent.id)
         
         cli.lib.remove_tasks(tasks_ids)
