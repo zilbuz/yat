@@ -152,7 +152,7 @@ The possible attributes for a list or a tag are:
 
             res = self.re_list.match(a)
             if res != None:
-                to_edit.list = cli.lib.get_list(res.group(1), True, True) 
+                to_edit.list = cli.lib.get_list(res.group(1), False, True) 
                 continue
 
             res = self.re_add_tags.match(a)
