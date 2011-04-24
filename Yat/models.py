@@ -36,7 +36,7 @@ class Task(object):
     def __init__(self, sql_line=None, lib=None, no_family=False):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
-        self.changed = False
+        self.lib = lib
         if sql_line == None:
             self.id = None
             self.parent=None
@@ -76,10 +76,12 @@ class Task(object):
 
         self.changed = False
 
-    def check_values(self, lib):
+    def check_values(self, lib = None):
         u'''Checks the values of the object, and correct them
         if needed by using the default values provided by lib.
         '''
+        if lib == None:
+            lib = self.lib
         if self.priority == None:
             if self.parent != None:
                 self.priority = self.parent.priority
@@ -107,7 +109,9 @@ class Task(object):
         else:
             self.completed = 0
 
-    def save(self, lib):
+    def save(self, lib = None):
+        if lib == None:
+            lib = self.lib
         self.list.save(lib)
         for t in self.tags:
             t.save(lib)
@@ -115,13 +119,10 @@ class Task(object):
             self.parent.save(lib)
 
         if self.id == None:
-            lib._add_task(self)
-        '''
             save_function = lib._add_task
         else:
             save_function = lib._edit_task
         save_function(self)
-        '''
 
     def __str__(self):
         retour = "Task "
@@ -173,20 +174,27 @@ class Task(object):
         return tree
 
 class Group(object):
-    def __init__(self, sql_line):
+    def __setattr__(self, attr, value):
+        super(Group, self).__setattr__('changed', True)
+        super(Group, self).__setattr__(attr, value)
+
+    def __init__(self, lib, sql_line):
         u"""Constructs a group from an sql row"""
+        self.lib = lib
         if sql_line == None:
             self.id = None
             self.content = ''
             self.priority = None
             self.last_modified = 0
             self.created = 0
+            self.changed = False
             return
         self.id = int(sql_line["id"])
         self.content = sql_line["content"]
         self.priority = sql_line["priority"]
         self.last_modified = sql_line["last_modified"]
         self.created = sql_line["created"]
+        self.changed = False
 
     def direct_children(self, search_parameters):
         try:
@@ -206,23 +214,28 @@ class Group(object):
 
     def check_values(self):
         if self.priority == None:
-            self.priority = lib.config["default_priority"]
+            self.priority = self.lib.config["default_priority"]
 
         if self.created <= 0:
             self.created = lib.get_time()
 
-    def save(self, lib):
+    def save(self, lib = None):
         self.check_values()
-        lib._add_tag_or_list(self._table_name, self.content, self.priority)
+        if lib == None:
+            lib = self.lib
+        if self.id == None:
+            lib._add_tag_or_list(self._table_name, self.content, self.priority)
+        elif self.changed:
+            lib._edit_group(self._table_name, self)
 
 
 class List(Group):
     list_id = {}
     _table_name = 'lists'
 
-    def __init__(self, sql_line = None):
+    def __init__(self, lib, sql_line = None):
         u"""Constructs a List from an sql entry."""
-        super(List, self).__init__(sql_line)
+        super(List, self).__init__(lib, sql_line)
         if self.id != None:
             List.list_id[self.id] = self
 
@@ -249,9 +262,9 @@ class Tag(Group):
     tag_id = {}
     _table_name = 'tags'
 
-    def __init__(self, sql_line = None):
+    def __init__(self, lib, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
-        super(Tag, self).__init__(sql_line)
+        super(Tag, self).__init__(lib, sql_line)
         if self.id != None:
             Tag.tag_id[self.id] = self
 
@@ -266,7 +279,7 @@ class NoGroup(object):
     def __init__(self):
         self.id = None
 
-    def save(self, lib):
+    def save(self, lib = None):
         pass
 
     def check_values(self):
