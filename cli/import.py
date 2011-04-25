@@ -37,7 +37,7 @@ usage : %s import <file.db>
         %s migrate
 
 The import version will import all the tasks contained in <file.db> into the
-database currently specified n your .yatrc file. the beauty is, it will work
+database currently specified n your .yatrc file. The beauty is, it will work
 with old versions of the database !
 
 The migrate version is useful when you are upgrading yat. It will convert your
@@ -63,7 +63,7 @@ database into a format suited for the new version of yat.
 
         for f in files:
             leg = cli.Yat.legacy.analyze_db(filename = f, current_lib = cli.lib)
-            objects = leg._get_tasks() + leg._get_lists() + leg._get_tags()
+            objects = leg._get_tasks() | leg._get_lists() | leg._get_tags()
             # 
             if cmd == u'migrate' and f == cli.lib.config['yatdir'] + '/yat.db':
                 leg.delete_tables()

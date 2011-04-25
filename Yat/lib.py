@@ -399,8 +399,7 @@ class Yat:
                 self.__sql.execute(u'''insert into tagging
                                   values(?, ?)''', (t.id, task.id))
             self.__sql.commit()
-
-        pass
+        task.changed = False
 
     def remove_tasks(self, ids):
         u"""Remove tasks by their ids
@@ -475,7 +474,7 @@ class Yat:
         with self.__sql:
             self.__sql.execute(u'update tags set content=?, priority=?, last_modified=? where id=?',
                     (group.content, group.priority, self.get_time(), group.id))
-        pass
+        group.changed = False
 
     def remove_tags(self, ids):
         u"""Remove tags by their ids. Also update tasks which have these tags.
@@ -614,15 +613,34 @@ class Yat:
 
         return delete
 
-    def _add_tag_or_list(self, table, name, priority):
+    # Also very temporary
+    def _add_group(self, table_name, group):
+        group.check_values()
+        self._add_tag_or_list(table_name, group.content,
+                              group.priority, group.created)
+        group_row = self.__sql.execute(u'''select * from %s
+                                       where priority = ? and content=?
+                                       ''' % table_name, (group.priority,
+                                                          group.content)
+                                      ).fetchone()
+        group.id = group_row['id']
+        group.created = group_row['created']
+        group.last_modified = group_row['last_modified']
+        group.changed = False
+
+    def _add_tag_or_list(self, table, name, priority, created = 0):
         u"""Add an element "name" to the "table" if it doesn't exist. It is
         meant to be used with table="lists" or table="tags" """
+        if created <= 0:
+            creation_time = created
+        else:
+            creation_time = self.get_time()
         with self.__sql:
             c = self.__sql.execute('select count(*) as nb from %s where content=?' %
                     table, (name,))
             if c.fetchone()[0] == 0:
                 self.__sql.execute('insert into %s values(null, ?, ?, ?, ?, ?)' % table,
-                    (name, priority, self.get_time(), self.get_time(), "nohash"))
+                    (name, priority, self.get_time(), creation_time, "nohash"))
                 self.__sql.commit()
 
     def __get_id(self, table, name):

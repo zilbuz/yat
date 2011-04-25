@@ -271,7 +271,7 @@ class Group(object):
             lib = self.lib
         self.check_values(lib)
         if self.id == None:
-            lib._add_tag_or_list(self._table_name, self.content, self.priority)
+            lib._add_group(self._table_name, self)
         elif self.changed:
             lib._edit_group(self._table_name, self)
 

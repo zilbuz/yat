@@ -29,4 +29,5 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 from lib import *
+import legacy
 
