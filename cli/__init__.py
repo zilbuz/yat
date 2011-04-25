@@ -43,7 +43,8 @@ __all__ = [
         "show",
         "edit",
         "done",
-        "clean"
+        "clean",
+        "import"
         ]
 u"""All filename listed here will be loaded when using the expression
     "from Commands import *"
