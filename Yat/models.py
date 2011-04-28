@@ -27,28 +27,45 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 class Task(object):
-    children_id = {}
-    class_lib = None
+    u'''This class describe a task in a OO perspective
+    '''
+    children_id = {} # id : (task, [c.id for c in children_of_task])
+    class_lib = None    # The lib/db the tasks are gonna be pulled from
 
     @classmethod
-    def get_task(cls, id):
+    def get_task(cls, value = None, value_is_id = True):
+    u'''The simplest interface possible to get a precise task. Note that it will
+also load from the parent(s) from the DB if needed, as well as the lists and
+tags coming alongside. 
+
+If value_is_id is set to True, it will consider value as an ID, otherwise as an
+exact name.
+
+The return value is a Task.'''
         return cls.get_tasks([id])[0]
 
     @classmethod
-    def get_tasks(cls, ids = None, regexp = None):
+    def get_tasks(cls, ids = None, names = None, regexp = None):
+    u'''Get a series of tasks based on their ID, their content, and/or a regexp
+matching their content. It will also pull the parents from the DB if needed, as
+well as lists and tags.
+The return value is a list of Task.'''
         tasks = []
         ids_to_fetch = []
         for i in ids:
-            try:
+            try:    # If the task is already loaded, take
                 t = cls.children_id[i][0]
-                if t == None:
+                if t == None:   # TODO: shift the unicity burden in
+                                #       the library objects
                     raise Exception('internal')
                 tasks.append(t)
             except:
                 ids_to_fetch.append(int(i))
-        tasks.extend(cls.class_lib._get_tasks(ids_to_fetch, regexp))
+        tasks.extend(cls.class_lib._get_tasks(ids_to_fetch, names, regexp))
         return tasks
 
+    # Every time an attribute is changed, the object memorizes it. This way,
+    # the DB won't be updated at every call of self.save()
     def __setattr__(self, attr, value):
         super(Task, self).__setattr__('changed', True)
         super(Task, self).__setattr__(attr, value)
@@ -57,10 +74,13 @@ class Task(object):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
         self.lib = lib
+        # Deal with what's there and fill the blanks for the lib.
         if Task.class_lib == None:
             Task.class_lib = self.lib
         elif self.lib == None:
             self.lib = Task.class_lib
+
+        # Creation of a blank Task
         if sql_line == None:
             self.id = None
             self.parent=None
@@ -74,17 +94,31 @@ class Task(object):
             self.created = 0
             self.changed = False
             return
-        self.id = sql_line["id"]
-        parent_id = sql_line["parent"]
 
+        # Import from the SQL row
+        self.id = int(sql_line["id"])
+        parent_id = int(sql_line["parent"])
+
+        # We have to handle all that stuff in a cleaner way.
+        # For now, it is a bit too messy, even by my (Simon's) standards !
+        # If the parent hasn't already an entry in the dict :
         if parent_id not in Task.children_id:
             Task.children_id[parent_id] = (None, [])
+            # We assume it will be imported later on, which is kind of
+            # dangerous and stupid, but hey, it has worked so far :)
         self.parent = Task.children_id[parent_id][0]
+
+        # If the kid hasn't already been added to the list of the children
+        # of the parent, add it. OTOH, who would have done that ?
         if self.id not in Task.children_id[parent_id][1]:
             Task.children_id[parent_id][1].append(self.id)
+
+        # If the task hasn't already an entry (which would mean it has
+        # children already created), create it
         if self.id not in Task.children_id:
             Task.children_id[self.id] = (self, [])
         else:
+            # Else, update it, as well as its kids
             Task.children_id[self.id] = (self, Task.children_id[self.id][1])
             for t in Task.children_id[self.id][1]:
                 t_changed = Task.children_id[t][0].changed
@@ -136,6 +170,10 @@ class Task(object):
             self.completed = 0
 
     def save(self, lib = None):
+        u'''Ensure that all the task's dependencies have been saved, and
+then save itself into the lib.
+
+Here, save can mean creation or update of an entry.'''
         if lib == None:
             lib = self.lib
         self.list.save(lib)
@@ -186,7 +224,8 @@ class Task(object):
     stack_up_parents = staticmethod(stack_up_parents)
 
     def direct_children(self, search_parameters):
-        try:
+        u'''Returns the list of all the loaded children of the given task.'''
+        try:    # Archaism. Should disappear once the new API is stabilized
             if search_parameters['no_family']:
                 return []
         except:
@@ -194,6 +233,8 @@ class Task(object):
         return [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
 
     def child_policy(self, task, params):
+        u'''Meant to be used in a Tree construction. Defines wether a task
+should be part or not'''
         return Tree(task, self.child_policy, params)
 
     def child_callback(self, tree):
@@ -241,7 +282,9 @@ class Group(object):
         groups.extend(fetch_function(ids_to_fetch, regexp))
         return groups
     def direct_children(self, search_parameters):
-        try:
+        u'''Select every member of the group that would be at the root of a tree
+in this group's context.'''
+        try:    # As I said before, this thing is bound to disappear in a near future.
             no_family = search_parameters['no_family']
         except:
             no_family = False
@@ -257,6 +300,7 @@ class Group(object):
         return tree
 
     def check_values(self, lib = None):
+        u"""Check if the attributes of the group are valid."""
         if lib == None:
             lib = self.lib
 
@@ -267,6 +311,7 @@ class Group(object):
             self.created = self.lib.get_time()
 
     def save(self, lib = None):
+        u'''Update or create the group into the lib/db'''
         if lib == None:
             lib = self.lib
         self.check_values(lib)
@@ -277,6 +322,7 @@ class Group(object):
 
 
 class List(Group):
+    u'''This class represent the "meta-data" of a list. It is NOT a container !'''
     list_id = {}
     _table_name = 'lists'
 
@@ -299,6 +345,8 @@ class List(Group):
         return retour
 
     def related_with(self, task):
+        u'''Returns True is <task> is affiliated with the list (used in 
+the algorithms of Group.'''
         return task.list == self
 
     def child_policy(self, task, params):
@@ -314,6 +362,7 @@ class List(Group):
         return tree
 
 class Tag(Group):
+    u'''This class represent the "meta-data" of a tag. It is NOT a container !'''
     tag_id = {}
     _table_name = 'tags'
 
@@ -336,6 +385,8 @@ class Tag(Group):
         return Tree(task, self.child_policy, params)
 
     def related_with(self, task):
+        u'''Returns True is <task> is tagged with <self> (used in 
+the algorithms of Group.'''
         return self in task.tags
 
 class NoGroup(object):
