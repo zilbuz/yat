@@ -51,6 +51,7 @@ database into a format suited for the new version of yat.
 
     def execute(self, cmd, args):
         if cmd == u"migrate":
+            # When migrating, the only DB to import is the default one.
             files = [cli.lib.config['yatdir'] + '/yat.db']
         elif len(args) == 0:
             cli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help import'", 
@@ -62,10 +63,14 @@ database into a format suited for the new version of yat.
             files = args
 
         for f in files:
+            # leg is the library associated with the DB to import.
             leg = cli.Yat.legacy.analyze_db(filename = f, current_lib = cli.lib)
+            # So far, we get the objects as sets (hence the strange operator).
+            # It might change.
             objects = leg._get_tasks() | leg._get_lists() | leg._get_tags()
-            # 
             if cmd == u'migrate' and f == cli.lib.config['yatdir'] + '/yat.db':
+                # When migrating, once we have all the old data, we don't want
+                # the old layout sticking around :)
                 leg.delete_tables()
                 cli.lib.create_tables()
             for o in objects:
