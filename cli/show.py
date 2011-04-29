@@ -172,11 +172,8 @@ Options:
                 tagswidth=self.tagswidth, datewidth=self.datewidth),
                 foreground = c[0], background = c[1], bold = c[2])
 
-        def group_display_callback(group):
-                # Print the separator
-                cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-                    done = done_column_bottom, t="-", textwidth=self.textwidth,
-                    tagswidth=self.tagswidth, datewidth = self.datewidth))
+        def group_display_callback(group, rec_arguments = None):
+            pass
 
         def tree_print(tree, recursion_arguments = None):
             try:
@@ -185,28 +182,36 @@ Options:
                 return
             for t in tree.children:
                 t.display(next_recursion)
-                tree.parent.display_callback()
+            tree.parent.display_callback(next_recursion)
 
         def tree_print_group(tree):
-                n_tasks = len(tree.children)
-                n_completed = 0
-                for t in tree.children:
-                    n_completed += t.parent.completed
-                cli.output(u"\t- " + tree.parent.content + u" (id: " +
-                           str(tree.parent.id) + u") - " +
-                           str( n_completed) + u"/" + str(n_tasks))
+            n_tasks = len(tree.children)
+            n_completed = 0
+            for t in tree.children:
+                n_completed += t.parent.completed
+            cli.output(u"\t- " + tree.parent.content + u" (id: " +
+                        str(tree.parent.id) + u") - " +
+                        str( n_completed) + u"/" + str(n_tasks))
 
-        def task_display_callback(task):
-            pass
+        def task_display_callback(task, rec_arguments = None):
+            if rec_arguments == None or rec_arguments["print_sep"]:
+                # Print the separator
+                cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+                    done = done_column_bottom, t="-", textwidth=self.textwidth,
+                    tagswidth=self.tagswidth, datewidth = self.datewidth))
 
         def task_tree_display(task, rec_arguments, contextual):
             if (not self.show_completed) and task.completed == 1:
                 raise InterruptDisplay()
 
             if rec_arguments == None:
-                arguments = {'prefix':''}
+                arguments = {
+                        'prefix':'',
+                        'print_sep': True,
+                        }
             else:
                 arguments = rec_arguments.copy()
+                arguments['print_sep'] = False
 
             # Split task text
             st = self.__split_text(task.content, self.textwidth -
