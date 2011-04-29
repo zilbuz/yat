@@ -99,7 +99,7 @@ The possible attributes for a list or a tag are:
 
         to_edit = None
 
-        task = []
+        task = None
         cli.Yat.Task.class_lib = cli.lib
         for a in args:
             res = self.re_id.match(a)
@@ -163,9 +163,10 @@ The possible attributes for a list or a tag are:
                 task = [res.group(1)]
                 continue
 
-            task.append(a)
+            if task != None:
+                task.append(a)
 
-        if task != []:
+        if task != None:
             task = " ".join(task)
             if element == 'task': 
                 to_edit.content = task
