@@ -32,7 +32,7 @@ from command import Command
 class CleanCommand(Command):
     u"""Delete all the completed tasks.
 
-usage: %s clean [--force|-f|--interactive|-i]
+usage: %s clean [options]
 
 This command deletes all the completed tasks from the database. Be careful, this
 is definitive.

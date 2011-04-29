@@ -32,7 +32,7 @@ from command import Command
 class RemoveCommand (Command):
     u"""Remove a task, a list or a tag
 
-usage: %s remove [task | list | tag] [--interactive|-i] [<regexp>|id=<id_nb>]
+usage: %s remove [task | list | tag] [options] [<regexp>|id=<id_nb>]
 
 The use is straightforward : every element matching the
 informations gets deleted. 
@@ -50,6 +50,8 @@ for "*" or "?" you can escape them with "\\".
 If "task", "list" or "tag" is not provided, "task" is assumed.
 
 Options:
+    --force, -f
+        Don't ask for a global confirmation, just delete.
     --interactive, -i
         Ask a confirmation for every deleted element.
 """
@@ -57,15 +59,23 @@ Options:
     alias = [u"remove", u"rm"]
 
     def __init__(self):
+        self.re_force = re.compile(r'^(--force|-f)$')
         self.re_interactive = re.compile(r'^(--interactive|-i)$')
+        self.force = False
         self.interactive = False
 
     def execute(self, cmd, args):
         for a in args[:]:
+            res = self.re_force.match(a)
+            if res != None:
+                self.force = True
+                args.remove(a)
+                continue
             res = self.re_interactive.match(a)
             if res != None:
                 self.interactive = True
                 args.remove(a)
+                continue
 
         if args == []:
             print self.__doc__.split('\n',1)[0]," ",args
@@ -93,7 +103,7 @@ Options:
             operation = u" regexp "
 
             # Ask a confirmation for the * expression.
-            if a == '*':
+            if a == '*' and not self.force:
                 res = cli.yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
                 if not res:
                     return
