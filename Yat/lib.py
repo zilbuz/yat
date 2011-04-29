@@ -198,17 +198,18 @@ class Yat:
         self.__operators[">="] = lambda x, y: x >= y
         self.__operators["<="] = lambda x, y: x <= y
 
-        # Dictionary matching an task id to a tuple of the matching Task and a list of
-        # its children's ids.
-        self.loaded_tasks = {}
-        self.loaded_lists = {None:NoList(self)}
-        self.loaded_tags = {None:NoTag(self)}
+        self.__loaded_tasks = {}
+        self.__loaded_lists = {}
+        self.__loaded_tags = {}
         pass
 
     def get_task(self, value, value_is_id = True):
         if value_is_id:
             return self.get_tasks([value])[0]
         return self.get_tasks(names=[value])[0]
+
+    def get_loaded_tasks(self):
+        return [t for t in self.__loaded_tasks.itervalues()]
 
     def __extract_rows(self, table_name, loaded_objects, ids, names, regexp):
         rows = []
@@ -249,7 +250,7 @@ class Yat:
 
     def get_tasks(self, ids=None, names=None, regexp=None):
         return self.__get_task_objects(self.__extract_rows("tasks",
-                                                            self.loaded_tasks,
+                                                            self.__loaded_tasks,
                                                             ids, names,
                                                             regexp))
 
@@ -275,7 +276,7 @@ class Yat:
 
         def distance(row):
             if row['parent'] == None or (int(row['parent']) in
-                                         self.loaded_tasks.iterkeys()):
+                                         self.__loaded_tasks.iterkeys()):
                 return 0
             try:
                 return distance(task_rows[int(row['parent'])])+1
@@ -291,7 +292,7 @@ class Yat:
             if r['parent'] == None:
                 t.parent = None
             else:   # If everything go as planned, it is already loaded
-                t.parent = self.loaded_tasks[int(r['parent'])]
+                t.parent = self.__loaded_tasks[int(r['parent'])]
 
             t.content = r["content"]
             t.due_date = r["due_date"]
@@ -303,7 +304,7 @@ class Yat:
             t.created = r["created"]
 
             t.changed = False
-            self.loaded_tasks[t.id] = t
+            self.__loaded_tasks[t.id] = t
 
             tasks.append(t)
         return tasks
@@ -543,7 +544,9 @@ class Yat:
             self.__sql.commit()
         pass
 
-    def __get_groups(self, cls, loaded_objects, ids, names, regexp):
+    def __get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
+        if ids != None and None not in ids and None not in loaded_objects:
+            loaded_objects[None] = nocls(self)
         extract = self.__extract_rows(cls._table_name, loaded_objects,
                                       ids, names, regexp)
         groups = extract[0]
@@ -561,21 +564,35 @@ class Yat:
         return groups
 
     def get_tags(self, ids=None, names=None, regexp=None):
-        return self.__get_groups(Tag, self.loaded_tags, ids, names, regexp)
+        return self.__get_groups(Tag, NoTag, self.__loaded_tags, ids, names, regexp)
+
+    def get_loaded_lists(self):
+        return [l for l in self.__loaded_lists.itervalues()]
+
+    def get_loaded_tags(self):
+        return [l for l in self.__loaded_tags.itervalues()]
 
     def get_lists(self, ids=None, names=None, regexp=None):
-        return self.__get_groups(List, self.loaded_lists, ids, names, regexp)
+        return self.__get_groups(List, NoList, self.__loaded_lists, ids, names, regexp)
 
     def get_list(self, value, value_is_id=True):
         if value == None:
-            return self.loaded_lists[None]
+            try:
+                return self.__loaded_lists[None]
+            except:
+                self.__loaded_lists[None] = NoList(self)
+                return self.__loaded_lists[None]
         if value_is_id:
             return self.get_lists([int(value)])[0]
         return self.get_lists(names=[value])[0]
 
     def get_tag(self, value, value_is_id=True):
         if value == None:
-            return self.loaded_tags[None]
+            try:
+                return self.__loaded_tags[None]
+            except:
+                self.__loaded_tags[None] = NoTag(self)
+                return self.__loaded_tags[None]
         if value_is_id:
             return self.get_tags([int(value)])[0]
         return self.get_tags(names=[value])[0]

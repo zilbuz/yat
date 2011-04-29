@@ -80,9 +80,9 @@ Options:
 
             tasks = cli.lib.get_tasks()
             if cli.lib.config["cli.display_group"] ==  u'list':
-                trees = [cli.Yat.Tree(li) for li in cli.lib.loaded_lists.itervalues()]
+                trees = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_lists()]
             else:
-                trees = [cli.Yat.Tree(li) for li in cli.lib.loaded_tags.itervalues()]
+                trees = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_tags()]
             to_display = trees
 
         elif cmd in [u'lists', u'tags'] :

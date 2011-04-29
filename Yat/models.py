@@ -191,7 +191,7 @@ in this group's context.'''
             no_family = search_parameters['no_family']
         except:
             no_family = False
-        return [c for c in self.lib.loaded_tasks.itervalues()
+        return [c for c in self.lib.get_loaded_tasks()
                 if (c != None and self.related_with(c) and
                     (not c.parents_in_group(self) or no_family))]
 
@@ -308,7 +308,7 @@ class NoTag(NoGroup, Tag):
         super(NoTag, self).__init__(lib)
 
     def related_with(self, task):
-        return task.tags == []
+        return task.tags == [] or task.tags == set()
 
 class Tree:
     def __init__(self, parent = None, policy = None, search_parameters = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
