@@ -420,7 +420,7 @@ class NoList(NoGroup, List):
 
 class NoTag(NoGroup, Tag):
     # Same as for NoList's MRO.
-    __mro__ = (NoGroup, Group, Tag, object)
+    __mro__ = (NoGroup, Group, object, Tag)
 
     def __init__(self):
         super(NoTag, self).__init__()
