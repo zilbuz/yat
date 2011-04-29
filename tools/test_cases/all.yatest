@@ -96,14 +96,14 @@ edit id=34 task=task 34 to edit -> name, due date and priority edited due_date=1
     # Testing list
 edit task id=35 list=list5
     # Testing tags
-edit id=36 add_tags=tag5,tag6 remove_tags=tag4
+edit id=36 add_tags=tag5,tag6 remove_tags=tag3
     # Adding some tags and lists to test
 add tag tag7 5
-add list list8 5
+add list list6 5
     # Editing tag
 edit tag id=7 name=tag7_edited priority=10
     # Editing list
-edit list id=8 name=list8_edited priority=-5
+edit list id=6 name=list6_edited priority=-5
 
 # Tests for clean
 help clean
@@ -135,8 +135,8 @@ add task task 45 to not remove first 4
 add task task 46 to remove 5
 add task task 47 to not remove first 6
 add task task 48 to remove 7
-add list list9_toremove
-add list list10_toremove
+add list list7_toremove
+add list list8_toremove
 add tag tag8_toremove
 add tag tag9_toremove
     # Removing
@@ -144,8 +144,8 @@ remove id=42
 remove task id=43
 rm --interactive task task 4? to *
 rm --force task task 4? to *
-rm list id=9
-rm list list10_toremove
+rm list id=7
+rm list list8_toremove
 rm tag id=8
 rm tag tag9_toremove
 
