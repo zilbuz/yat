@@ -119,9 +119,9 @@ Options:
                 ids = [a, ]
             else:
                 if cmd == "tag":
-                    temp = cli.lib.get_tags_regex(a)
+                    temp = cli.lib.get_tags(regexp=a)
                 else:
-                    temp = cli.lib.get_lists_regex(a)
+                    temp = cli.lib.get_lists(regexp=a)
 
                 for t in temp:
                     txt = u"Do you want to delete this " + cmd + u":\n" 
@@ -140,21 +140,17 @@ Options:
         else: # removing a task
             ids = []
             if operation == u'=':
-                temp = cli.lib.get_tasks(ids = [int(a)], group = False,
-                                         order = False, fetch_children = False,
-                                         fetch_parents = False)
+                temp = cli.lib.get_tasks(ids = [int(a)])
             else:
-                temp = cli.lib.get_tasks(regexp = a, group = False,
-                                         order = False, fetch_parents = False,
-                                         fetch_children = False)
+                temp = cli.lib.get_tasks(regexp = a)
 
             for t in temp:
                 if self.interactive:
-                    txt = u"Do you want to delete this task:\n" + t.parent.content
-                    txt += u" (priority: " + str(t.parent.priority)
-                    txt += u", due date: " + cli.parse_output_date(t.parent.due_date) + u") ?"
+                    txt = u"Do you want to delete this task:\n" + t.content
+                    txt += u" (priority: " + str(t.priority)
+                    txt += u", due date: " + cli.parse_output_date(t.due_date) + u") ?"
                     if not cli.yes_no_question(txt):
                         continue
-                ids.append(t.parent.id)
+                ids.append(t.id)
 
             cli.lib.remove_tasks(ids)

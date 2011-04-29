@@ -161,13 +161,16 @@ Adding a tag:
                 # List
                 res = self.re_list.match(a)
                 if res != None:
-                    new_task.list = cli.lib.get_list(res.group(1), type_id=False,
-                                                 can_create=True)
+                    try:
+                        new_task.list = cli.lib.get_list(res.group(1))
+                    except:
+                        new_task.list = cli.Yat.List(cli.lib)
+                        new_task.list.content = res.group(1)
                     continue
                 # Parent task
                 res = self.re_parent.match(a)
                 if res != None:
-                    new_task.parent = new_task.get_task(res.group(1))
+                    new_task.parent = cli.lib.get_task(int(res.group(1)))
                     continue
                 # Date
                 res = self.re_date.match(a)
@@ -185,7 +188,13 @@ Adding a tag:
                 text.append(a)
 
             new_task.content = " ".join(text)
-            new_task.tags = cli.lib.get_tags(tag_names, type_id=False,
-                                         can_create=True)
+            new_task.tags = []
+            for n in tag_names:
+                try:
+                    new_task.tags.append(cli.lib.get_tag(n, False))
+                except:
+                    new_tag = cli.Yat.Tag(cli.lib)
+                    new_tag.content = n
+                    new_task.tags.append(new_tag)
             new_task.save(cli.lib)
 

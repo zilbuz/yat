@@ -78,9 +78,12 @@ Options:
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
-            groups = cli.lib.get_tasks(group_by =
-                cli.lib.config["cli.display_group"], order_by =
-                cli.lib.config["cli.task_ordering"])
+            tasks = cli.lib.get_tasks()
+            if cli.lib.config["cli.display_group"] ==  u'list':
+                trees = [cli.Yat.Tree(li) for li in cli.lib.loaded_lists.itervalues()]
+            else:
+                trees = [cli.Yat.Tree(li) for li in cli.lib.loaded_tags.itervalues()]
+            to_display = trees
 
         elif cmd in [u'lists', u'tags'] :
             c = cli.lib.config["cli.color_group_name"]
@@ -88,20 +91,18 @@ Options:
                     foreground = c[0], background = c[1], bold = c[2])
             
             if cmd == u'lists':
-                groups = set(cli.lib.get_lists_regex(u"*"))
+                groups = set(cli.lib.get_lists())
             else:
-                groups = set(cli.lib.get_tags_regex(u'*'))
+                groups = set(cli.lib.get_tags())
 
             # Load all the tasks in memory
-            cli.lib.get_tasks(group = False, order = False,
-                              fetch_children = False,
-                              fetch_parents = False,
-                              regroup_family = False)
+            cli.lib.get_tasks()
 
             groups = [cli.Yat.Tree(g, None, {'no_family':True}) for g in groups]
+            to_display = groups
 
         self.__load_display(cmd in [u'lists', u'tags'])
-        for item in groups:
+        for item in to_display:
             item.display()
 
     def __split_text(self, text, width=None):

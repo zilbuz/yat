@@ -200,21 +200,115 @@ class Yat:
 
         # Dictionary matching an task id to a tuple of the matching Task and a list of
         # its children's ids.
-        Task.children_id = { 0:(None, [])}
-        self.__tag_id = {}
-        self.__list_id = {}
+        self.loaded_tasks = {}
+        self.loaded_lists = {None:NoList(self)}
+        self.loaded_tags = {None:NoTag(self)}
         pass
 
-    def _get_tasks(self, ids=None, names=None, regexp=None):
-        return [t.parent for t in self.get_tasks(ids, regexp, False, False,
-                                                 '', [], False, True,
-                                                 False)
-               if ((ids != None and t.parent.id in ids) or
-                   (regexp != None and self.regexp(regexp,
-                                                  t.parent.content)) or
-                   (regexp == None and ids == None))]
+    def get_task(self, value, value_is_id = True):
+        if value_is_id:
+            return self.get_tasks([value])[0]
+        return self.get_tasks(names=[value])[0]
 
-    def get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
+    def __extract_rows(self, table_name, loaded_objects, ids, names, regexp):
+        rows = []
+        loaded = []
+        if ids == None and names == None and regexp == None:
+            rows = self.__sql.execute(u'select * from %s' % table_name).fetchall()
+        else:
+            if ids != None:
+                for i in ids:
+                    try:    # Since we can already be sure, it might be better
+                            # to check that before the SQL request
+                        loaded.append(loaded_objects[i])
+                    except:
+                        rows.append(self.__sql.execute(u'''select * from %s
+                                                            where id=?'''
+                                                            % table_name, (i,)
+                                                           ).fetchone())
+            if names != None:
+                for n in names:
+                    rows.append(self.__sql.execute(u'''select * from %s 
+                                                        where content=?'''
+                                                        % table_name,(n,)
+                                                       ).fetchone())
+
+            if regexp != None:
+                rows.extend(self.__sql.execute(u'''select * from %s
+                                                    where content regexp ?'''
+                                                    % table_name,
+                                                    (regexp,)).fetchall())
+        set_rows = set(rows)
+        for r in rows:
+            try:
+                loaded.append(loaded_objects[int(r['i'])])
+                set_rows.remove(r)
+            except:
+                pass
+        return (loaded, list(set_rows))
+
+    def get_tasks(self, ids=None, names=None, regexp=None):
+        return self.__get_task_objects(self.__extract_rows("tasks",
+                                                            self.loaded_tasks,
+                                                            ids, names,
+                                                            regexp))
+
+    def get_children(self, task):
+        rows = self.__sql.execute(u'''select * from tasks where parent=?''',
+                                  (task.id,)).fetchall()
+        loaded = []
+        set_rows = set(rows)
+        for r in rows:
+            try:
+                loaded.append(loaded_objects[int(r['i'])])
+                set_rows.remove(r)
+            except:
+                pass
+        return self.__get_task_objects((loaded, list(set_rows)))
+
+    def __get_task_objects(self, extract):
+        tasks = extract[0]
+        rows = extract[1]
+        id_to_row = {}
+        for r in rows:
+            id_to_row[int(r["id"])] = r
+
+        def distance(row):
+            if row['parent'] == None or (int(row['parent']) in
+                                         self.loaded_tasks.iterkeys()):
+                return 0
+            try:
+                return distance(task_rows[int(row['parent'])])+1
+            except:
+                self.get_task(int(row['parent']))   # Load it in memory
+                return 0
+
+        rows = [r for r in id_to_row.itervalues()]
+        rows = sorted(rows, key=distance)
+        for r in rows:
+            t = Task(self)
+            t.id = int(r["id"])
+            if r['parent'] == None:
+                t.parent = None
+            else:   # If everything go as planned, it is already loaded
+                t.parent = self.loaded_tasks[int(r['parent'])]
+
+            t.content = r["content"]
+            t.due_date = r["due_date"]
+            t.priority = r["priority"]
+            t.list = self.get_list(r["list"])
+            t.tags = set(self.get_tags_from_task(t.id))
+            t.completed = r["completed"]
+            t.last_modified = r["last_modified"]
+            t.created = r["created"]
+
+            t.changed = False
+            self.loaded_tasks[t.id] = t
+
+            tasks.append(t)
+        return tasks
+
+    def __get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
                   order_by=["reverse:priority", "due_date"], fetch_children=True,
                   fetch_parents=True, regroup_family=True):
         u"""Method to get the tasks from the database, group them by list or
@@ -415,46 +509,6 @@ class Yat:
             self.__sql.commit()
         pass
 
-    def get_tags(self, tags, type_id = True, can_create = False):
-        u"""Extract the tags from the database. The parameter tags have to be an
-        array with tag names or tag ids. 
-        
-        If tag names are provided, type_id have to be set to False. 
-        
-        If type_id is set to False and can_create is set to True, then if a tag
-        doesn't exist, it will be created.
-        """
-        res = []
-        for t in tags:
-            with self.__sql:
-                tag_row = None
-                if type_id:
-                    if int(t) in Tag.tag_id:
-                        res.append(Tag.tag_id[int(t)])
-                    else:
-                        tag_row = self.__sql.execute(u'select * from tags where id=?',
-                                (t,)).fetchone()
-                else:
-                    tag_row = self.__sql.execute(u'select * from tags where content=?', 
-                            (t,)).fetchone()
-                    if can_create and tag_row == None:
-                        self._add_tag_or_list("tags", t, 0)
-                        tag_row = self.__sql.execute(u'select * from tags where content=?', 
-                            (t,)).fetchone()
-                    elif tag_row != None and int(tag_row["id"]) in Tag.tag_id:
-                        res.append(Tag.tag_id[int(tag_row["id"])])
-                        tag_row = None
-                res.append(Tag(self, tag_row))
-        return res
-
-    def get_tags_regex(self, regex):
-        u"""Extract from the database all the tags that match regex, where regex
-        is an expression with * and ? jokers"""
-        with self.__sql:
-            raw_tags = self.__sql.execute(u'select * from tags where content regexp ?',
-                    (regex,)).fetchall()
-            return [Tag(self, t) for t in raw_tags]
-
     def get_tags_from_task(self, task_id):
         u"""Extract from the DB all the tags associated with the id provided"""
         with self.__sql:
@@ -489,79 +543,42 @@ class Yat:
             self.__sql.commit()
         pass
 
-    def __get_group_rows(self, table, ids=None, regexp=None):
-        if ids == None and regexp == None:
-            sql_rows = set(self.__sql.execute(u'select * from lists'))
-        else:
-            sql_rows = set()
-            if ids != None:
-                for i in ids:
-                    sql_rows.add(self.__sql.execute(u'''
-                                                    select * from %s
-                                                    where id=?''' % table,
-                                                    (i,)).fetchone())
-            if regexp != None:
-                sql_rows |= set(self.__sql.execute(u'''
-                                                   select * from %s 
-                                                   where content regexp ?
-                                                   ''' % table,
-                                                   (regexp)).fetchall())
-        return sql_rows
+    def __get_groups(self, cls, loaded_objects, ids, names, regexp):
+        extract = self.__extract_rows(cls._table_name, loaded_objects,
+                                      ids, names, regexp)
+        groups = extract[0]
+        rows = extract[1]
+        for r in rows:
+            g = cls(self)
+            g.id = int(r["id"])
+            g.content = r["content"]
+            g.priority = r["priority"]
+            g.last_modified = r["last_modified"]
+            g.created = r["created"]
+            g.changed = False
+            loaded_objects[g.id] = g
+            groups.append(g)
+        return groups
 
-    #Only temporary until complete redesign
-    def _get_lists(self, ids = None, regexp = None):
-        return [List(self, r) for r in self.__get_group_rows('lists',
-                                                             ids, regexp)]
+    def get_tags(self, ids=None, names=None, regexp=None):
+        return self.__get_groups(Tag, self.loaded_tags, ids, names, regexp)
 
-    # Same as _get_lists
-    def _get_tags_v2(self, ids = None, regexp = None):
-        return [Tag(self, r) for r in self.__get_group_rows('tags',
-                                                            ids, regexp)]
+    def get_lists(self, ids=None, names=None, regexp=None):
+        return self.__get_groups(List, self.loaded_lists, ids, names, regexp)
 
-    def get_list(self, list, type_id = True, can_create = False):
-        u"""Extract a list from the database. The parameter list has to be a
-        list name or a list id. 
-        
-        If a list name is provided, then type_id has to be set to False.
+    def get_list(self, value, value_is_id=True):
+        if value == None:
+            return self.loaded_lists[None]
+        if value_is_id:
+            return self.get_lists([int(value)])[0]
+        return self.get_lists(names=[value])[0]
 
-        If type_id is set to False and can_create is set to True, then if the
-        list name provided doesn't exist, it will be created.
-        """
-        res = None
-        if (list == None and type_id) or (list == '' and not type_id):
-            if None in List.list_id:
-                return List.list_id[None]
-            return NoList()
-        with self.__sql:
-            if type_id:
-                if int(list) in List.list_id:
-                    return List.list_id[int(list)]
-                res = self.__sql.execute(u'select * from lists where id=?',
-                        (list,)).fetchone()
-            else:
-                res = self.__sql.execute(u'select * from lists where content=?',
-                        (list,)).fetchone()
-                if res == None and can_create:
-                    self._add_tag_or_list("lists", list, 0)
-                    res = self.__sql.execute(u'select * from lists where content=?',
-                            (list,)).fetchone()
-                elif res != None and int(res["id"]) in List.list_id:
-                    return List.list_id[int(res["id"])]
-            return List(self, res)
-
-    def get_lists_regex(self, regex):
-        u"""Extract from the database the lists that match regex, where regex is
-        an expression with * and ? jokers."""
-        with self.__sql:
-            raw_lists = self.__sql.execute('select * from lists where content regexp ?',
-                    (regex,)).fetchall()
-            lists = []
-            for l in raw_lists:
-                if l["id"] in List.list_id:
-                    lists.append(List.list_id[l["id"]])
-                else:
-                    lists.append(List(self, l))
-            return lists
+    def get_tag(self, value, value_is_id=True):
+        if value == None:
+            return self.loaded_tags[None]
+        if value_is_id:
+            return self.get_tags([int(value)])[0]
+        return self.get_tags(names=[value])[0]
 
     def remove_lists(self, ids):
         u"""Remove lists by their ids. Be careful, when deleting a list, every
@@ -619,11 +636,11 @@ class Yat:
         self._add_tag_or_list(table_name, group.content,
                               group.priority, group.created)
         group_row = self.__sql.execute(u'''select * from %s
-                                       where priority = ? and content=?
-                                       ''' % table_name, (group.priority,
-                                                          group.content)
+                                       where content=?
+                                       ''' % table_name, (group.content,)
                                       ).fetchone()
         group.id = group_row['id']
+        group.priority = group_row['priority']
         group.created = group_row['created']
         group.last_modified = group_row['last_modified']
         group.changed = False

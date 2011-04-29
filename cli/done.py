@@ -73,9 +73,9 @@ the shell doesn't expand them.
 
         cli.Yat.Task.class_lib = cli.lib
         if id != None:
-            tasks = cli.Yat.Task.get_tasks(ids=[int(id)])
+            tasks = cli.lib.get_tasks(ids=[int(id)])
         else:
-            tasks = cli.Yat.Task.get_tasks(regexp=regexp)
+            tasks = cli.lib.get_tasks(regexp=regexp)
 
         done = cmd == u"done"
         for task in tasks:

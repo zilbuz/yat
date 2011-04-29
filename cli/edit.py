@@ -105,9 +105,9 @@ The possible attributes for a list or a tag are:
             res = self.re_id.match(a)
             if to_edit == None and res != None:
                 if element == u'task':
-                    to_edit = cli.Yat.Task.get_task(res.group(1))
+                    to_edit = cli.lib.get_task(res.group(1))
                 elif element == u'tag':
-                    to_edit = cli.lib.get_tags(res.group(1))[0]
+                    to_edit = cli.lib.get_tag(res.group(1))
                 elif element == u'list':
                     to_edit = cli.lib.get_list(res.group(1))
                 continue
@@ -145,17 +145,28 @@ The possible attributes for a list or a tag are:
 
             res = self.re_list.match(a)
             if res != None:
-                to_edit.list = cli.lib.get_list(res.group(1), False, True) 
+                try:
+                    to_edit.list = cli.lib.get_list(res.group(1), False) 
+                except:
+                    to_edit.list = cli.Yat.List(cli.lib)
+                    to_edit.list.content = res.group(1)
                 continue
 
             res = self.re_add_tags.match(a)
             if res != None:
-                to_edit.tags |= set(cli.lib.get_tags(res.group(1).split(','), False, True))
+                tag_names = res.group(1).split(',')
+                for n in tag_names:
+                    try:
+                        to_edit.tags.add(cli.lib.get_tag(n, False))
+                    except:
+                        tag = cli.Yat.Tag(cli.lib)
+                        tag.content = n
+                        to_edit.tags.add(tag)
                 continue
 
             res = self.re_remove_tags.match(a)
             if res != None:
-                to_edit.tags -= set(cli.lib.get_tags(res.group(1).split(','), False, False))
+                to_edit.tags -= set(cli.lib.get_tags(names=res.group(1).split(',')))
                 continue
 
             res = self.re_name.match(a)

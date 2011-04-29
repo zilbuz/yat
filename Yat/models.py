@@ -29,43 +29,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 class Task(object):
     u'''This class describe a task in a OO perspective
     '''
-    children_id = {} # id : (task, [c.id for c in children_of_task])
     class_lib = None    # The lib/db the tasks are gonna be pulled from
-
-    @classmethod
-    def get_task(cls, value = None, value_is_id = True):
-        u'''The simplest interface possible to get a precise task. Note that it will
-also load from the parent(s) from the DB if needed, as well as the lists and
-tags coming alongside. 
-
-If value_is_id is set to True, it will consider value as an ID, otherwise as an
-exact name.
-
-The return value is a Task.'''
-        if value_is_id:
-            return cls.get_tasks(ids = [value])[0]
-        return cls.get_tasks(names = [value])[0]
-
-    @classmethod
-    def get_tasks(cls, ids = None, names = None, regexp = None):
-        u'''Get a series of tasks based on their ID, their content, and/or a regexp
-matching their content. It will also pull the parents from the DB if needed, as
-well as lists and tags.
-The return value is a list of Task.'''
-        tasks = []
-        ids_to_fetch = []
-        if ids != None:
-            for i in ids:
-                try:    # If the task is already loaded, take
-                    t = cls.children_id[i][0]
-                    if t == None:   # TODO: shift the unicity burden in
-                                    #       the library objects
-                        raise Exception('internal')
-                    tasks.append(t)
-                except:
-                    ids_to_fetch.append(int(i))
-        tasks.extend(cls.class_lib._get_tasks(ids_to_fetch, names, regexp))
-        return tasks
 
     # Every time an attribute is changed, the object memorizes it. This way,
     # the DB won't be updated at every call of self.save()
@@ -73,7 +37,7 @@ The return value is a list of Task.'''
         super(Task, self).__setattr__('changed', True)
         super(Task, self).__setattr__(attr, value)
 
-    def __init__(self, lib=None, sql_line=None, no_family=False):
+    def __init__(self, lib=None):
         u"""Constructs a Task from an sql entry and an instance of Yat
         """
         self.lib = lib
@@ -84,62 +48,16 @@ The return value is a list of Task.'''
             self.lib = Task.class_lib
 
         # Creation of a blank Task
-        if sql_line == None:
-            self.id = None
-            self.parent=None
-            self.content=''
-            self.due_date=None
-            self.priority=None
-            self.list = NoList()
-            self.tags = set()
-            self.completed = 0
-            self.last_modified = 0
-            self.created = 0
-            self.changed = False
-            return
-
-        # Import from the SQL row
-        self.id = int(sql_line["id"])
-        try:
-            parent_id = int(sql_line["parent"])
-        except:
-            parent_id = None
-
-        # We have to handle all that stuff in a cleaner way.
-        # For now, it is a bit too messy, even by my (Simon's) standards !
-        # If the parent hasn't already an entry in the dict :
-        if parent_id not in Task.children_id:
-            Task.children_id[parent_id] = (None, [])
-            # We assume it will be imported later on, which is kind of
-            # dangerous and stupid, but hey, it has worked so far :)
-        self.parent = Task.children_id[parent_id][0]
-
-        # If the kid hasn't already been added to the list of the children
-        # of the parent, add it. OTOH, who would have done that ?
-        if self.id not in Task.children_id[parent_id][1]:
-            Task.children_id[parent_id][1].append(self.id)
-
-        # If the task hasn't already an entry (which would mean it has
-        # children already created), create it
-        if self.id not in Task.children_id:
-            Task.children_id[self.id] = (self, [])
-        else:
-            # Else, update it, as well as its kids
-            Task.children_id[self.id] = (self, Task.children_id[self.id][1])
-            for t in Task.children_id[self.id][1]:
-                t_changed = Task.children_id[t][0].changed
-                Task.children_id[t][0].parent = self
-                Task.children_id[t][0].changed = t_changed
-
-        self.content = sql_line["content"]
-        self.due_date = sql_line["due_date"]
-        self.priority = sql_line["priority"]
-        self.list = lib.get_list(sql_line["list"])
-        self.tags = set(lib.get_tags_from_task(self.id))
-        self.completed = sql_line["completed"]
-        self.last_modified = sql_line["last_modified"]
-        self.created = sql_line["created"]
-
+        self.id = None
+        self.parent=None
+        self.content=''
+        self.due_date=None
+        self.priority=None
+        self.list = NoList(self.lib)
+        self.tags = set()
+        self.completed = 0
+        self.last_modified = 0
+        self.created = 0
         self.changed = False
 
     def check_values(self, lib = None):
@@ -236,7 +154,7 @@ Here, save can mean creation or update of an entry.'''
                 return []
         except:
             pass
-        return [Task.children_id[i][0] for i in Task.children_id[self.id][1]]
+        return self.lib.get_children(self)
 
     def child_policy(self, task, params):
         u'''Meant to be used in a Tree construction. Defines wether a task
@@ -252,41 +170,20 @@ class Group(object):
         super(Group, self).__setattr__('changed', True)
         super(Group, self).__setattr__(attr, value)
 
-    def __init__(self, lib, sql_line):
+    def __init__(self, lib):
         u"""Constructs a group from an sql row"""
         self.lib = lib
         if Group.class_lib == None:
             Group.class_lib = self.lib
         elif self.lib == None:
             self.lib = Group.class_lib
-        if sql_line == None:
-            self.id = None
-            self.content = ''
-            self.priority = None
-            self.last_modified = 0
-            self.created = 0
-            self.changed = False
-            return
-        self.id = int(sql_line["id"])
-        self.content = sql_line["content"]
-        self.priority = sql_line["priority"]
-        self.last_modified = sql_line["last_modified"]
-        self.created = sql_line["created"]
+        self.id = None
+        self.content = ''
+        self.priority = None
+        self.last_modified = 0
+        self.created = 0
         self.changed = False
 
-    @classmethod
-    def get_groups(cls, loaded, fetch_function, ids=None, regexp=None):
-        groups = []
-        ids_to_fetch = None
-        if ids != None:
-            ids_to_fetch = []
-            for i in ids:
-                try:
-                    groups.append(loaded[i])
-                except:
-                    ids_to_fetch.append(i)
-        groups.extend(fetch_function(ids_to_fetch, regexp))
-        return groups
     def direct_children(self, search_parameters):
         u'''Select every member of the group that would be at the root of a tree
 in this group's context.'''
@@ -294,9 +191,9 @@ in this group's context.'''
             no_family = search_parameters['no_family']
         except:
             no_family = False
-        return [c[0] for c in Task.children_id.itervalues()
-                if (c[0] != None and self.related_with(c[0]) and
-                    (not c[0].parents_in_group(self) or no_family))]
+        return [c for c in self.lib.loaded_tasks.itervalues()
+                if (c != None and self.related_with(c) and
+                    (not c.parents_in_group(self) or no_family))]
 
     def child_callback(self, tree):
         u"""Appends the context tasks on top of the tree in the twisted cases :)"""
@@ -332,17 +229,9 @@ class List(Group):
     list_id = {}
     _table_name = 'lists'
 
-    @classmethod
-    def get_list(cls, id):
-        return cls.class_lib.get_list(id, True, False)
-
-    @classmethod
-    def get_lists(cls, ids=None, regexp=None):
-        return cls.get_groups(cls.list_id, cls.class_lib.get_lists, ids, regexp)
-
-    def __init__(self, lib, sql_line = None):
+    def __init__(self, lib):
         u"""Constructs a List from an sql entry."""
-        super(List, self).__init__(lib, sql_line)
+        super(List, self).__init__(lib)
         if self.id != None:
             List.list_id[self.id] = self
 
@@ -372,17 +261,9 @@ class Tag(Group):
     tag_id = {}
     _table_name = 'tags'
 
-    @classmethod
-    def get_tag(cls, id):
-        return cls.class_lib.get_tags(id, True, False)[0]
-
-    @classmethod
-    def get_tags(cls, ids=None, regexp=None):
-        return cls.get_groups(cls.tag_id, cls.class_lib.get_tags_v2, ids, regexp)
-
     def __init__(self, lib, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
-        super(Tag, self).__init__(lib, sql_line)
+        super(Tag, self).__init__(lib)
         if self.id != None:
             Tag.tag_id[self.id] = self
 
@@ -396,8 +277,9 @@ the algorithms of Group.'''
         return self in task.tags
 
 class NoGroup(object):
-    def __init__(self):
+    def __init__(self, lib):
         self.id = None
+        self.lib = lib
 
     def save(self, lib = None):
         pass
@@ -408,22 +290,22 @@ class NoGroup(object):
 class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
     __mro__ = (NoGroup, Group, object, List)
-    def __new__(cls):
+    def __new__(cls, lib):
         try:
-            return List.list_id[None]
+            return lib.loaded_lists[None]
         except:
             return super(NoList, cls).__new__(cls)
 
-    def __init__(self):
-        super(NoList, self).__init__()
+    def __init__(self, lib):
+        super(NoList, self).__init__(lib)
         List.list_id[None] = self
 
 class NoTag(NoGroup, Tag):
     # Same as for NoList's MRO.
     __mro__ = (NoGroup, Group, object, Tag)
 
-    def __init__(self):
-        super(NoTag, self).__init__()
+    def __init__(self, lib):
+        super(NoTag, self).__init__(lib)
 
     def related_with(self, task):
         return task.tags == []
