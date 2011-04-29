@@ -472,7 +472,7 @@ class Yat:
         if group.id == None:
             return
         with self.__sql:
-            self.__sql.execute(u'update tags set content=?, priority=?, last_modified=? where id=?',
+            self.__sql.execute(u'update %s set content=?, priority=?, last_modified=? where id=?' % table_name,
                     (group.content, group.priority, self.get_time(), group.id))
         group.changed = False
 
