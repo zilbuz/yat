@@ -34,7 +34,7 @@ class Task(object):
 
     @classmethod
     def get_task(cls, value = None, value_is_id = True):
-    u'''The simplest interface possible to get a precise task. Note that it will
+        u'''The simplest interface possible to get a precise task. Note that it will
 also load from the parent(s) from the DB if needed, as well as the lists and
 tags coming alongside. 
 
@@ -46,7 +46,7 @@ The return value is a Task.'''
 
     @classmethod
     def get_tasks(cls, ids = None, names = None, regexp = None):
-    u'''Get a series of tasks based on their ID, their content, and/or a regexp
+        u'''Get a series of tasks based on their ID, their content, and/or a regexp
 matching their content. It will also pull the parents from the DB if needed, as
 well as lists and tags.
 The return value is a list of Task.'''
@@ -97,7 +97,10 @@ The return value is a list of Task.'''
 
         # Import from the SQL row
         self.id = int(sql_line["id"])
-        parent_id = int(sql_line["parent"])
+        try:
+            parent_id = int(sql_line["parent"])
+        except:
+            parent_id = None
 
         # We have to handle all that stuff in a cleaner way.
         # For now, it is a bit too messy, even by my (Simon's) standards !
