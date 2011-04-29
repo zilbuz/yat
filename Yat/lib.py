@@ -205,7 +205,7 @@ class Yat:
         self.__list_id = {}
         pass
 
-    def _get_tasks(self, ids=None, regexp=None):
+    def _get_tasks(self, ids=None, names=None, regexp=None):
         return [t.parent for t in self.get_tasks(ids, regexp, False, False,
                                                  '', [], False, True,
                                                  False)

@@ -42,7 +42,9 @@ If value_is_id is set to True, it will consider value as an ID, otherwise as an
 exact name.
 
 The return value is a Task.'''
-        return cls.get_tasks([id])[0]
+        if value_is_id:
+            return cls.get_tasks(ids = [value])[0]
+        return cls.get_tasks(names = [value])[0]
 
     @classmethod
     def get_tasks(cls, ids = None, names = None, regexp = None):
@@ -52,15 +54,16 @@ well as lists and tags.
 The return value is a list of Task.'''
         tasks = []
         ids_to_fetch = []
-        for i in ids:
-            try:    # If the task is already loaded, take
-                t = cls.children_id[i][0]
-                if t == None:   # TODO: shift the unicity burden in
-                                #       the library objects
-                    raise Exception('internal')
-                tasks.append(t)
-            except:
-                ids_to_fetch.append(int(i))
+        if ids != None:
+            for i in ids:
+                try:    # If the task is already loaded, take
+                    t = cls.children_id[i][0]
+                    if t == None:   # TODO: shift the unicity burden in
+                                    #       the library objects
+                        raise Exception('internal')
+                    tasks.append(t)
+                except:
+                    ids_to_fetch.append(int(i))
         tasks.extend(cls.class_lib._get_tasks(ids_to_fetch, names, regexp))
         return tasks
 
