@@ -166,7 +166,13 @@ should be part or not'''
 
     @staticmethod
     def significant_value(tree, criterion):
-        values = [getattr(tree.parent, criterion[0])]
+        if tree.context:
+            if criterion[1]:
+                values = [float('-inf')]
+            else:
+                values = [float('inf')]
+        else:
+            values = [getattr(tree.parent, criterion[0])]
         values.extend([t.significant_value(criterion) for t in tree.children])
         if criterion[1]:
             reduce_function = lambda x,y: x if x > y else y
