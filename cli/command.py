@@ -29,10 +29,11 @@ class Command:
     u"""Abstract class for instrospection
     
 If you wish to add a command, you have to create a class that derive from this
-one, and the docstring must have this format:
+one, and the docstring must have this format (use {name} wherever you want the
+program's name to appear):
 Short description
 
-usage: %s cmd_name [options]
+usage: {name} cmd_name [options]
 
 Long description
 """

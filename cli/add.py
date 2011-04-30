@@ -33,7 +33,7 @@ from command import Command
 class AddCommand (Command):
     u"""Add a task, a list or a tag
 
-usage: %s add [task | list | tag] "<informations>"
+usage: {name} add [task | list | tag] "<informations>"
 
 Add a task, a list or a tag to the todolist, depending of the first argument
 after "add". If the first argument after "add" isn't one of these, then "task"

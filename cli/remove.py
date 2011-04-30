@@ -32,7 +32,7 @@ from command import Command
 class RemoveCommand (Command):
     u"""Remove a task, a list or a tag
 
-usage: %s remove [task | list | tag] [options] [<regexp>|id=<id_nb>]
+usage: {name} remove [task | list | tag] [options] [<regexp>|id=<id_nb>]
 
 The use is straightforward : every element matching the
 informations gets deleted. 

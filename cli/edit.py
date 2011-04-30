@@ -33,7 +33,7 @@ from command import Command
 class EditCommand(Command):
     u"""Edit the attributes of a task
 
-usage: %s edit [task|list|tag] id=<id> [<attribute>=<value>]*
+usage: {name} edit [task|list|tag] id=<id> [<attribute>=<value>]*
 
 This command allows you to edit the attributes of an already entered task, list
 or tag. You

@@ -33,8 +33,8 @@ from command import Command
 class ImportCommand(Command):
     u"""Change the completed status of a task.
 
-usage : %s import <file.db>
-        %s migrate
+usage : {name} import <file.db>
+        {name} migrate
 
 The import version will import all the tasks contained in <file.db> into the
 database currently specified n your .yatrc file. The beauty is, it will work

@@ -30,7 +30,7 @@ from command import Command
 class HelpCommand (Command):
     u"""Show this help or a command specific help if an argument is provided
 
-usage: %s help [command]
+usage: {name} help [command]
 
 Without arguments, provide a short description of the differents commands. If
 the name of a command is provided, show the specific help text for this command.
@@ -50,7 +50,7 @@ the name of a command is provided, show the specific help text for this command.
         helptxt = cmd.__doc__.split('\n\n', 1)
 
         if detailed:
-            cli.output(helptxt[1] % cli.name)
+            cli.output(helptxt[1].format(name = cli.name))
 
         if cmd.alias[0] == u"help":
             if not detailed:

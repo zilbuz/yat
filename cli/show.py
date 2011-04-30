@@ -33,7 +33,7 @@ from command import Command
 class ShowCommand (Command):
     u"""List the current tasks, lists or tags
 
-usage: %s [show|ls|tasks|lists|tags] [--show-completed|-a]
+usage: {name} [show|ls|tasks|lists|tags] [--show-completed|-a]
 
 List the content of the todolist. Depending of the alias used, it will display
 the tasks list, the lists list or the tags list. The aliases "show" and "ls"

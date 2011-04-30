@@ -33,7 +33,7 @@ from command import Command
 class DoneCommand(Command):
     u"""Change the completed status of a task.
 
-usage: %s (done|undone) (id=<id>|<regexp>)
+usage: {name} (done|undone) (id=<id>|<regexp>)
 
 By using the 'done' alias, this command allows you to mark a task as completed.
 A task completed won't be deleted, but it won't be displayed by default with the
