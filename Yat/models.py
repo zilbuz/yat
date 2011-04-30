@@ -6,7 +6,7 @@ The Task, List and Tag classes
            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
                    Version 2, December 2004 
 
- Copyright (C) 2010 
+ Copyright (C) 2010, 2011
     Basile Desloges <basile.desloges@gmail.com>
     Simon Chopin <chopin.simon@gmail.com>
 
