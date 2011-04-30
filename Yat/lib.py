@@ -223,14 +223,34 @@ class Yat:
             self.__sql.commit()
 
     def get_task(self, value, value_is_id = True):
+        u'''Get one task. Value can be either an ID or a name. It is
+        treated as indicated by the value of value_is_id : True for ID
+        and False for a name.'''
         if value_is_id:
             return self.get_tasks([int(value)])[0]
         return self.get_tasks(names=[value])[0]
 
     def get_loaded_tasks(self):
+        u'''Returns a list of all the tasks that were already pulled from
+        the DB.'''
         return [t for t in self.__loaded_tasks.itervalues()]
 
     def __extract_rows(self, table_name, loaded_objects, ids, names, regexp):
+        u'''Extract the data out of the DB. It also checks wether it was already
+        loaded, in which case it replaces it by the object.
+        Arguments:
+            str:table_name : The name of the table from where the data will be
+                             extracted
+            dict:loaded_objects: dict to check wether a row was already loaded
+                                 or not.
+            list(int):ids:  A list of ids to load.
+            list(str):names:    A list of *exact* names to load.
+            str:regexp:     A regexp to compare with the content of the data.
+
+        If ids, names and regexp are all None, the whole table will be fetched.
+
+        It returns a tuple of list. The first list contains all the objects
+        already loaded, the second the raw data to process.'''
         rows = []
         loaded = []
         if ids == None and names == None and regexp == None:
@@ -242,16 +262,16 @@ class Yat:
                             # to check that before the SQL request
                         loaded.append(loaded_objects[i])
                     except KeyError as e:
-                        rows.append(self.__sql.execute(u'''select * from %s
+                        rows.extend(self.__sql.execute(u'''select * from %s
                                                             where id=?'''
                                                             % table_name, (i,)
-                                                           ).fetchone())
+                                                           ).fetchall())
             if names != None:
                 for n in names:
-                    rows.append(self.__sql.execute(u'''select * from %s 
+                    rows.extend(self.__sql.execute(u'''select * from %s 
                                                         where content=?'''
                                                         % table_name,(n,)
-                                                       ).fetchone())
+                                                       ).fetchall())
 
             if regexp != None:
                 rows.extend(self.__sql.execute(u'''select * from %s
@@ -260,20 +280,23 @@ class Yat:
                                                     (regexp,)).fetchall())
         set_rows = set(rows)
         for r in rows:
-            try:
+            try:    # Try to fetch the loaded object.
                 loaded.append(loaded_objects[int(r['id'])])
-                set_rows.remove(r)
+                set_rows.remove(r)  # If it is there, the row is useless
             except KeyError as e:
                 pass
         return (loaded, list(set_rows))
 
     def get_tasks(self, ids=None, names=None, regexp=None):
+        u'''Returns a list of tasks matching the input data. If ids, names
+        and regexp all equal None, every task will be fetched.'''
         return self.__get_task_objects(self.__extract_rows("tasks",
                                                             self.__loaded_tasks,
                                                             ids, names,
                                                             regexp))
 
     def get_children(self, task):
+        u'''Returns all the direct subtasks of a given task.'''
         rows = self.__sql.execute(u'''select * from tasks where parent=?''',
                                   (task.id,)).fetchall()
         loaded = []
@@ -287,17 +310,27 @@ class Yat:
         return self.__get_task_objects((loaded, list(set_rows)))
 
     def __get_task_objects(self, extract):
+        u'''Take an extract: ([Task], [SQLRow]) ; and transforms the rows
+        into fully fledged objects with a little black magic :).
+
+        Return value: [Task]'''
         tasks = extract[0]
         rows = extract[1]
         id_to_row = {}  # id:row
         for r in rows:
             id_to_row[int(r["id"])] = r
 
+        # Sorry Basile, I needed this one.
         def distance(row):
+            u'''The distance represents here the number of rows which have to
+            be processed before this one.'''
+            # If there's no parent or it is already loaded, then it can be
+            # loaded right away
             if row['parent'] == None or (int(row['parent']) in
                                          self.__loaded_tasks.iterkeys()):
                 return 0
             try:
+                # Else, we assume the row was pulled in the same batch
                 return distance(id_to_row[int(row['parent'])])+1
             except KeyError as e:
                 self.get_task(int(row['parent']))   # Load it in memory
@@ -327,46 +360,6 @@ class Yat:
 
             tasks.append(t)
         return tasks
-
-    def __get_tasks(self, ids=None, regexp=None, group=True, order=True, group_by="list",
-                  order_by=["reverse:priority", "due_date"], fetch_children=True,
-                  fetch_parents=True, regroup_family=True):
-
-        # Ordering tasks (you can't order tasks if they aren't grouped
-        if order and group:
-            # Ordering groups
-            ordered_tasks = self.__quicksort(list = grouped_tasks, column =
-                "priority", group = True)
-
-            # And then make a reinsertion at the end of the sorted list.
-            if nogroup.children != []:
-                ordered_tasks.append(nogroup)
-
-            # Ordering tasks according to the first criterion
-            for t in ordered_tasks:
-                group = t.parent
-                tasks = t.children
-                tmp = order_by[0].split(":")
-                if tmp[0] == "reverse":
-                    comparison = ">"
-                    attribute = tmp[1]
-                else:
-                    comparison = "<"
-                    attribute = tmp[0]
-
-                # Reset the internal dictionary
-                self.__dict = {}
-
-                self.__quicksort(list = tasks, column = attribute, order =
-                        comparison, depth = True)
-
-                # Ordering tasks according to the rest of the criterion
-                tasks = self.__secondary_sort(tasks, order_by[1:], (comparison, attribute))
-
-        else:
-            ordered_tasks = grouped_tasks
-
-        return ordered_tasks
 
     def _add_task(self, task):
         u'''Adds a task to the DB.
