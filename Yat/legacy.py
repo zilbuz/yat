@@ -24,7 +24,7 @@ class V0_1:
         self.__sql.execute('drop tags')
         self.__sql.commit()
 
-    def _get_tasks(self, ids=None, regexp=None):
+    def get_tasks(self, ids=None, regexp=None):
         if ids == None and regexp == None:
             task_rows = self.__sql.execute('select * from tasks').fetchall()
         else:
@@ -59,7 +59,7 @@ class V0_1:
                                                   where id=?
                                                   ''', (int(r["list"]),)).fetchone()
                     # Get the list from the up-to-date DB if it exists
-                    list_ = self.current_lib.get_list(list_row["name"], False, False)
+                    list_ = self.current_lib.get_list(list_row["name"], False)
                     if list_.id == None:
                         list_.content = list_row["name"]
                         list_.priority = list_row["priority"]
@@ -75,7 +75,7 @@ class V0_1:
                     except:
                         tag_row = self.__sql.execute(u'''select * from tags
                                                      where id=?''', (i,)).fetchone()
-                        tag_ = self.current_lib.get_tags([tag_row['name']], False, False)[0]
+                        tag_ = self.current_lib.get_tag(tag_row['name'], False)
                         if tag_.id == None:
                             tag_.content = tag_row['name']
                             tag_.priority = tag_row['priority']
@@ -119,11 +119,11 @@ class V0_1:
 
         return groups
 
-    def _get_lists(self, ids = None, regexp = None):
+    def get_lists(self, ids = None, regexp = None):
         return self._get_groups(self.__list_ids, self.current_lib.get_list, 'lists',
                                 ids, regexp)
 
-    def _get_tags(self, ids = None, regexp = None):
+    def get_tags(self, ids = None, regexp = None):
         return self._get_groups(self.__tag_ids,
                                 lambda tag, b1, b2: self.current_lib.get_tags([tag],
                                                                          b1,
