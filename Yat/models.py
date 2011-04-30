@@ -164,6 +164,16 @@ should be part or not'''
     def child_callback(self, tree):
         return tree
 
+    @staticmethod
+    def significant_value(tree, criterion):
+        values = [getattr(tree.parent, criterion[0])]
+        values.extend([t.significant_value(criterion) for t in tree.children])
+        if criterion[1]:
+            reduce_function = lambda x,y: x if x > y else y
+        else:
+            reduce_function = lambda x,y: x if x < y else y
+        return reduce(reduce_function, values)
+
 class Group(object):
     class_lib = None
     def __setattr__(self, attr, value):
@@ -222,6 +232,10 @@ in this group's context.'''
             lib._add_group(self._table_name, self)
         elif self.changed:
             lib._edit_group(self._table_name, self)
+
+    @staticmethod
+    def significant_value(tree, criterion):
+        return getattr(tree.parent, criterion[0])
 
 
 class List(Group):
@@ -287,6 +301,12 @@ class NoGroup(object):
     def check_values(self, lib = None):
         pass
 
+    @staticmethod
+    def significant_value(tree, criterion):
+        if criterion[1]:
+            return float("-inf")
+        return float('inf')
+
 class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
     __mro__ = (NoGroup, Group, object, List)
@@ -310,9 +330,12 @@ class NoTag(NoGroup, Tag):
     def related_with(self, task):
         return task.tags == [] or task.tags == set()
 
-class Tree:
+class Tree(object):
     def __init__(self, parent = None, policy = None, search_parameters = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
         self.parent = parent
+
+        # Defines a cache used in sorting operations
+        self.values = {}
 
         # The context flag might be used in display
         self.context = False
@@ -341,3 +364,75 @@ class Tree:
         retour += str(self.parent) + ", " + str([str(c) for c in self.children])
         return retour
 
+    def significant_value(self, criterion):
+        try:
+            return self.values[criterion]
+        except:
+            self.values[criterion] = self.parent.significant_value(self, criterion)
+            return self.values[criterion]
+
+    @staticmethod
+    def sort_trees(trees, criteria):
+        u'''Sort a list of trees according to several criteria.
+Note : if a criterion cannot be applied to the root nodes,
+the next one will be used.
+
+A criterion is supposed to be of the form ("attribute", reverse)
+with reverse either True or False.'''
+        for t in trees:
+            t.sort_trees(t.children, criteria)
+
+        while criteria != []:
+            try:
+                trees.sort(key=lambda t: t.significant_value(criteria[0]),
+                             reverse=criteria[0][1])
+                break
+            except Exception as e:
+                print e
+                criteria = criteria[1:]
+        Tree.__subsort_trees(trees, criteria)
+
+
+    @staticmethod
+    def __subsort_trees(trees, criteria):
+        u'''Static method used to make more passes on the list of trees
+to sort the remaining cluster according to alternative criteria.
+
+The first <criteria> ought to be the one used in the first pass.
+Careful, the <trees> list will be modified on site.
+'''
+        if len(trees) <= 1 or len(criteria) <= 1:
+            # It wouldn't make any sense to sort an empty list
+            # Or without criterion
+            return
+
+        # We need something to compare to.
+        reference = (trees[0].significant_value(criteria[0]), 0)
+        for i in range(len(trees)):
+            if trees[i].significant_value(criteria[0]) != reference[0]:
+                # Cut out the unsorted part
+                sublist = trees[reference[1]:i]
+                # Sort it a first time
+                criteria_copy = criteria[:]
+                while len(criteria_copy) >= 1:
+                    try:
+                        sublist.sort(key=(lambda t:
+                                          t.significant_value(criteria_copy[1])
+                                         ), reverse=criteria_copy[1][1])
+                        break
+                    except Exception as e:
+                        criteria_copy = criteria_copy[1:]
+                # And then lather, rince, repeat :)
+                Tree.__subsort_trees(sublist, criteria[1:]) 
+                # And after that, paste it back in
+                trees[reference[1]:i] = sublist
+
+                # Important, do not forget to update the reference
+                reference = (trees[1].significant_value(criteria[0]), i)
+
+        # Do the same for the last section of the list
+        sublist = trees[reference[1]:]
+        sublist.sort(key=lambda t: t.significant_value(criteria[1]),
+                     reverse=criteria[1][1])
+        Tree.__subsort_trees(sublist, criteria[1:])
+        trees[reference[1]:] = sublist

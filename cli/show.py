@@ -80,10 +80,17 @@ Options:
 
             tasks = cli.lib.get_tasks()
             if cli.lib.config["cli.display_group"] ==  u'list':
-                trees = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_lists()]
+                to_display = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_lists()]
             else:
-                trees = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_tags()]
-            to_display = trees
+                to_display = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_tags()]
+            criteria = []
+            for o in cli.lib.config['cli.task_ordering']:
+                tmp = o.split(':')
+                if len(tmp) == 2:
+                    criteria.append((tmp[1], True))
+                else:
+                    criteria.append((tmp[0], False))
+            cli.Yat.Tree.sort_trees(to_display, criteria)
 
         elif cmd in [u'lists', u'tags'] :
             c = cli.lib.config["cli.color_group_name"]
