@@ -316,8 +316,26 @@ class Yat:
         Return value: [Task]'''
         tasks = extract[0]
         rows = extract[1]
+        parent_ids = []
         id_to_row = {}  # id:row
         for r in rows:
+            id_to_row[int(r["id"])] = r
+
+            # Gather all the parents' ids.
+            if (r['parent'] != None and
+                r['parent'] not in self.__loaded_tasks.iterkeys()):
+                parent_ids.append(int(r['parent']))
+
+        ids_to_fetch = []
+        for i in parent_ids:
+            # If we didn't already grabbed it
+            if i not in id_to_row.iterkeys():
+                ids_to_fetch.append(i)
+
+        parent_extract = self.__extract_rows('tasks', self.__loaded_tasks,
+                                             ids_to_fetch, None, None)
+        # We discard the tasks already loaded.
+        for r in parent_extract[1]:     # Don't care about redundancy, overwrite if needed
             id_to_row[int(r["id"])] = r
 
         # Sorry Basile, I needed this one.
@@ -329,12 +347,7 @@ class Yat:
             if row['parent'] == None or (int(row['parent']) in
                                          self.__loaded_tasks.iterkeys()):
                 return 0
-            try:
-                # Else, we assume the row was pulled in the same batch
-                return distance(id_to_row[int(row['parent'])])+1
-            except KeyError as e:
-                self.get_task(int(row['parent']))   # Load it in memory
-                return 0
+            return distance(id_to_row[int(row['parent'])])+1
 
         rows = [r for r in id_to_row.itervalues()]
         rows = sorted(rows, key=distance)
@@ -358,7 +371,9 @@ class Yat:
             t.changed = False
             self.__loaded_tasks[t.id] = t
 
-            tasks.append(t)
+            # Return only the tasks explicitly requested, not the collateral
+            if t.id not in ids_to_fetch:
+                tasks.append(t)
         return tasks
 
     def _add_task(self, task):
