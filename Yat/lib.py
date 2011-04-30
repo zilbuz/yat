@@ -131,52 +131,7 @@ class Yat:
                 self.__sql.execute("PRAGMA foreign_keys=ON")
                 self.__sql.execute("select * from tags")
         except sqlite3.OperationalError:
-            # Create tables
-            with self.__sql:
-                self.__sql.execute("""
-                    create table lists (
-                        id integer primary key,
-                        content text,
-                        priority integer,
-                        last_modified real,
-                        created real,
-                        hash_id varchar(64)
-                        )""")
-                self.__sql.execute("""
-                    create table tags (
-                        id integer primary key,
-                        content text,
-                        priority integer,
-                        last_modified real,
-                        created real,
-                        hash_id varchar(64)
-                        )""")
-                self.__sql.execute("""
-                    create table tasks (
-                        id integer primary key,
-                        content text,
-                        parent integer references tasks(id) on delete cascade,
-                        priority int,
-                        due_date real,
-                        list integer references lists(id) on delete cascade,
-                        completed integer,
-                        last_modified real,
-                        created real,
-                        hash_id varchar(64)
-                    )""")
-                self.__sql.execute("""
-                    create table tagging (
-                        tag integer references tags(id) on delete cascade,
-                        task integer references tasks(id) on delete cascade
-                        )""")
-                self.__sql.execute("""
-                    create table metadata (
-                        key varchar(30),
-                        value varchar(128)
-                        )""")
-                self.__sql.execute("""insert into metadata values ("version",
-                        ?)""", (VERSION,))
-                self.__sql.commit()
+            self.create_tables()
 
         # Get application pid
         self.__pid = os.getpid()
@@ -202,6 +157,68 @@ class Yat:
         self.__loaded_lists = {}
         self.__loaded_tags = {}
         pass
+
+    def delete_tables(self):
+        u'''Delete all the tables created by yat from the DB.
+        This operation CANNOT be reverted !
+        '''
+        with self.__sql:
+            self.__sql.execute('drop tasks')
+            self.__sql.execute('drop lists')
+            self.__sql.execute('drop tags')
+            self.__sql.execute('drop tagging')
+            self.__sql.execute('drop metadata')
+            self.__sql.commit()
+
+    def create_tables(self):
+        u''' Create the necessary tables in the DB. This might overwrite
+        data, please proceed with caution.
+        '''
+        with self.__sql:
+            self.__sql.execute("""
+                create table lists (
+                    id integer primary key,
+                    content text,
+                    priority integer,
+                    last_modified real,
+                    created real,
+                    hash_id varchar(64)
+                    )""")
+            self.__sql.execute("""
+                create table tags (
+                    id integer primary key,
+                    content text,
+                    priority integer,
+                    last_modified real,
+                    created real,
+                    hash_id varchar(64)
+                    )""")
+            self.__sql.execute("""
+                create table tasks (
+                    id integer primary key,
+                    content text,
+                    parent integer references tasks(id) on delete cascade,
+                    priority int,
+                    due_date real,
+                    list integer references lists(id) on delete cascade,
+                    completed integer,
+                    last_modified real,
+                    created real,
+                    hash_id varchar(64)
+                )""")
+            self.__sql.execute("""
+                create table tagging (
+                    tag integer references tags(id) on delete cascade,
+                    task integer references tasks(id) on delete cascade
+                    )""")
+            self.__sql.execute("""
+                create table metadata (
+                    key varchar(30),
+                    value varchar(128)
+                    )""")
+            self.__sql.execute("""insert into metadata values ("version",
+                    ?)""", (VERSION,))
+            self.__sql.commit()
 
     def get_task(self, value, value_is_id = True):
         if value_is_id:
