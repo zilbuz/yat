@@ -130,11 +130,12 @@ Here, save can mean creation or update of an entry.'''
         list.append(self.parent)
         return list
 
+    @staticmethod
     def stack_up_parents(tree):
         u"""Static function. Given a tree with a task as root, stacks up the ancestors of the said task
         on top of is, in a straight line to the task. The added nodes are tagged as contextual."""
         parents = tree.parent.get_list_parents()
-        def policy(t, p):
+        def policy(t):
             if t == tree.parent:
                 return tree
             if t in parents:
@@ -145,21 +146,15 @@ Here, save can mean creation or update of an entry.'''
         tree_return = Tree(parents[0], policy)
         tree_return.context = True
         return tree_return
-    stack_up_parents = staticmethod(stack_up_parents)
 
-    def direct_children(self, search_parameters):
+    def direct_children(self):
         u'''Returns the list of all the loaded children of the given task.'''
-        try:    # Archaism. Should disappear once the new API is stabilized
-            if search_parameters['no_family']:
-                return []
-        except:
-            pass
         return self.lib.get_children(self)
 
-    def child_policy(self, task, params):
+    def child_policy(self, task):
         u'''Meant to be used in a Tree construction. Defines wether a task
 should be part or not'''
-        return Tree(task, self.child_policy, params)
+        return Tree(task, self.child_policy)
 
     def child_callback(self, tree):
         return tree
@@ -200,16 +195,12 @@ class Group(object):
         self.created = 0
         self.changed = False
 
-    def direct_children(self, search_parameters):
+    def direct_children(self):
         u'''Select every member of the group that would be at the root of a tree
 in this group's context.'''
-        try:    # As I said before, this thing is bound to disappear in a near future.
-            no_family = search_parameters['no_family']
-        except:
-            no_family = False
         return [c for c in self.lib.get_loaded_tasks()
                 if (c != None and self.related_with(c) and
-                    (not c.parents_in_group(self) or no_family))]
+                    not c.parents_in_group(self))]
 
     def child_callback(self, tree):
         u"""Appends the context tasks on top of the tree in the twisted cases :)"""
@@ -264,11 +255,11 @@ class List(Group):
 the algorithms of Group.'''
         return task.list == self
 
-    def child_policy(self, task, params):
+    def child_policy(self, task):
         u"""This policy excludes all the tasks that aren't on the list, except for those who have a child
         on the list, and the immediate children of a member. The nodes with a task out of the list are 
         tagged contextual."""
-        tree = Tree(task, self.child_policy, params)
+        tree = Tree(task, self.child_policy)
         if task.list == self:
             return tree
         if task.parent.list != self and tree.children == []:
@@ -287,9 +278,9 @@ class Tag(Group):
         if self.id != None:
             Tag.tag_id[self.id] = self
 
-    def child_policy(self, task, params):
+    def child_policy(self, task):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
-        return Tree(task, self.child_policy, params)
+        return Tree(task, self.child_policy)
 
     def related_with(self, task):
         u'''Returns True is <task> is tagged with <self> (used in 
@@ -315,12 +306,12 @@ class NoGroup(object):
 
 class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
+    __instance = None
     __mro__ = (NoGroup, Group, object, List)
     def __new__(cls, lib):
-        try:
-            return lib.loaded_lists[None]
-        except:
-            return super(NoList, cls).__new__(cls)
+        if cls.__instance != None:
+            return cls.__instance
+        return super(NoList, cls).__new__(cls)
 
     def __init__(self, lib):
         super(NoList, self).__init__(lib)
@@ -337,7 +328,7 @@ class NoTag(NoGroup, Tag):
         return task.tags == [] or task.tags == set()
 
 class Tree(object):
-    def __init__(self, parent = None, policy = None, search_parameters = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
+    def __init__(self, parent = None, policy = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
         self.parent = parent
 
         # Defines a cache used in sorting operations
@@ -347,7 +338,7 @@ class Tree(object):
         self.context = False
 
         # The parent is the best placed to determine who are her children ;-)
-        direct_children = parent.direct_children(search_parameters)
+        direct_children = parent.direct_children()
 
         # If the Power That Be (the caller) didn't specify a policy, once again ask the parent,
         # she supposedly knows what's best for her children, right ?
@@ -359,7 +350,7 @@ class Tree(object):
         # Apply the policy to the children and filter the result to suppress the invalid ones
         self.children = []
         for c in direct_children:
-            tree = child_policy(c, search_parameters)
+            tree = child_policy(c)
             if tree != None:
                 if policy == None:
                     tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
@@ -373,7 +364,7 @@ class Tree(object):
     def significant_value(self, criterion):
         try:
             return self.values[criterion]
-        except:
+        except KeyError as e:
             self.values[criterion] = self.parent.significant_value(self, criterion)
             return self.values[criterion]
 
@@ -393,8 +384,7 @@ with reverse either True or False.'''
                 trees.sort(key=lambda t: t.significant_value(criteria[0]),
                              reverse=criteria[0][1])
                 break
-            except Exception as e:
-                print e
+            except AttributeError as e:
                 criteria = criteria[1:]
         Tree.__subsort_trees(trees, criteria)
 
@@ -420,13 +410,13 @@ Careful, the <trees> list will be modified on site.
                 sublist = trees[reference[1]:i]
                 # Sort it a first time
                 criteria_copy = criteria[:]
-                while len(criteria_copy) >= 1:
+                while len(criteria_copy) > 1:
                     try:
                         sublist.sort(key=(lambda t:
                                           t.significant_value(criteria_copy[1])
                                          ), reverse=criteria_copy[1][1])
                         break
-                    except Exception as e:
+                    except AttributeError as e:
                         criteria_copy = criteria_copy[1:]
                 # And then lather, rince, repeat :)
                 Tree.__subsort_trees(sublist, criteria[1:]) 

@@ -205,7 +205,7 @@ class Yat:
 
     def get_task(self, value, value_is_id = True):
         if value_is_id:
-            return self.get_tasks([value])[0]
+            return self.get_tasks([int(value)])[0]
         return self.get_tasks(names=[value])[0]
 
     def get_loaded_tasks(self):
@@ -222,7 +222,7 @@ class Yat:
                     try:    # Since we can already be sure, it might be better
                             # to check that before the SQL request
                         loaded.append(loaded_objects[i])
-                    except:
+                    except KeyError as e:
                         rows.append(self.__sql.execute(u'''select * from %s
                                                             where id=?'''
                                                             % table_name, (i,)
@@ -242,9 +242,9 @@ class Yat:
         set_rows = set(rows)
         for r in rows:
             try:
-                loaded.append(loaded_objects[int(r['i'])])
+                loaded.append(loaded_objects[int(r['id'])])
                 set_rows.remove(r)
-            except:
+            except KeyError as e:
                 pass
         return (loaded, list(set_rows))
 
@@ -261,16 +261,16 @@ class Yat:
         set_rows = set(rows)
         for r in rows:
             try:
-                loaded.append(loaded_objects[int(r['i'])])
+                loaded.append(self.__loaded_tasks[int(r['id'])])
                 set_rows.remove(r)
-            except:
+            except KeyError as e:
                 pass
         return self.__get_task_objects((loaded, list(set_rows)))
 
     def __get_task_objects(self, extract):
         tasks = extract[0]
         rows = extract[1]
-        id_to_row = {}
+        id_to_row = {}  # id:row
         for r in rows:
             id_to_row[int(r["id"])] = r
 
@@ -279,8 +279,8 @@ class Yat:
                                          self.__loaded_tasks.iterkeys()):
                 return 0
             try:
-                return distance(task_rows[int(row['parent'])])+1
-            except:
+                return distance(id_to_row[int(row['parent'])])+1
+            except KeyError as e:
                 self.get_task(int(row['parent']))   # Load it in memory
                 return 0
 
@@ -426,7 +426,7 @@ class Yat:
             for i in tag_id:
                 try:
                     return_list.append(Tag.tag_id[i])
-                except:
+                except KeyError as e:
                     return_list.append(Tag(self, self.__sql.execute('select * from tags where id=?', (i,)).fetchone()))
             return return_list
 
@@ -487,7 +487,7 @@ class Yat:
         if value == None:
             try:
                 return self.__loaded_lists[None]
-            except:
+            except KeyError as e:
                 self.__loaded_lists[None] = NoList(self)
                 return self.__loaded_lists[None]
         if value_is_id:
@@ -498,7 +498,7 @@ class Yat:
         if value == None:
             try:
                 return self.__loaded_tags[None]
-            except:
+            except KeyError as e:
                 self.__loaded_tags[None] = NoTag(self)
                 return self.__loaded_tags[None]
         if value_is_id:
