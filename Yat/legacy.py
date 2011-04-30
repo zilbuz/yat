@@ -19,10 +19,11 @@ class V0_1:
         self.__task_ids = {}
 
     def delete_tables(self):
-        self.__sql.execute('drop tasks')
-        self.__sql.execute('drop lists')
-        self.__sql.execute('drop tags')
-        self.__sql.commit()
+        with self.__sql:
+            self.__sql.execute('drop tasks')
+            self.__sql.execute('drop lists')
+            self.__sql.execute('drop tags')
+            self.__sql.commit()
 
     def get_tasks(self, ids=None, regexp=None):
         if ids == None and regexp == None:
@@ -31,13 +32,15 @@ class V0_1:
             task_rows = set()
             if ids != None:
                 for i in ids:
-                    task_rows.add(self.__sql.execute(u'''select * from tasks
-                                                     where id=?
-                                                     ''', (i,)).fetchone())
+                    with self.__sql:
+                        task_rows.add(self.__sql.execute(u'''select * from tasks
+                                                        where id=?
+                                                        ''', (i,)).fetchone())
             if regexp != None:
-                task_rows |= self.__sql.execute(u'''select * from tasks
-                                                where regexp task ?
-                                                ''', (regexp,)).fetchall()
+                with self.__sql:
+                    task_rows |= self.__sql.execute(u'''select * from tasks
+                                                    where regexp task ?
+                                                    ''', (regexp,)).fetchall()
 
         tasks =set() 
         self.__list_ids[1] = NoList()
@@ -55,9 +58,10 @@ class V0_1:
                 try:
                     t.list = self.__list_ids[int(r["list"])]
                 except:
-                    list_row = self.__sql.execute(u'''select * from lists
-                                                  where id=?
-                                                  ''', (int(r["list"]),)).fetchone()
+                    with self.__sql:
+                        list_row = self.__sql.execute(u'''select * from lists
+                                                    where id=?
+                                                    ''', (int(r["list"]),)).fetchone()
                     # Get the list from the up-to-date DB if it exists
                     list_ = self.current_lib.get_list(list_row["name"], False)
                     if list_.id == None:
@@ -73,8 +77,9 @@ class V0_1:
                     try:
                         t.tags.append(self.__tag_ids[i])
                     except:
-                        tag_row = self.__sql.execute(u'''select * from tags
-                                                     where id=?''', (i,)).fetchone()
+                        with self.__sql:
+                            tag_row = self.__sql.execute(u'''select * from tags
+                                                        where id=?''', (i,)).fetchone()
                         tag_ = self.current_lib.get_tag(tag_row['name'], False)
                         if tag_.id == None:
                             tag_.content = tag_row['name']
@@ -89,20 +94,23 @@ class V0_1:
 
     def _get_groups(self, group_ids, get_group, table, ids = None, regexp = None):
         if ids == None and regexp == None:
-            group_rows = self.__sql.execute('select * from %s' % table).fetchall()
+            with self.__sql:
+                group_rows = self.__sql.execute('select * from %s' % table).fetchall()
         else:
             if ids != None:
                 for i in ids:
-                    group_rows.append(self.__sql.execute(u'''
-                                                        select * from %s 
-                                                        where id=?
-                                                        ''' % table,
-                                                        (i,)).fetchone())
+                    with self.__sql:
+                        group_rows.append(self.__sql.execute(u'''
+                                                            select * from %s 
+                                                            where id=?
+                                                            ''' % table,
+                                                            (i,)).fetchone())
             if regexp != None:
-                group_rows.extend(self.__sql.execute(u'''select * from %s
-                                                    where regexp name ?
-                                                    ''' % table,
-                                                    (regexp,)).fetchall())
+                with self.__sql:
+                    group_rows.extend(self.__sql.execute(u'''select * from %s
+                                                        where regexp name ?
+                                                        ''' % table,
+                                                        (regexp,)).fetchall())
 
         groups = set()
         for r in group_rows:
