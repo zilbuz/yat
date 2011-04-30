@@ -43,8 +43,8 @@ class V0_1:
                                                     ''', (regexp,)).fetchall()
 
         tasks =set() 
-        self.__list_ids[1] = NoList()
-        self.__tag_ids[1] = NoTag()
+        self.__list_ids[1] = NoList(self.current_lib)
+        self.__tag_ids[1] = NoTag(self.current_lib)
         for r in task_rows:
             try:
                 t = task_ids[int(r["id"])]
@@ -139,4 +139,36 @@ class V0_1:
                                 'tags', ids, regexp)
 
 def analyze_db(filename=None, current_lib=None):
-    return V0_1(current_lib, filename)
+    u"""Check the version of the database pointed by filename, and return the
+    appropriate library.
+    
+    Raises FileNotFound if "filename" doesn't exists.
+    Raises UnknownDBVersion if the database is more recent than the program."""
+
+    # If the file doesn't exist, raise an exception
+    if not os.path.isfile(filename):
+        raise Yat.FileNotFound
+
+    # Connect to the database
+    sql = sqlite3.connect(filename)
+    sql.row_factory = sqlite3.Row
+    
+    # Get the version number of the database
+    with sql:
+        try:
+            version = sql.execute(u"""select value from metadata where
+                    key='version'""").fetchone()["value"]
+        except sqlite3.OperationalError:
+            # The metadata table doesn't exist yet, so it's a v0.1 db file
+            version = "0.1"
+
+    # Get the appropriate library
+    if version == "0.1":
+        lib = V0_1(current_lib, filename)
+    elif version == "0.2":
+        lib = current_lib
+    else:
+        # Apparently, the database is more recent than the yat used
+        raise UnknownDBVersion
+
+    return lib

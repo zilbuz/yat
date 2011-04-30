@@ -45,6 +45,8 @@ from models import *
 # Current version of yat
 # Is of the form "last_tag-development_state"
 VERSION = u"0.1b-dev"
+# Current version for the database.
+DB_VERSION = u"0.2"
 
 class Yat:
 
@@ -217,7 +219,7 @@ class Yat:
                     value varchar(128)
                     )""")
             self.__sql.execute("""insert into metadata values ("version",
-                    ?)""", (VERSION,))
+                    ?)""", (DB_VERSION,))
             self.__sql.commit()
 
     def get_task(self, value, value_is_id = True):
@@ -633,6 +635,14 @@ class WrongConfigFile(Exception):
 class IncoherentDBState(Exception):
     u"""Exception raised when something doesn't add up and we don't know why, so we blame the DB"""
     pass
+
+class FileNotFound(Exception):
+    u"""Exception raised when trying to access a file that doesn't exist"""
+    pass
+
+class UnknownDBVersion(Exception):
+    u"""Exception raised when trying to interact with an unknown version of a
+    yat database"""
 
 if __name__ == "__main__":
     raise NotImplementedError
