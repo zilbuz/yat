@@ -64,11 +64,15 @@ database into a format suited for the new version of yat.
 
         for f in files:
             # leg is the library associated with the DB to import.
-            leg = cli.Yat.legacy.analyze_db(filename = f, current_lib = cli.lib)
+            migration = (cmd == u'migrate' and
+                         f == cli.lib.config['yatdir'] + '/yat.db')
+            leg = cli.Yat.legacy.analyze_db(filename = f,
+                                            current_lib = cli.lib,
+                                            migration = migration)
             # So far, we get the objects as sets (hence the strange operator).
             # It might change.
-            objects = leg.get_tasks() | leg.get_lists() | leg.get_tags()
-            if cmd == u'migrate' and f == cli.lib.config['yatdir'] + '/yat.db':
+            objects = leg.get_tasks() + leg.get_lists() + leg.get_tags()
+            if migration:
                 # When migrating, once we have all the old data, we don't want
                 # the old layout sticking around :)
                 leg.delete_tables()

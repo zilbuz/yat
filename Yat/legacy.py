@@ -36,7 +36,8 @@ import re
 import sqlite3
 
 class V0_1:
-    def __init__(self, current_lib, db):
+    def __init__(self, current_lib, db, migration):
+        self.migration = migration
         self.enc = current_lib.config 
         self.current_lib = current_lib
 
@@ -50,9 +51,9 @@ class V0_1:
 
     def delete_tables(self):
         with self.__sql:
-            self.__sql.execute('drop tasks')
-            self.__sql.execute('drop lists')
-            self.__sql.execute('drop tags')
+            self.__sql.execute('drop table tasks')
+            self.__sql.execute('drop table lists')
+            self.__sql.execute('drop table tags')
             self.__sql.commit()
 
     def get_tasks(self, ids=None, regexp=None):
@@ -93,7 +94,13 @@ class V0_1:
                                                     where id=?
                                                     ''', (int(r["list"]),)).fetchone()
                     # Get the list from the up-to-date DB if it exists
-                    list_ = self.current_lib.get_list(list_row["name"], False)
+                    if not self.migration:
+                        try:
+                            list_ = self.current_lib.get_list(list_row["name"], False)
+                        except WrongName:
+                            list_ = List(self.current_lib)
+                    else:
+                        list_ = List(self.current_lib)
                     if list_.id == None:
                         list_.content = list_row["name"]
                         list_.priority = list_row["priority"]
@@ -110,7 +117,13 @@ class V0_1:
                         with self.__sql:
                             tag_row = self.__sql.execute(u'''select * from tags
                                                         where id=?''', (i,)).fetchone()
-                        tag_ = self.current_lib.get_tag(tag_row['name'], False)
+                        if not self.migration:
+                            try:
+                                tag_ = self.current_lib.get_tag(tag_row['name'], False)
+                            except WrongName:
+                                tag_ = Tag(self.current_lib)
+                        else:
+                            tag_ = Tag(self.current_lib)
                         if tag_.id == None:
                             tag_.content = tag_row['name']
                             tag_.priority = tag_row['priority']
@@ -120,9 +133,9 @@ class V0_1:
                 tasks.add(t)
                 self.__task_ids[int(r["id"])] = t
 
-        return tasks
+        return list(tasks)
 
-    def _get_groups(self, group_ids, get_group, table, ids = None, regexp = None):
+    def _get_groups(self, cls, group_ids, get_group, table, ids = None, regexp = None):
         if ids == None and regexp == None:
             with self.__sql:
                 group_rows = self.__sql.execute('select * from %s' % table).fetchall()
@@ -146,8 +159,14 @@ class V0_1:
         for r in group_rows:
             try:
                 groups.add(group_ids[int(r["id"])])
-            except:
-                group_ = get_group(r["name"], False, False)
+            except KeyError:
+                if not self.migration:
+                    try:
+                        group_ = get_group(r["name"], False)
+                    except WrongName:
+                        group_ = cls(self.current_lib)
+                else:
+                    group_ = cls(self.current_lib)
                 if group_.id == None:
                     group_.content = r["name"]
                     group_.priority = r["priority"]
@@ -155,20 +174,20 @@ class V0_1:
                 group_ids[int(r["id"])] = group_
                 groups.add(group_)
 
-        return groups
+        return list(groups)
 
     def get_lists(self, ids = None, regexp = None):
-        return self._get_groups(self.__list_ids, self.current_lib.get_list, 'lists',
+        return self._get_groups(List, self.__list_ids, self.current_lib.get_list, 'lists',
                                 ids, regexp)
 
     def get_tags(self, ids = None, regexp = None):
-        return self._get_groups(self.__tag_ids,
+        return self._get_groups(Tag, self.__tag_ids,
                                 lambda tag, b1, b2: self.current_lib.get_tags([tag],
                                                                          b1,
                                                                          b2)[0],
                                 'tags', ids, regexp)
 
-def analyze_db(filename=None, current_lib=None):
+def analyze_db(filename=None, current_lib=None, migration=False):
     u"""Check the version of the database pointed by filename, and return the
     appropriate library.
     
@@ -194,7 +213,7 @@ def analyze_db(filename=None, current_lib=None):
 
     # Get the appropriate library
     if version == "0.1":
-        lib = V0_1(current_lib, filename)
+        lib = V0_1(current_lib, filename, migration)
     elif version == "0.2":
         lib = current_lib
     else:

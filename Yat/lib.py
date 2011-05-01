@@ -166,17 +166,18 @@ class Yat:
         This operation CANNOT be reverted !
         '''
         with self.__sql:
-            self.__sql.execute('drop tasks')
-            self.__sql.execute('drop lists')
-            self.__sql.execute('drop tags')
-            self.__sql.execute('drop tagging')
-            self.__sql.execute('drop metadata')
+            self.__sql.execute('drop table if exists tasks')
+            self.__sql.execute('drop table if exists lists')
+            self.__sql.execute('drop table if exists tags')
+            self.__sql.execute('drop table if exists tagging')
+            self.__sql.execute('drop table if exists metadata')
             self.__sql.commit()
 
     def create_tables(self):
         u''' Create the necessary tables in the DB. This might overwrite
         data, please proceed with caution.
         '''
+        self.delete_tables()
         with self.__sql:
             self.__sql.execute("""
                 create table lists (
