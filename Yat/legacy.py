@@ -168,7 +168,7 @@ def analyze_db(filename=None, current_lib=None, migration=False):
 
     # If the file doesn't exist, raise an exception
     if not os.path.isfile(filename):
-        raise Yat.FileNotFound
+        raise FileNotFound
 
     # Connect to the database
     sql = sqlite3.connect(filename)
