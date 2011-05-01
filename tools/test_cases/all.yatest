@@ -13,6 +13,8 @@
 
 # Remove all the data from the db
 rm *
+rm list *
+rm tag *
 
 # Tests for help (basic help, then before each command test, help <command> will
 # be called
@@ -163,7 +165,7 @@ lists
 tags
 >>>config-file: "test_lsbylist.yatrc"
 ls
->>>config_file: "test_lsbytags.yatrc"
+>>>config-file: "test_lsbytags.yatrc"
 ls
 >>>config-file: "base.yatrc"
 
