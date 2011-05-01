@@ -167,3 +167,8 @@ ls
 ls
 >>>config-file: "base.yatrc"
 
+# Tests for import/migrate
+help import
+help migrate
+import db_v0.1
+
