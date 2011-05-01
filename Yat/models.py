@@ -181,18 +181,6 @@ class Group(object):
         super(Group, self).__setattr__('changed', True)
         super(Group, self).__setattr__(attr, value)
 
-    @classmethod
-    def group_derivative(cls):
-        u'''If cls is a Group derivative, it returns the closest derivation
-        (i.e List). Else, it returns None.'''
-        if Group in cls.__bases__:
-            return cls
-        for c in cls.__bases__:
-            deriv = Group.group_derivative(c)
-            if deriv != None:
-                return deriv
-        return None
-
     def __init__(self, lib):
         u"""Constructs a group from an sql row"""
         self.lib = lib

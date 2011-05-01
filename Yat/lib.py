@@ -300,12 +300,11 @@ class Yat:
         loaded = []
         if group != None:
             if ids == None: ids = []    # Otherwise, it would pull everything
-            deriv = group.group_derivative()
-            if deriv == List:
+            if issubclass(type(group), List):
                 rows = self.__sql.execute(u'''select * from tasks
                                           where list=?''', (group.id,)
                                          ).fetchall()
-            elif deriv == Tag:
+            elif issubclass(type(group), Tag):
                 rows = self.__sql.execute(u'''select tasks.*
                                           from tasks, tagging
                                           where tagging.tag=? and
