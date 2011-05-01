@@ -640,12 +640,5 @@ class Yat:
                     (name, priority, self.get_time(), creation_time, "nohash"))
                 self.__sql.commit()
 
-    def __get_id(self, table, name):
-        u"""Get the id of the element "name" in "table". It's meant to be used
-        with table = "lists" or "tags" """
-        with self.__sql:
-            res = self.__sql.execute('select id from %s where content=?' % table, (name,))
-            return str(res.fetchone()[0])
-
 if __name__ == "__main__":
     raise NotImplementedError
