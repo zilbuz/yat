@@ -30,6 +30,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 from Yat import *
+from exceptions import *
 
 import re
 import sqlite3

@@ -41,6 +41,7 @@ import sqlite3
 import sys
 import time
 from models import *
+from exceptions import *
 
 # Current version of yat
 # Is of the form "last_tag-development_state"
@@ -618,39 +619,6 @@ class Yat:
         with self.__sql:
             res = self.__sql.execute('select id from %s where content=?' % table, (name,))
             return str(res.fetchone()[0])
-
-class WrongTagId(Exception):
-    u"""Exception raised when trying to extract a tag that doesn't exist"""
-    pass
-    
-class WrongListId(Exception):
-    u"""Exception raised when trying to extract a list that doesn't exist"""
-    pass
-
-class WrongTaskId(Exception):
-    u"""Exception raised when trying to extract a task that doesn't exist"""
-    pass
-
-class ExistingLock(Exception):
-    u"""Exception raised when a lock is already set."""
-    pass
-
-class WrongConfigFile(Exception):
-    u"""Exception raised when the path passed to Yat() doesn't point to a valid
-    file."""
-    pass
-
-class IncoherentDBState(Exception):
-    u"""Exception raised when something doesn't add up and we don't know why, so we blame the DB"""
-    pass
-
-class FileNotFound(Exception):
-    u"""Exception raised when trying to access a file that doesn't exist"""
-    pass
-
-class UnknownDBVersion(Exception):
-    u"""Exception raised when trying to interact with an unknown version of a
-    yat database"""
 
 if __name__ == "__main__":
     raise NotImplementedError
