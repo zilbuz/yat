@@ -102,10 +102,6 @@ Options:
             else:
                 groups = set(cli.lib.get_tags())
 
-            # Load all the tasks in memory
-            cli.lib.get_tasks()
-
-            groups = [cli.Yat.Tree(g, None, {'no_family':True}) for g in groups]
             to_display = groups
 
         self.__load_display(cmd in [u'lists', u'tags'])
@@ -192,13 +188,14 @@ Options:
                 t.display(next_recursion)
             tree.parent.display_callback(next_recursion)
 
-        def tree_print_group(tree):
-            n_tasks = len(tree.children)
+        def group_print(group):
+            tasks = cli.lib.get_tasks(group=group)
+            n_tasks = len(tasks)
             n_completed = 0
-            for t in tree.children:
-                n_completed += t.parent.completed
-            cli.output(u"\t- " + tree.parent.content + u" (id: " +
-                        str(tree.parent.id) + u") - " +
+            for t in tasks:
+                n_completed += t.completed
+            cli.output(u"\t- " + group.content + u" (id: " +
+                        str(group.id) + u") - " +
                         str( n_completed) + u"/" + str(n_tasks))
 
         def task_display_callback(task, rec_arguments = None):
@@ -289,12 +286,10 @@ Options:
         cli.Yat.Group.tree_display = group_tree_display
         cli.Yat.Group.display_callback = group_display_callback
         cli.Yat.Group.group_header = group_header
+        cli.Yat.Group.display = group_print
         cli.Yat.NoList.group_header = nolist_header
         cli.Yat.NoTag.group_header = notag_header
-        if groups:
-            cli.Yat.Tree.display = tree_print_group
-        else:
-            cli.Yat.Tree.display = tree_print
+        cli.Yat.Tree.display = tree_print
 
 class InterruptDisplay(Exception):
     u'''For internal use.'''
