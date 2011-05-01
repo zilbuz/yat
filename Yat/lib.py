@@ -370,7 +370,7 @@ class Yat:
             t.due_date = r["due_date"]
             t.priority = r["priority"]
             t.list = self.get_list(r["list"])
-            t.tags = set(self.get_tags_from_task(t.id))
+            t.tags = set(self.get_tags(task=t))
             t.completed = r["completed"]
             t.last_modified = r["last_modified"]
             t.created = r["created"]
@@ -417,7 +417,7 @@ class Yat:
             parent_id = task.parent.id
 
         # Process add_tags and remove_tags
-        tags = set(self.get_tags_from_task(task.id))
+        tags = set(self.get_tags(task=task))
         tags_to_add = task.tags - tags
         tags_to_rm = tags - task.tags
 
@@ -451,18 +451,6 @@ class Yat:
                 self.__sql.execute(u'delete from tasks where id=?', (i,))
             self.__sql.commit()
         pass
-
-    def get_tags_from_task(self, task_id):
-        u"""Extract from the DB all the tags associated with the id provided"""
-        with self.__sql:
-            tag_id = [l[0] for l in self.__sql.execute('select tag from tagging where task=?', (task_id,))]
-            return_list = []
-            for i in tag_id:
-                try:
-                    return_list.append(Tag.tag_id[i])
-                except KeyError as e:
-                    return_list.append(Tag(self, self.__sql.execute('select * from tags where id=?', (i,)).fetchone()))
-            return return_list
 
     def _edit_group(self, table_name, group):
         group.check_values()
@@ -508,8 +496,26 @@ class Yat:
             groups.append(g)
         return groups
 
-    def get_tags(self, ids=None, names=None, regexp=None):
-        return self.__get_groups(Tag, NoTag, self.__loaded_tags, ids, names, regexp)
+    def get_tags(self, ids=None, names=None, regexp=None, task=None):
+        loaded = []
+        if task != None:
+            ids = []    # Otherwise, the second step would fetch'em all
+            with self.__sql:
+                rows = self.__sql.execute(u'''select tags.* from tags, tagging
+                                          where tagging.task=? and
+                                          tagging.tag=tags.id''', (task.id,)
+                                         ).fetchall()
+            set_rows = set(rows)
+            for r in rows:
+                try:
+                    loaded.append(self.__loaded_tags[int(r['id'])])
+                    set_rows.remove(r)
+                except KeyError:
+                    pass
+            loaded = self.__get_group_objects(Tag, self.__loaded_tags,
+                                              (loaded, list(set_rows)))
+        return loaded + self.__get_groups(Tag, NoTag, self.__loaded_tags,
+                                           ids, names, regexp)
 
     def get_loaded_lists(self):
         return [l for l in self.__loaded_lists.itervalues()]
