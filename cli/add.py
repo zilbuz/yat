@@ -188,13 +188,13 @@ Adding a tag:
                 text.append(a)
 
             new_task.content = " ".join(text)
-            new_task.tags = []
+            new_task.tags = set()
             for n in tag_names:
                 try:
-                    new_task.tags.append(cli.lib.get_tag(n, False))
+                    new_task.tags.add(cli.lib.get_tag(n, False))
                 except:
                     new_tag = cli.Yat.Tag(cli.lib)
                     new_tag.content = n
-                    new_task.tags.append(new_tag)
+                    new_task.tags.add(new_tag)
             new_task.save(cli.lib)
 

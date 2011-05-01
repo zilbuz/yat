@@ -68,7 +68,7 @@ class Yat:
         regex = r'^' + regex + r'$'
         return len(re.findall(regex, item)) > 0
 
-    def __init__(self, config_file_path = None):
+    def __init__(self, config_file_path = None, db_path = None):
         u"""Constructor:
             * load the configuration file
             * open a connection with the database
@@ -119,7 +119,10 @@ class Yat:
             os.makedirs(self.config["yatdir"], mode=0700)
 
         # Connect to sqlite db
-        self.__sql = sqlite3.connect(self.config["yatdir"] + "/yat.db")
+        if db_path == None:
+            self.__sql = sqlite3.connect(self.config["yatdir"] + "/yat.db")
+        else:
+            self.__sql = sqlite3.connect(db_path)
 
         # Use Row as row_factory to add access by column name and other things
         self.__sql.row_factory = sqlite3.Row

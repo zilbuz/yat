@@ -107,9 +107,11 @@ The return value is always None.'''
             lib = self.lib
         elif lib != self.lib:
             self.id = None
+
         rv = self.list.save(lib)
         if rv != None:  # The list has been replaced in the new lib
             self.list = rv
+
         to_remove = set()
         to_add = set()
         for t in self.tags:
@@ -119,6 +121,7 @@ The return value is always None.'''
                 to_remove.add(t)
         self.tags -= to_remove
         self.tags |= to_add
+
         if self.parent != None:
             rv = self.parent.save(lib)
             if rv != None:  # It shouldn't happen, but better safe than sorry
