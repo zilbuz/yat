@@ -26,6 +26,8 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
+from exceptions import *
+
 class Task(object):
     u'''This class describe a task in a OO perspective
     '''
@@ -97,20 +99,38 @@ class Task(object):
         u'''Ensure that all the task's dependencies have been saved, and
 then save itself into the lib.
 
-Here, save can mean creation or update of an entry.'''
+Here, save can mean creation or update of an entry.
+If lib isn't the lib specified at the creation of the object, it will
+automatically create a new task.
+The return value is always None.'''
         if lib == None:
             lib = self.lib
-        self.list.save(lib)
+        elif lib != self.lib:
+            self.id = None
+        rv = self.list.save(lib)
+        if rv != None:  # The list has been replaced in the new lib
+            self.list = rv
+        to_remove = set()
+        to_add = set()
         for t in self.tags:
-            t.save(lib)
+            rv = t.save(lib)
+            if rv != None:  # The tag has been replaced in the new lib
+                to_add.add(rv)
+                to_remove.add(t)
+        self.tags -= to_remove
+        self.tags |= to_add
         if self.parent != None:
-            self.parent.save(lib)
+            rv = self.parent.save(lib)
+            if rv != None:  # It shouldn't happen, but better safe than sorry
+                self.parent = rv
 
         if self.id == None:
             save_function = lib._add_task
         else:
             save_function = lib._edit_task
         save_function(self)
+        self.lib = lib
+        return None
 
     def __str__(self):
         retour = "Task "
@@ -220,15 +240,22 @@ in this group's context.'''
         if self.created <= 0:
             self.created = self.lib.get_time()
 
-    def save(self, lib = None):
+    def _save(self, lib, getter):
         u'''Update or create the group into the lib/db'''
         if lib == None:
             lib = self.lib
         self.check_values(lib)
+        if lib != self.lib:
+            try:
+                return getter(self.content, False)
+            except WrongName:
+                self.id == None
         if self.id == None:
             lib._add_group(self._table_name, self)
         elif self.changed:
             lib._edit_group(self._table_name, self)
+        self.lib = lib
+        return None
 
     @staticmethod
     def significant_value(tree, criterion):
@@ -266,6 +293,10 @@ the algorithms of Group.'''
             return None
         tree.context = True
         return tree
+    def save(self, lib=None):
+        if lib == None:
+            lib = self.lib
+        return self._save(lib, lib.get_list)
 
 class Tag(Group):
     u'''This class represent the "meta-data" of a tag. It is NOT a container !'''
@@ -286,6 +317,11 @@ class Tag(Group):
         u'''Returns True is <task> is tagged with <self> (used in 
 the algorithms of Group.'''
         return self in task.tags
+
+    def save(self, lib=None):
+        if lib == None:
+            lib = self.lib
+        return self._save(lib, lib.get_tag)
 
 class NoGroup(object):
     def __init__(self, lib):

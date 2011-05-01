@@ -80,7 +80,7 @@ class V0_1:
             try:
                 t = task_ids[int(r["id"])]
             except:
-                t = Task(self.current_lib)
+                t = Task(self)
                 t.content = r["task"]
                 t.priority = int(r["priority"])
                 t.due_date = r["due_date"]
@@ -98,9 +98,9 @@ class V0_1:
                         try:
                             list_ = self.current_lib.get_list(list_row["name"], False)
                         except WrongName:
-                            list_ = List(self.current_lib)
+                            list_ = List(self)
                     else:
-                        list_ = List(self.current_lib)
+                        list_ = List(self)
                     if list_.id == None:
                         list_.content = list_row["name"]
                         list_.priority = list_row["priority"]
@@ -109,10 +109,10 @@ class V0_1:
                     t.list = list_
 
                 tag_ids = [int(i) for i in r['tags'].split(',')]
-                t.tags = []
+                t.tags = set() 
                 for i in tag_ids:
                     try:
-                        t.tags.append(self.__tag_ids[i])
+                        t.tags.add(self.__tag_ids[i])
                     except:
                         with self.__sql:
                             tag_row = self.__sql.execute(u'''select * from tags
@@ -121,15 +121,15 @@ class V0_1:
                             try:
                                 tag_ = self.current_lib.get_tag(tag_row['name'], False)
                             except WrongName:
-                                tag_ = Tag(self.current_lib)
+                                tag_ = Tag(self)
                         else:
-                            tag_ = Tag(self.current_lib)
+                            tag_ = Tag(self)
                         if tag_.id == None:
                             tag_.content = tag_row['name']
                             tag_.priority = tag_row['priority']
                             tag_.created = tag_row['created']
                         self.__tag_ids[i] = tag_
-                        t.tags.append(tag_)
+                        t.tags.add(tag_)
                 tasks.add(t)
                 self.__task_ids[int(r["id"])] = t
 
@@ -164,9 +164,9 @@ class V0_1:
                     try:
                         group_ = get_group(r["name"], False)
                     except WrongName:
-                        group_ = cls(self.current_lib)
+                        group_ = cls(self)
                 else:
-                    group_ = cls(self.current_lib)
+                    group_ = cls(self)
                 if group_.id == None:
                     group_.content = r["name"]
                     group_.priority = r["priority"]
