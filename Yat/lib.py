@@ -491,6 +491,9 @@ class Yat:
             loaded_objects[None] = nocls(self)
         extract = self.__extract_rows(cls._table_name, loaded_objects,
                                       ids, names, regexp)
+        return self.__get_group_objects(cls, loaded_objects, extract)
+    
+    def __get_group_objects(self, cls, loaded_objects, extract):
         groups = extract[0]
         rows = extract[1]
         for r in rows:
