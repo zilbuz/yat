@@ -26,16 +26,12 @@ and/or modify it under the terms of the Do What The Fuck You Want
 To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
-class WrongTagId(Exception):
-    u"""Exception raised when trying to extract a tag that doesn't exist"""
+class WrongId(Exception):
+    u"""Exception raised when trying to extract a single object using an invalid ID."""
     pass
     
-class WrongListId(Exception):
-    u"""Exception raised when trying to extract a list that doesn't exist"""
-    pass
-
-class WrongTaskId(Exception):
-    u"""Exception raised when trying to extract a task that doesn't exist"""
+class WrongName(Exception):
+    u"""Exception raised when trying to extract a single object using an invalid name."""
     pass
 
 class ExistingLock(Exception):

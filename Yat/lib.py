@@ -228,8 +228,14 @@ class Yat:
         treated as indicated by the value of value_is_id : True for ID
         and False for a name.'''
         if value_is_id:
-            return self.get_tasks([int(value)])[0]
-        return self.get_tasks(names=[value])[0]
+            try:
+                return self.get_tasks([int(value)])[0]
+            except IndexError:
+                raise WrongId
+        try:
+            return self.get_tasks(names=[value])[0]
+        except IndexError:
+            raise WrongName
 
     def get_loaded_tasks(self):
         u'''Returns a list of all the tasks that were already pulled from
@@ -519,8 +525,14 @@ class Yat:
                 self.__loaded_lists[None] = NoList(self)
                 return self.__loaded_lists[None]
         if value_is_id:
-            return self.get_lists([int(value)])[0]
-        return self.get_lists(names=[value])[0]
+            try:
+                return self.get_lists([int(value)])[0]
+            except IndexError:
+                raise WrongId
+        try:
+            return self.get_lists(names=[value])[0]
+        except IndexError:
+            raise WrongName 
 
     def get_tag(self, value, value_is_id=True):
         if value == None:
@@ -530,8 +542,14 @@ class Yat:
                 self.__loaded_tags[None] = NoTag(self)
                 return self.__loaded_tags[None]
         if value_is_id:
-            return self.get_tags([int(value)])[0]
-        return self.get_tags(names=[value])[0]
+            try:
+                return self.get_tags([int(value)])[0]
+            except IndexError:
+                raise WrongId
+        try:
+            return self.get_tags(names=[value])[0]
+        except IndexError:
+            raise WrongName 
 
     def remove_lists(self, ids):
         u"""Remove lists by their ids. Be careful, when deleting a list, every
