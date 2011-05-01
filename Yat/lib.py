@@ -294,10 +294,33 @@ class Yat:
                 pass
         return (loaded, list(set_rows))
 
-    def get_tasks(self, ids=None, names=None, regexp=None):
-        u'''Returns a list of tasks matching the input data. If ids, names
-        and regexp all equal None, every task will be fetched.'''
-        return self.__get_task_objects(self.__extract_rows("tasks",
+    def get_tasks(self, ids=None, names=None, regexp=None, group=None):
+        u'''Returns a list of tasks matching the input data. If ids, names,
+        regexp and group all equal None, every task will be fetched.'''
+        loaded = []
+        if group != None:
+            if ids == None: ids = []    # Otherwise, it would pull everything
+            deriv = group.group_derivative()
+            if deriv == List:
+                rows = self.__sql.execute(u'''select * from tasks
+                                          where list=?''', (group.id,)
+                                         ).fetchall()
+            elif deriv == Tag:
+                rows = self.__sql.execute(u'''select tasks.*
+                                          from tasks, tagging
+                                          where tagging.tag=? and
+                                          tasks.id=tagging.task''', (group.id,)
+                                         ).fetchall()
+            else: rows=[]
+            set_rows = set(rows)
+            for r in rows:
+                try:
+                    loaded.append(self.__loaded_tasks[int(r['id'])])
+                    set_rows.remove(r)
+                except KeyError as e:
+                    pass
+            loaded = self.__get_task_objects((loaded, list(set_rows)))
+        return loaded +self.__get_task_objects(self.__extract_rows("tasks",
                                                             self.__loaded_tasks,
                                                             ids, names,
                                                             regexp))
