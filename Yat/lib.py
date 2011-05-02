@@ -45,7 +45,7 @@ from exceptions import *
 
 # Current version of yat
 # Is of the form "last_tag-development_state"
-VERSION = u"0.1b-dev"
+VERSION = u"0.2.0b"
 # Current version for the database.
 DB_VERSION = u"0.2"
 
