@@ -673,5 +673,10 @@ class Yat:
                     (name, priority, self.get_time(), creation_time, "nohash"))
                 self.__sql.commit()
 
+    @staticmethod
+    def __compute_hash(obj):
+        u'''Basile, knock yourself out !'''
+        return "nohash"
+
 if __name__ == "__main__":
     raise NotImplementedError
