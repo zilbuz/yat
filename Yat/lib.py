@@ -636,7 +636,6 @@ class Yat:
 
         return delete
 
-    # Also very temporary
     def _add_group(self, table_name, group):
         group.check_values()
         self._add_tag_or_list(table_name, group.content,
