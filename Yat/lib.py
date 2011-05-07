@@ -214,6 +214,14 @@ class Yat:
                     hash_id varchar(64)
                 )""")
             self.__sql.execute("""
+                create table notes (
+                    id integer primary key,
+                    content text,
+                    task integer regerences tasks(id) on delete cascade,
+                    created real,
+                    hash_id varchar(64)
+                )""")
+            self.__sql.execute("""
                 create table tagging (
                     tag integer references tags(id) on delete cascade,
                     task integer references tasks(id) on delete cascade
