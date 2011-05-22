@@ -198,6 +198,55 @@ should be part or not'''
             reduce_function = lambda x,y: x if x < y else y
         return reduce(reduce_function, values)
 
+class Note(object):
+    class_lib = None
+
+    def __setattr__(self, attr, value):
+        super(Note, self).__setattr__('changed', True)
+        super(Note, self).__setattr__(attr, value)
+
+    def __init__(self, lib):
+        self.lib = lib
+        if Note.class_lib == None:
+            Note.class_lib = self.lib
+        elif self.lib == None:
+            self.lib = Note.class_lib
+        self.id = None
+        self.content = None
+        self.task = None
+        self.created = 0 
+        self.hash = None
+        self.changed = False
+
+    def save(self, lib):
+        u'''Update or create the note into the lib/db'''
+        if lib == None:
+            lib = self.lib
+        self.check_values(lib)
+        if lib != self.lib:
+            try:
+                return lib.get_note(self.task, self.content, False)
+            except WrongName:
+                self.id == None
+            except WrongId:
+                raise IncoherentObject('A note must be associated to an existing task.')
+        if self.id == None:
+            lib._add_note(self)
+        elif self.changed:
+            lib._edit_note(self)
+        self.lib = lib
+        return None
+
+    def check_values(self, lib = None):
+        u"""Check if the attributes of the note are valid."""
+        if self.task == None:
+            raise IncoherentObject('A note must be associated to a task.')
+        if lib == None:
+            lib = self.lib
+
+        if self.created <= 0:
+            self.created = self.lib.get_time()
+
 class Group(object):
     class_lib = None
     def __setattr__(self, attr, value):
@@ -296,6 +345,7 @@ the algorithms of Group.'''
             return None
         tree.context = True
         return tree
+
     def save(self, lib=None):
         if lib == None:
             lib = self.lib

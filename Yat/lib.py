@@ -162,6 +162,7 @@ class Yat:
         self.__loaded_tasks = {}
         self.__loaded_lists = {}
         self.__loaded_tags = {}
+        self.__loaded_notes = {}
         pass
 
     def delete_tables(self):
@@ -217,7 +218,7 @@ class Yat:
                 create table notes (
                     id integer primary key,
                     content text,
-                    task integer regerences tasks(id) on delete cascade,
+                    task integer references tasks(id) on delete cascade,
                     created real,
                     hash_id varchar(64)
                 )""")
@@ -254,7 +255,8 @@ class Yat:
         the DB.'''
         return [t for t in self.__loaded_tasks.itervalues()]
 
-    def __extract_rows(self, table_name, loaded_objects, ids, names, regexp):
+    def __extract_rows(self, table_name, loaded_objects,
+                       ids, names, regexp, extra_criteria = None):
         u'''Extract the data out of the DB. It also checks wether it was already
         loaded, in which case it replaces it by the object.
         Arguments:
@@ -265,6 +267,9 @@ class Yat:
             list(int):ids:  A list of ids to load.
             list(str):names:    A list of *exact* names to load.
             str:regexp:     A regexp to compare with the content of the data.
+            (string, (values)):extra_criteria:  The string is a SQL predicat
+                such as 'parent=? and id=?' and "values" is a tuple containing
+                the values to insert in the string.
 
         If ids, names and regexp are all None, the whole table will be fetched.
 
@@ -273,30 +278,47 @@ class Yat:
         rows = []
         loaded = []
         if ids == None and names == None and regexp == None:
-            rows = self.__sql.execute(u'select * from %s' % table_name).fetchall()
+            if extra_criteria == None:
+                rows = self.__sql.execute(u'select * from {0}'
+                                          .format(table_name)).fetchall()
+            else:
+                rows = self.__sql.execute(u'select * from {0} where {1}'
+                                          .format(table_name,
+                                                  extra_criteria[0]),
+                                          extra_criteria[1]).fetchall()
         else:
+            if extra_criteria == None:
+                extra_criteria = ('', ())
+            else:
+                extra_criteria = ('and ' + extra_criteria[0], extra_criteria[1])
             if ids != None:
                 for i in ids:
                     try:    # Since we can already be sure, it might be better
                             # to check that before the SQL request
                         loaded.append(loaded_objects[i])
                     except KeyError as e:
-                        rows.extend(self.__sql.execute(u'''select * from %s
-                                                            where id=?'''
-                                                            % table_name, (i,)
-                                                           ).fetchall())
+                        rows.extend(self.__sql.execute(u'''select * from {0}
+                                                       where id=? {1}'''
+                                                       .format(table_name,
+                                                               extra_criteria[0]),
+                                                       (i,)+ extra_criteria[1]
+                                                      ).fetchall())
             if names != None:
                 for n in names:
-                    rows.extend(self.__sql.execute(u'''select * from %s 
-                                                        where content=?'''
-                                                        % table_name,(n,)
-                                                       ).fetchall())
+                    rows.extend(self.__sql.execute(u'''select * from {0}
+                                                   where content=? {1}'''
+                                                   .format(table_name,
+                                                           extra_criteria[0]),
+                                                   (n,) + extra_criteria[1]
+                                                  ).fetchall())
 
             if regexp != None:
-                rows.extend(self.__sql.execute(u'''select * from %s
-                                                    where content regexp ?'''
-                                                    % table_name,
-                                                    (regexp,)).fetchall())
+                rows.extend(self.__sql.execute(u'''select * from {0}
+                                               where content regexp ? {1}'''
+                                               .format(table_name,
+                                                       extra_criteria[0]),
+                                               (regexp,) + extra_criteria[1]
+                                              ).fetchall())
         set_rows = set(rows)
         for r in rows:
             try:    # Try to fetch the loaded object.
@@ -417,6 +439,29 @@ class Yat:
                 tasks.append(t)
         return tasks
 
+    def get_notes(self, task=None, ids=None, contents=None, regexp=None):
+        if task == None:
+            extra_criteria = None
+            extract = self.__extract_rows('notes', self.__loaded_notes,
+                                             ids, contents, regexp)
+        else:
+            extra_criteria = ('task=?', (task.id))
+        extract = self.__extract_rows('notes', self.__loaded_notes,
+                                      ids, contents, regexp, extra_criteria)
+
+        loaded = extract[0][:]
+        for n in extract[1]:
+            note = Note(self)
+            note.id = int(n['id'])
+            note.task = self.get_task(int(n['task']))
+            note.content = n['content']
+            note.hash = n['hash_id']
+            note.created = n['created']
+            note.changed = False
+            self.__loaded_notes[note.id] = note
+            loaded.append(note)
+
+        return loaded
     def _add_task(self, task):
         u'''Adds a task to the DB.
         '''
@@ -485,15 +530,6 @@ class Yat:
                 self.__sql.execute(u'delete from tasks where id=?', (i,))
             self.__sql.commit()
         pass
-
-    def _edit_group(self, table_name, group):
-        group.check_values()
-        if group.id == None:
-            return
-        with self.__sql:
-            self.__sql.execute(u'update %s set content=?, priority=?, last_modified=? where id=?' % table_name,
-                    (group.content, group.priority, self.get_time(), group.id))
-        group.changed = False
 
     def remove_tags(self, ids):
         u"""Remove tags by their ids. Also update tasks which have these tags.
@@ -644,6 +680,30 @@ class Yat:
 
         return delete
 
+    def _add_note(self, note):
+        note.check_values()
+        with self.__sql:
+            self.__sql.execute(u'''insert into notes
+                               values(null, ?, ?, ?, ?)''',
+                               (note.content, note.task.id, note.created,
+                                note.hash))
+            note_row = self.__sql.execute(u'''select * from notes
+                                          where task=? and
+                                          created=? and content=?''',
+                                          (note.task.id, note.created, note.content)
+                                         ).fetchone()
+        note.id = note_row["id"]
+
+    def _edit_note(self, note):
+        note.check_values()
+        if note.id == None:
+            return
+        with self.__sql:
+            self.__sql.execute(u'''update notes
+                               set content=?, parent=? where id=?''',
+                               (note.content, note.parent, note.id))
+        note.changed = False
+
     def _add_group(self, table_name, group):
         group.check_values()
         self._add_tag_or_list(table_name, group.content,
@@ -656,6 +716,15 @@ class Yat:
         group.priority = group_row['priority']
         group.created = group_row['created']
         group.last_modified = group_row['last_modified']
+        group.changed = False
+
+    def _edit_group(self, table_name, group):
+        group.check_values()
+        if group.id == None:
+            return
+        with self.__sql:
+            self.__sql.execute(u'update %s set content=?, priority=?, last_modified=? where id=?' % table_name,
+                    (group.content, group.priority, self.get_time(), group.id))
         group.changed = False
 
     def _add_tag_or_list(self, table, name, priority, created = 0):
