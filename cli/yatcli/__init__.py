@@ -33,7 +33,17 @@ import time
 import inspect
 import os
 import sys
-import Yat
+import yat
+import command
+
+# import all the command to load the aliases no matter what
+import add
+import remove
+import show
+import help
+import edit
+import done
+import clean
 
 __all__ = [
         "command",
@@ -156,7 +166,7 @@ def yes_no_question(txt, default = False, i = None, o = None):
     u"""Ask the user the 'txt' yes/no question (append ' (Y/n)' or (y/N)
     depending of the 'default' parameter) and return the answer with a boolean:
     True for yes and False for no. 'i' and 'o' are the input and output to use.
-    If None, they use the ones defined in YatLib"""
+    If None, they use the ones defined in yat.ib"""
 
     yn_txt = ""
     if default:

@@ -27,7 +27,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import re
 import sys
 
-import cli
+import yatcli
 from command import Command
 
 class ImportCommand(Command):
@@ -47,17 +47,17 @@ database into a format suited for the new version of yat.
     alias = [u"import", u"migrate"]
 
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(cli.lib.config["re.id"]))
+        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
 
     def execute(self, cmd, args):
         if cmd == u"migrate":
             # When migrating, the only DB to import is the default one.
-            files = [cli.lib.config['yatdir'] + '/yat.db']
+            files = [yatcli.lib.config['yatdir'] + '/yat.db']
         elif len(args) == 0:
-            cli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help import'", 
+            yatcli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help import'", 
                     f = sys.stderr,
-                    foreground = cli.colors.errf, background = cli.colors.errb,
-                    bold = cli.colors.errbold)
+                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
+                    bold = yatcli.colors.errbold)
             return
         else:
             files = args
@@ -65,9 +65,9 @@ database into a format suited for the new version of yat.
         for f in files:
             # leg is the library associated with the DB to import.
             migration = (cmd == u'migrate' and
-                         f == cli.lib.config['yatdir'] + '/yat.db')
-            leg = cli.Yat.legacy.analyze_db(filename = f,
-                                            current_lib = cli.lib,
+                         f == yatcli.lib.config['yatdir'] + '/yat.db')
+            leg = yatcli.yat.legacy.analyze_db(filename = f,
+                                            current_lib = yatcli.lib,
                                             migration = migration)
             # So far, we get the objects as sets (hence the strange operator).
             # It might change.
@@ -76,7 +76,7 @@ database into a format suited for the new version of yat.
                 # When migrating, once we have all the old data, we don't want
                 # the old layout sticking around :)
                 leg.delete_tables()
-                cli.lib.create_tables()
+                yatcli.lib.create_tables()
             for o in objects:
-                o.save(cli.lib)
+                o.save(yatcli.lib)
 

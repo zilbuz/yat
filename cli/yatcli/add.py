@@ -27,7 +27,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import re
 import sys
 
-import cli
+import yatcli
 from command import Command
 
 class AddCommand (Command):
@@ -55,8 +55,8 @@ Adding a task:
 
     '^' can be used to set the due date of the task, it must be followed by a
     date of the form [x]x/xx/yyyy[:[h]h[:mm][am|pm]], where xx/xx is either dd/mm or
-    mm/dd, depending of the cli.input_date option, and hh is the hour in 24 or
-    12 hour format, depending of the cli.input_time option.
+    mm/dd, depending of the yatcli.input_date option, and hh is the hour in 24 or
+    12 hour format, depending of the yatcli.input_time option.
     Example: yat add "go to the cinema with Wendy ^12/02/2011:20".
 
     '#' can be used to set the tags of the task, it must be followed by the name
@@ -97,21 +97,21 @@ Adding a tag:
 
     def __init__(self):
         self.re_priority = re.compile(u"^\*({0})$".format(
-            cli.lib.config["re.priority"]))
+            yatcli.lib.config["re.priority"]))
         u"""Regex for the priorty"""
 
-        self.re_tag = re.compile(u"^#({0})$".format(cli.lib.config["re.tag_name"]))
+        self.re_tag = re.compile(u"^#({0})$".format(yatcli.lib.config["re.tag_name"]))
         u"""Regex for the tags"""
 
         self.re_parent = re.compile(u"^~({0})$".format(
-            cli.lib.config["re.id"]))
+            yatcli.lib.config["re.id"]))
         u"""Regex for the parent task"""
 
         self.re_list = re.compile(u"^>({0})$".format(
-            cli.lib.config["re.list_name"]))
+            yatcli.lib.config["re.list_name"]))
         u"""Regex for the list"""
 
-        self.re_date = re.compile(u"^\^{0}$".format(cli.lib.config["re.date"]))
+        self.re_date = re.compile(u"^\^{0}$".format(yatcli.lib.config["re.date"]))
         u"""Regex for the date"""
 
     def execute(self, cmd, args):
@@ -127,9 +127,9 @@ Adding a tag:
         # Process command
         if cmd in ["tag", "list"]:
             if cmd == "tag":
-                group = cli.Yat.Tag(cli.lib)
+                group = yatcli.yat.Tag(yatcli.lib)
             elif cmd == "list":
-                group = cli.Yat.List(cli.lib)
+                group = yatcli.yat.List(yatcli.lib)
             group.content = args[0]
             if len(args) > 1:
                 # The second argument is the priority
@@ -137,12 +137,12 @@ Adding a tag:
             else:
                 group.priority = 0
 
-            group.save(cli.lib)
+            group.save(yatcli.lib)
 
             pass
         else: # Adding a task
             # Init params
-            new_task = cli.Yat.Task(cli.lib)
+            new_task = yatcli.yat.Task(yatcli.lib)
             tag_names = []
             text = []
 
@@ -162,26 +162,26 @@ Adding a tag:
                 res = self.re_list.match(a)
                 if res != None:
                     try:
-                        new_task.list = cli.lib.get_list(res.group(1))
+                        new_task.list = yatcli.lib.get_list(res.group(1))
                     except:
-                        new_task.list = cli.Yat.List(cli.lib)
+                        new_task.list = yatcli.yat.List(yatcli.lib)
                         new_task.list.content = res.group(1)
                     continue
                 # Parent task
                 res = self.re_parent.match(a)
                 if res != None:
-                    new_task.parent = cli.lib.get_task(int(res.group(1)))
+                    new_task.parent = yatcli.lib.get_task(int(res.group(1)))
                     continue
                 # Date
                 res = self.re_date.match(a)
                 if res != None:
                     try:
-                        new_task.due_date = cli.parse_input_date(res)
+                        new_task.due_date = yatcli.parse_input_date(res)
                     except ValueError:
-                        cli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
+                        yatcli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
                                 f = sys.stderr,
-                                foreground = cli.colors.errf, background = 
-                                cli.colors.errb, bold = cli.colors.errbold)
+                                foreground = yatcli.colors.errf, background = 
+                                yatcli.colors.errb, bold = yatcli.colors.errbold)
                         return
                     continue
                 # Regular text
@@ -191,10 +191,10 @@ Adding a tag:
             new_task.tags = set()
             for n in tag_names:
                 try:
-                    new_task.tags.add(cli.lib.get_tag(n, False))
+                    new_task.tags.add(yatcli.lib.get_tag(n, False))
                 except:
-                    new_tag = cli.Yat.Tag(cli.lib)
+                    new_tag = yatcli.yat.Tag(yatcli.lib)
                     new_tag.content = n
                     new_task.tags.add(new_tag)
-            new_task.save(cli.lib)
+            new_task.save(yatcli.lib)
 

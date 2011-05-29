@@ -1,7 +1,7 @@
 #-*- coding:utf-8 -*-
 
 u"""
-Yat Library
+yat.Library
 
 Minimalistic library to manipulate the data of yat: the configuration file and
 the sqlite database.

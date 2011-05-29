@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
 u"""
@@ -164,7 +165,7 @@ def main():
     usage = "%prog [options] yat_program test_file"
     description = """This will launch the program pointed by "yat_program" with
 all the test cases that are in "test_file". For instance: "python yatest.py -d
-test_cases ../yat test_cases/all.yatest" """
+test_cases ../cli/yat test_cases/all.yatest" """
 
     parser = OptionParser(usage = usage, description = description)
 

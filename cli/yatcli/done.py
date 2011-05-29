@@ -27,7 +27,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import re
 import sys
 
-import cli
+import yatcli
 from command import Command
 
 class DoneCommand(Command):
@@ -51,14 +51,14 @@ the shell doesn't expand them.
     alias = [u"done", u"undone"]
 
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(cli.lib.config["re.id"]))
+        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
 
     def execute(self, cmd, args):
         if len(args) == 0:
-            cli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help done'", 
+            yatcli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help done'", 
                     f = sys.stderr,
-                    foreground = cli.colors.errf, background = cli.colors.errb,
-                    bold = cli.colors.errbold)
+                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
+                    bold = yatcli.colors.errbold)
 
         id = None
         regexp = []
@@ -71,11 +71,11 @@ the shell doesn't expand them.
 
         regexp = " ".join(regexp)
 
-        cli.Yat.Task.class_lib = cli.lib
+        yatcli.yat.Task.class_lib = yatcli.lib
         if id != None:
-            tasks = cli.lib.get_tasks(ids=[int(id)])
+            tasks = yatcli.lib.get_tasks(ids=[int(id)])
         else:
-            tasks = cli.lib.get_tasks(regexp=regexp)
+            tasks = yatcli.lib.get_tasks(regexp=regexp)
 
         done = cmd == u"done"
         for task in tasks:

@@ -1,7 +1,7 @@
 #-*- coding:utf-8 -*-
 
 u"""
-Yat Library
+yat.Library
 
 This file contains the classes and functions needed for basic handling
 of databases created with an old version of yat.
@@ -29,7 +29,7 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from Yat import *
+from yat import *
 from exceptions import *
 
 import re

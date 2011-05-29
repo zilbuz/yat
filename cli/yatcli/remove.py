@@ -26,7 +26,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import re
 
-import cli
+import yatcli
 from command import Command
 
 class RemoveCommand (Command):
@@ -104,7 +104,7 @@ Options:
 
             # Ask a confirmation for the * expression.
             if a == '*' and not self.force:
-                res = cli.yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
+                res = yatcli.yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
                 if not res:
                     return
 
@@ -119,38 +119,38 @@ Options:
                 ids = [a, ]
             else:
                 if cmd == "tag":
-                    temp = cli.lib.get_tags(regexp=a)
+                    temp = yatcli.lib.get_tags(regexp=a)
                 else:
-                    temp = cli.lib.get_lists(regexp=a)
+                    temp = yatcli.lib.get_lists(regexp=a)
 
                 for t in temp:
                     txt = u"Do you want to delete this " + cmd + u":\n" 
                     txt += t.content 
                     txt += u" (priority: " + str(t.priority) + u") ?"
-                    if not cli.yes_no_question(txt):
+                    if not yatcli.yes_no_question(txt):
                         continue
                     ids.append(str(t.id))
 
             # Removing the tasks belonging to the list
             if cmd == u'list':
-                cli.lib.remove_lists(ids)
+                yatcli.lib.remove_lists(ids)
             # Updating the tag list for the concerned tags.
             else:
-                cli.lib.remove_tags(ids)
+                yatcli.lib.remove_tags(ids)
         else: # removing a task
             ids = []
             if operation == u'=':
-                temp = cli.lib.get_tasks(ids = [int(a)])
+                temp = yatcli.lib.get_tasks(ids = [int(a)])
             else:
-                temp = cli.lib.get_tasks(regexp = a)
+                temp = yatcli.lib.get_tasks(regexp = a)
 
             for t in temp:
                 if self.interactive:
                     txt = u"Do you want to delete this task:\n" + t.content
                     txt += u" (priority: " + str(t.priority)
-                    txt += u", due date: " + cli.parse_output_date(t.due_date) + u") ?"
-                    if not cli.yes_no_question(txt):
+                    txt += u", due date: " + yatcli.parse_output_date(t.due_date) + u") ?"
+                    if not yatcli.yes_no_question(txt):
                         continue
                 ids.append(t.id)
 
-            cli.lib.remove_tasks(ids)
+            yatcli.lib.remove_tasks(ids)

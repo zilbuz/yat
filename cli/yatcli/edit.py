@@ -27,7 +27,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import re
 import sys
 
-import cli
+import yatcli
 from command import Command
 
 class EditCommand(Command):
@@ -64,31 +64,31 @@ The possible attributes for a list or a tag are:
     alias = [u"edit"]
 
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(cli.lib.config["re.id"]))
+        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
         self.re_due_date = re.compile(u"^due_date={0}$".format(
-            cli.lib.config["re.date"]))
+            yatcli.lib.config["re.date"]))
         self.re_parent = re.compile(u"^parent=({0})$".format(
-            cli.lib.config["re.id"]))
+            yatcli.lib.config["re.id"]))
         self.re_priority = re.compile(u"^priority=({0})$".format(
-            cli.lib.config["re.priority"]))
+            yatcli.lib.config["re.priority"]))
         self.re_add_tags = re.compile(u"^add_tags=({0})$".format(
-            cli.lib.config["re.tags_list"]))
+            yatcli.lib.config["re.tags_list"]))
         self.re_remove_tags = re.compile(u"^remove_tags=({0})$".format(
-            cli.lib.config["re.tags_list"]))
+            yatcli.lib.config["re.tags_list"]))
         self.re_list = re.compile(u"list=({0})".format(
-            cli.lib.config["re.list_name"]))
+            yatcli.lib.config["re.list_name"]))
         self.re_tol_priority = re.compile(u"^priority=(-?\d\d*)$")
         self.re_tol_name = re.compile(u"^name=({0}|{1})$".format(
-            cli.lib.config["re.list_name"], cli.lib.config["re.tag_name"]))
+            yatcli.lib.config["re.list_name"], yatcli.lib.config["re.tag_name"]))
         self.re_name = re.compile(u"^task=(.*)$")
 
     def execute(self, cmd, args):
 
         if len(args) == 0:
-            cli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'yat help edit'.", 
+            yatcli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'yat help edit'.", 
                     f = sys.stderr,
-                    foreground = cli.colors.errf, background = cli.colors.errb,
-                    bold = cli.colors.errbold)
+                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
+                    bold = yatcli.colors.errbold)
             return
 
         if args[0] in [u"task", u"list", u"tag"]:
@@ -100,16 +100,16 @@ The possible attributes for a list or a tag are:
         to_edit = None
 
         task = None
-        cli.Yat.Task.class_lib = cli.lib
+        yatcli.yat.Task.class_lib = yatcli.lib
         for a in args:
             res = self.re_id.match(a)
             if to_edit == None and res != None:
                 if element == u'task':
-                    to_edit = cli.lib.get_task(res.group(1))
+                    to_edit = yatcli.lib.get_task(res.group(1))
                 elif element == u'tag':
-                    to_edit = cli.lib.get_tag(res.group(1))
+                    to_edit = yatcli.lib.get_tag(res.group(1))
                 elif element == u'list':
-                    to_edit = cli.lib.get_list(res.group(1))
+                    to_edit = yatcli.lib.get_list(res.group(1))
                 continue
 
             if element in [u"list", u"tag"]:
@@ -129,26 +129,26 @@ The possible attributes for a list or a tag are:
             res = self.re_due_date.match(a)
             if res != None:
                 try:
-                    to_edit.due_date = cli.parse_input_date(res)
+                    to_edit.due_date = yatcli.parse_input_date(res)
                 except ValueError:
-                    cli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
+                    yatcli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
                             f = sys.stderr,
-                            foreground = cli.colors.errf, background =
-                            cli.colors.errb, bold = cli.colors.errbold)
+                            foreground = yatcli.colors.errf, background =
+                            yatcli.colors.errb, bold = yatcli.colors.errbold)
                     return
                 continue
 
             res = self.re_parent.match(a)
             if res != None:
-                to_edit.parent = cli.Yat.Task.get_task(res.group(1))
+                to_edit.parent = yatcli.yat.Task.get_task(res.group(1))
                 continue
 
             res = self.re_list.match(a)
             if res != None:
                 try:
-                    to_edit.list = cli.lib.get_list(res.group(1), False) 
+                    to_edit.list = yatcli.lib.get_list(res.group(1), False) 
                 except:
-                    to_edit.list = cli.Yat.List(cli.lib)
+                    to_edit.list = yatcli.yat.List(yatcli.lib)
                     to_edit.list.content = res.group(1)
                 continue
 
@@ -157,16 +157,16 @@ The possible attributes for a list or a tag are:
                 tag_names = res.group(1).split(',')
                 for n in tag_names:
                     try:
-                        to_edit.tags.add(cli.lib.get_tag(n, False))
+                        to_edit.tags.add(yatcli.lib.get_tag(n, False))
                     except:
-                        tag = cli.Yat.Tag(cli.lib)
+                        tag = yatcli.yat.Tag(yatcli.lib)
                         tag.content = n
                         to_edit.tags.add(tag)
                 continue
 
             res = self.re_remove_tags.match(a)
             if res != None:
-                to_edit.tags -= set(cli.lib.get_tags(names=res.group(1).split(',')))
+                to_edit.tags -= set(yatcli.lib.get_tags(names=res.group(1).split(',')))
                 continue
 
             res = self.re_name.match(a)

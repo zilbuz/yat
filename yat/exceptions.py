@@ -44,7 +44,7 @@ class ExistingLock(Exception):
     pass
 
 class WrongConfigFile(Exception):
-    u"""Exception raised when the path passed to Yat() doesn't point to a valid
+    u"""Exception raised when the path passed to yat.) doesn't point to a valid
     file."""
     pass
 

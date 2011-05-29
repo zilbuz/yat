@@ -27,7 +27,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import os
 import re
 
-import cli
+import yatcli
 from command import Command
 
 class ShowCommand (Command):
@@ -50,7 +50,7 @@ Options:
         self.width = int(os.popen('stty size', 'r').read().split()[1])
         self.textwidth = 0
         self.tagswidth = 0
-        self.datewidth = max(int(cli.lib.config["cli.output_datetime_length"]), 8)
+        self.datewidth = max(int(yatcli.lib.config["cli.output_datetime_length"]), 8)
         self.show_completed = False
 
     def execute(self, cmd, args):
@@ -71,36 +71,36 @@ Options:
 
             # 38 is an arbitrary value that seems to work well...
             if self.width < (38 + self.datewidth + done_width) :
-                cli.output("The terminal is too small to print the list correctly")
+                yatcli.output("The terminal is too small to print the list correctly")
                 return
             else:
                 allowable = self.width - (20 + self.datewidth + done_width)
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
-            tasks = cli.lib.get_tasks()
-            if cli.lib.config["cli.display_group"] ==  u'list':
-                to_display = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_lists()]
+            tasks = yatcli.lib.get_tasks()
+            if yatcli.lib.config["cli.display_group"] ==  u'list':
+                to_display = [yatcli.yat.Tree(li) for li in yatcli.lib.get_loaded_lists()]
             else:
-                to_display = [cli.Yat.Tree(li) for li in cli.lib.get_loaded_tags()]
+                to_display = [yatcli.yat.Tree(li) for li in yatcli.lib.get_loaded_tags()]
             criteria = []
-            for o in cli.lib.config['cli.task_ordering']:
+            for o in yatcli.lib.config['cli.task_ordering']:
                 tmp = o.split(':')
                 if len(tmp) == 2:
                     criteria.append((tmp[1], True))
                 else:
                     criteria.append((tmp[0], False))
-            cli.Yat.Tree.sort_trees(to_display, criteria)
+            yatcli.yat.Tree.sort_trees(to_display, criteria)
 
         elif cmd in [u'lists', u'tags'] :
-            c = cli.lib.config["cli.color_group_name"]
-            cli.output(u"<" + cmd[0:-1] + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
+            c = yatcli.lib.config["cli.color_group_name"]
+            yatcli.output(u"<" + cmd[0:-1] + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
                     foreground = c[0], background = c[1], bold = c[2])
             
             if cmd == u'lists':
-                groups = set(cli.lib.get_lists())
+                groups = set(yatcli.lib.get_lists())
             else:
-                groups = set(cli.lib.get_tags())
+                groups = set(yatcli.lib.get_tags())
 
             to_display = groups
 
@@ -151,27 +151,27 @@ Options:
         def group_tree_display(group, recursion_arguments, contextual):
             u"""Print the tasks. The parameter tasks have to be complete rows of
             the tasks table."""
-            cli.output()
+            yatcli.output()
             text_group = group.group_header()
-            c = cli.lib.config["cli.color_group_name"]
-            cli.output(text_group, foreground = c[0], background = c[1], bold =
+            c = yatcli.lib.config["cli.color_group_name"]
+            yatcli.output(text_group, foreground = c[0], background = c[1], bold =
                     c[2])
             length = len(text_group)
-            cli.output(u"{s:*<{lgth}}".format(s = "*", 
+            yatcli.output(u"{s:*<{lgth}}".format(s = "*", 
                 lgth = length))
 
             # Print header, depending on show_completed
-            c = cli.lib.config["cli.color_header"]
-            cli.output(u" {done}__________{t:_<{datewidth}}______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
+            c = yatcli.lib.config["cli.color_header"]
+            yatcli.output(u" {done}__________{t:_<{datewidth}}______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
                 done=done_column_top, t="_", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth=self.datewidth), 
                 foreground = c[0], background = c[1], bold = c[2])
-            cli.output(u"{done}|Priority |{date:^{datewidth}}| Id| {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
+            yatcli.output(u"{done}|Priority |{date:^{datewidth}}| Id| {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
                 done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
                 task = "Task", textwidth = self.textwidth, tags = " Tags",
                 tagswidth = self.tagswidth),
                 foreground = c[0], background = c[1], bold = c[2])
-            cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+            yatcli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
                 done=done_column_bottom, t="-", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth=self.datewidth),
                 foreground = c[0], background = c[1], bold = c[2])
@@ -189,19 +189,19 @@ Options:
             tree.parent.display_callback(next_recursion)
 
         def group_print(group):
-            tasks = cli.lib.get_tasks(group=group)
+            tasks = yatcli.lib.get_tasks(group=group)
             n_tasks = len(tasks)
             n_completed = 0
             for t in tasks:
                 n_completed += t.completed
-            cli.output(u"\t- " + group.content + u" (id: " +
+            yatcli.output(u"\t- " + group.content + u" (id: " +
                         str(group.id) + u") - " +
                         str( n_completed) + u"/" + str(n_tasks))
 
         def task_display_callback(task, rec_arguments = None):
             if rec_arguments == None or rec_arguments["print_sep"]:
                 # Print the separator
-                cli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
+                yatcli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
                     done = done_column_bottom, t="-", textwidth=self.textwidth,
                     tagswidth=self.tagswidth, datewidth = self.datewidth))
 
@@ -235,19 +235,19 @@ Options:
                     done_column = "| "
 
             # Format the date column
-            date_column = cli.parse_output_date(task.due_date)
+            date_column = yatcli.parse_output_date(task.due_date)
 
             # Select color
             color_name = "cli.color_default"
             if self.check_contextual and contextual:
                 color_name = "cli.color_contextual" 
-            elif task.due_date < cli.lib.get_time():
+            elif task.due_date < yatcli.lib.get_time():
                 color_name = "cli.color_tasks_late"
             else:
                 color_name = "cli.color_priority" + str(task.priority)
-            c = cli.lib.config[color_name]
+            c = yatcli.lib.config[color_name]
 
-            cli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+            yatcli.output(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
                 done = done_column, p = task.priority, date = date_column, id = task.id, 
                 pref = arguments['prefix'], pref_width = len(arguments['prefix']),
                 task = st.pop(0), textwidth = self.textwidth - len(arguments['prefix']), 
@@ -270,7 +270,7 @@ Options:
                     ta = tags[i]
                 else:
                     ta = u""
-                cli.output(u"{done}|         |{t: <{datewidth}}|   | {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
+                yatcli.output(u"{done}|         |{t: <{datewidth}}|   | {pref:^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
                     done = done_column_middle, task = te, textwidth = self.textwidth - len(blank_prefix),
                     tags=ta, pref = blank_prefix, pref_width = len(blank_prefix),
                     tagswidth = self.tagswidth, t = " ", 
@@ -281,15 +281,15 @@ Options:
             arguments['prefix'] = blank_prefix + "* "
             return arguments
 
-        cli.Yat.Task.tree_display = task_tree_display
-        cli.Yat.Task.display_callback = task_display_callback
-        cli.Yat.Group.tree_display = group_tree_display
-        cli.Yat.Group.display_callback = group_display_callback
-        cli.Yat.Group.group_header = group_header
-        cli.Yat.Group.display = group_print
-        cli.Yat.NoList.group_header = nolist_header
-        cli.Yat.NoTag.group_header = notag_header
-        cli.Yat.Tree.display = tree_print
+        yatcli.yat.Task.tree_display = task_tree_display
+        yatcli.yat.Task.display_callback = task_display_callback
+        yatcli.yat.Group.tree_display = group_tree_display
+        yatcli.yat.Group.display_callback = group_display_callback
+        yatcli.yat.Group.group_header = group_header
+        yatcli.yat.Group.display = group_print
+        yatcli.yat.NoList.group_header = nolist_header
+        yatcli.yat.NoTag.group_header = notag_header
+        yatcli.yat.Tree.display = tree_print
 
 class InterruptDisplay(Exception):
     u'''For internal use.'''

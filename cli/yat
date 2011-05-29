@@ -1,0 +1,287 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+u"""
+Very simple command line todolist manager
+
+
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+                   Version 2, December 2004 
+
+ Copyright (C) 2010, 2011 
+    Basile Desloges <basile.desloges@gmail.com>
+    Simon Chopin <chopin.simon@gmail.com>
+
+ Everyone is permitted to copy and distribute verbatim or modified 
+ copies of this license document, and changing it is allowed as long 
+ as the name is changed. 
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
+
+  0. You just DO WHAT THE FUCK YOU WANT TO. 
+
+This program is free software. It comes without any warranty, to
+the extent permitted by applicable law. You can redistribute it
+and/or modify it under the terms of the Do What The Fuck You Want
+To Public License, Version 2, as published by Sam Hocevar. See
+http://sam.zoy.org/wtfpl/COPYING for more details.
+"""
+
+import inspect
+import optparse
+import re
+import sys
+
+import yat
+import yatcli
+import yatcli.help, yatcli.command, yatcli.show
+
+def init():
+    u"""Initialisation specific to this commandline program."""
+    yatcli.lib.config["cli.task_ordering"] = yatcli.lib.config.get("cli.task_ordering",
+            "reverse:priority, due_date")
+    yatcli.lib.config["cli.display_group"] = yatcli.lib.config.get("cli.display_group",
+            "list")
+    yatcli.lib.config["cli.input_date"] = yatcli.lib.config.get("cli.input_date",
+            "dd/mm")
+    yatcli.lib.config["cli.input_time"] = yatcli.lib.config.get("cli.input_time",
+            "24")
+    yatcli.lib.config["cli.output_datetime"] = yatcli.lib.config.get("cli.output_datetime",
+            "%d/%m/%Y %H:%M")
+    yatcli.lib.config["cli.colors"] = yatcli.lib.config.get("cli.colors", "True")#.split(',')
+
+
+    # Colors
+    if yatcli.lib.config["cli.colors"].lower() == "true":
+        yatcli.lib.config["cli.colors"] = True
+    elif yatcli.lib.config["cli.colors"].lower() == "false":
+        yatcli.lib.condig["cli.colors"] = False
+    else:
+        tmp = yatcli.lib.config["cli.colors"]
+        yatcli.lib.config["cli.colors"] = True
+        yatcli.output(u"[ERR] Config file, option cli.colors: '{0}' is not a valid option, it has to be 'true' or 'false'".format(tmp), 
+                f = sys.stderr,
+                foreground = yatcli.colors.errf, background = yatcli.colors.errb, bold = yatcli.colors.errbold)
+
+    def process_color_option(name, default):
+        u"""Process the color option 'name' to replace it with a triplet of
+        color names (and boolean for the last element)"""
+
+        c = ("".join(yatcli.lib.config.get(name,default).split(" "))).split(",")
+
+        if len(c) != 3:
+            yatcli.output(u"[ERR] Config file, option {0}: '{1}' is not valid. See the sample config file for an example.".format(name, 
+                        yatcli.lib.config[name]), f = sys.stderr, 
+                        foreground = yatcli.colors.errf, background = yatcli.colors.errb, bold = yatcli.colors.errbold)
+            yatcli.lib.config[name] = default
+
+        for i in range(2):
+            if c[i] == "default":
+                c[i] = ""
+            elif not c[i] in yatcli.colors.available:
+                yatcli.output(u"[ERR] Config file, option {0}: '{1}' is not a valid color. See the sample config for an example.".format(name,
+                    c[i]), f = sys.stderr,
+                    foreground = yatcli.colors.errf, background = yatcli.colors.errb, bold = yatcli.colors.errbold)
+                c[i] = ""
+
+        if c[2].lower() == "true":
+            c[2] = True
+        elif c[2].lower() == "false":
+            c[2] = False
+        else:
+            yatcli.output(u"[ERR] Config file, option {0}: '{1}' is not a valid option for bold. It has to be true or false".format(name, c[2]),
+                f = sys.stderr,
+                foreground = yatcli.colors.errf, background = yatcli.colors.errb, bold = yatcli.colors.errbold)
+            c[2] = False
+
+        yatcli.lib.config[name] = c
+
+    process_color_option("cli.color_error", "red,default,true")
+    col_err = yatcli.lib.config["cli.color_error"]
+    yatcli.colors.errf = col_err[0]
+    yatcli.colors.errb = col_err[1]
+    yatcli.colors.errbold = col_err[2]
+    process_color_option("cli.color_tasks_late", "red,default,false")
+    process_color_option("cli.color_group_name", "default,default,true")
+    process_color_option("cli.color_header", "default,default,true")
+    process_color_option("cli.color_priority3", "default,default,false")
+    process_color_option("cli.color_priority2", "default,default,false")
+    process_color_option("cli.color_priority1", "default,default,false")
+    process_color_option("cli.color_priority0", "default,default,false")
+    process_color_option("cli.color_contextual", "default,default,false")
+
+
+    # Processing task_ordering option
+    # Strip spaces and split on commas
+    opt = "".join(yatcli.lib.config["cli.task_ordering"].split(" ")).split(",")
+    yatcli.lib.config["cli.task_ordering"] = []
+    for o in opt:
+        order = o.split(":")
+        if len(order) > 1 and order[0] == "reverse":
+            reverse = True
+            column = order[1]
+        else:
+            column = order[0]
+        if column in ["priority", "due_date", "task", "id"]:
+            yatcli.lib.config["cli.task_ordering"].append(o)
+        else:
+            yatcli.output(st=u"[ERR] Config file, option cli.task_ordering: '{0}' is not a valid ordering option. See the example config file for a valid option.".format(o), f = sys.stderr,
+                foreground = yatcli.colors.errf, background = cli.colors.errb, bold = cli.colors.errbold)
+
+    # Default options
+
+    # Tasks output
+    if yatcli.lib.config["cli.task_ordering"] == []:
+        yatcli.lib.config["cli.task_ordering"] = ["reverse:priority", "due_date"]
+
+    if not yatcli.lib.config["cli.display_group"] in ["list", "tag"]:
+        yatcli.output(u"[ERR] Config file, option cli.display_group: '{0}' is not a valid display group, it has to be \"list\" or \"tag\"".format(cli.lib.config["cli.display_group"]), f = sys.stderr,
+            foreground = yatcli.colors.errf, background = cli.colors.errb, bold = cli.colors.errbold)
+        yatcli.lib.config["cli.display_group"] = "list"
+
+    # Date format
+    if not yatcli.lib.config["cli.input_date"] in ["dd/mm", "mm/dd"]:
+        yatcli.output(u"[ERR] Config file, option cli.input_date: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(cli.lib.config["cli.input_date"]), f = sys.stderr,
+            foreground = yatcli.colors.errf, background = cli.colors.errb, bold = cli.colors.errbold)
+        yatcli.lib.config["cli.input_date"] = "dd/mm"
+
+    if not yatcli.lib.config["cli.input_time"] in ["12", "24"]:
+        yatcli.output(u"[ERR] Config file, option cli.input_time: '{0}' is not a valid format, it has to be \"dd/mm\" or \"mm/dd\"".format(cli.lib.config["cli.input_time"]), f = sys.stderr,
+            foreground = yatcli.colors.errf, background = cli.colors.errb, bold = cli.colors.errbold)
+        yatcli.lib.config["cli.input_time"] = "24"
+
+    res = re.finditer("%(.)", yatcli.lib.config["cli.output_datetime"])
+    for g in res:
+        if not g.group(1) in ["d", "m", "Y", "H", "I", "M", "p"]:
+            yatcli.output(u"[ERR] Config file, option cli.output_datetime: '{0}' is not a valid format, it has to be '%d', '%m', '%Y', '%H', '%I', '%M' or '%p'. See yatrc.sample for an example".format(g.group(0)), f = sys.stderr,
+                foreground = yatcli.colors.errf, background = cli.colors.errb, bold = cli.colors.errbold)
+            yatcli.lib.config["cli.output_datetime"] = "%d/%m/%Y %H:%M"
+            break
+
+    date_length = len(yatcli.lib.config["cli.output_datetime"])
+    if re.search("%Y", yatcli.lib.config["cli.output_datetime"]):
+        date_length += 2
+    yatcli.lib.config["cli.output_datetime_length"] = date_length
+
+
+def main(argv):
+    u"""
+    Entry point of the program
+    """
+
+    # Process args
+    args = (" ".join(argv)).split(" ")
+    for i in range(len(args)):
+        args[i] = args[i].decode('utf-8')
+
+    # Parsing options
+    options = {
+        "help": False,
+        "config-file": None,
+        "version": False
+        }
+    catch_arg = False
+    for a in args[:]:
+        if a == u"-h" or a == u"--help":
+            options["help"] = True
+            args.remove(a)
+            continue
+
+        if a == u"-c" or a == u"--config-file":
+            catch_arg = True
+            args.remove(a)
+            continue
+
+        if catch_arg == True and options["config-file"] == None:
+            options["config-file"] = a
+            args.remove(a)
+            catch_arg = False
+            continue
+
+        if a == u"-v" or a == u"--version":
+            options["version"] = True
+            args.remove(a)
+            continue
+
+    # Initialisation
+    try:
+        yatcli.lib = yat.Yat(options["config-file"])
+    except yat.WrongConfigFile as e:
+        yatcli.output(u"[ERR] The file you want to use as a configuration file ({0}) doesn't exist.".format(e), 
+                foreground = yatcli.colors.errf, background = cli.colors.errb, 
+                bold = yatcli.colors.errbold, f = sys.stderr)
+        exit(1)
+
+    init()
+
+    # Print current version if asked
+    if options["version"]:
+        yatcli.output(u"""yat version {0}""".format(yat.VERSION), f = sys.stderr)
+        exit(0)
+
+    # Getting the name of the program
+    yatcli.name = argv[0]
+
+    # Getting all the commands
+    cmd_objs = []
+    for m in inspect.getmembers(sys.modules["yatcli"], inspect.ismodule):
+        c = inspect.getmembers(m[1], yatcli.isCommand)
+        if c != []:
+            cmd_objs.extend(c)
+    yatcli.commands = dict(cmd_objs)
+    
+    yatcli.aliases = {}
+
+    # Fill the aliases dictionnary
+    for name, cmd in yatcli.commands.iteritems():
+        for a in cmd.alias:
+            yatcli.aliases[a] = cmd
+
+    # Determining which command to use (default list)
+    if options["help"]:
+        # if -h/--help was in the arguments, print the help and exit
+        cmd = yatcli.help.HelpCommand()
+        cmd_args = []
+        cmd_alias = "help"
+    else:
+        cmd = yatcli.show.ShowCommand()
+        cmd_args = []
+        cmd_alias = "tasks"
+        if len(args) > 1:
+            if args[1] in yatcli.aliases:
+                cmd = yatcli.aliases[args[1]]()
+                cmd_alias = args[1]
+                cmd_args = args[2:]
+            else:
+                cmd_args = args[1:]
+
+    # Testing if there's a lock
+    force_lock = False
+    try:
+        yatcli.lib.get_lock()
+    except yat.exceptions.ExistingLock as e:
+        txt = u"A lock is already set up on the database by the application of"
+        txt += u" pid: {0}. If you are sure that".format(e)
+        txt += u" you have no yat application running, you can decide to bypass"
+        txt += u" it. Do you want to bypass the lock ?"
+        force_lock = yatcli.yes_no_question(txt)
+    finally:
+        yatcli.lib.release_lock()
+
+    try:
+        yatcli.lib.get_lock(force_lock)
+        # Executing command with the rest of the arguments
+        cmd.execute(cmd_alias, cmd_args)
+    except yat.exceptions.ExistingLock:
+        yatcli.output(u"[ERR] A lock is already set up, the command was ignored.",
+                f = sys.stderr, foreground = yatcli.colors.errf, background =
+                yatcli.colors.errb, bold = cli.colors.errbold)
+        pass
+    finally:
+        yatcli.lib.release_lock()
+
+
+if __name__ == "__main__":
+    main(sys.argv)
+
