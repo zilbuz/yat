@@ -79,14 +79,16 @@ class InstallDoc(Command):
     def run(self):
         self.run_command('build_doc')
         man_build_dir = '/'.join(self.build_dir + ['man'])
-        print man_build_dir
         man_cat = set([int(s[3]) for s in os.listdir(man_build_dir)
                        if (len(s) == 4 and int(s[3]) in range(1, 9) and
                            s[0:3] == 'man')])
-        print man_cat
         for i in man_cat:
-            man_install_dir = '/'.join(self.install_prefix +
-                                       ['man/man{0}'.format(i)])
+            if self.install_prefix[-1] != 'usr':
+                man_install_dir = '/'.join(self.install_prefix +
+                                           ['man/man{0}'.format(i)])
+            else:
+                man_install_dir = '/'.join(self.install_prefix +
+                                           ['share/man/man{0}'.format(i)])
             man_origin_dir = '/'.join([man_build_dir, 'man{0}'.format(i)])
             self.copy_tree(man_origin_dir, man_install_dir)
 
