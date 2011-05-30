@@ -1,2 +1,4 @@
+build
+tools/test_cases/yatdir
 *.pyc
 *.swp
