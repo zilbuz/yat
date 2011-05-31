@@ -519,14 +519,32 @@ class Yat:
             self.__sql.commit()
         task.changed = False
 
-    def remove_tasks(self, ids):
+    def remove_tasks(self, ids, recursive=True):
         u"""Remove tasks by their ids
         params:
             - ids (array<int>)
+            - recursive (bool)
+        If recursive is True, it will also destroy all the children tasks.
         """
         # The cascade property ensure the deletion of the children
         # If we are to change this policy punctually, we can change the
         # children's parents here before the removal
+        if not recursive:
+            with self.__sql:
+                self.__sql.execute('''replace into tasks
+                                   (id, content,parent, priority, due_date,
+                                    list, completed, last_modified,
+                                    created, hash_id
+                                   )
+                                   select t1.id, t1.content, t2.parent,
+                                   t1.priority, t1.due_date, t1.list,
+                                   t1.completed, t1.last_modified,
+                                   t1.created, t1.hash_id
+                                   from tasks as t1, tasks as t2
+                                   where t1.parent=t2.id
+                                   and t2.id in ({seq})
+                                   '''.format(seq=', '.join(['?']*len(ids))),
+                                   ids)
         self.__simple_removal(ids, 'tasks')
 
     def remove_notes(self, ids):
@@ -536,13 +554,36 @@ class Yat:
         """
         self.__simple_removal(ids, 'notes')
 
-    def remove_lists(self, ids):
+    def remove_lists(self, ids, list_recursion=True, task_recursion=False):
         u"""Remove lists by their ids. Be careful, when deleting a list, every
         task that it contains will be deleted too.
         param:
             - ids (array<string>)
+            - list_recursion (bool)
+            - task_recursion (bool)
+        If list_recursion is True, it will also destroy all the tasks belonging
+        to the lists. If task_recursion is True, those tasks' children are
+        destroyed alongside.
         """
         # Same remark as for the task : cascade effect.
+        if list_recursion and not task_recursion:
+            with self.__sql:
+                task_ids = [int(i[0]) for i in
+                            self.__sql.execute('''
+                                               select id from tasks
+                                               where list in ({seq})
+                                               '''.format(seq=', '
+                                                          .join(['?'] *
+                                                                len(ids))
+                                                         ),
+                                               ids).fetchall()]
+            self.remove_tasks(task_ids, False)
+        elif not list_recursion:
+            with self.__sql:
+                self.__sql.execute('''update tasks set list=null
+                                   where list in ({seq})
+                                   '''.format(seq=', '.join(['?'] * len(ids))),
+                                   ids)
         self.__simple_removal(ids, 'lists')
 
     def remove_tags(self, ids):
