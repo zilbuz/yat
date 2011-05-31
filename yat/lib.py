@@ -174,6 +174,7 @@ class Yat:
             self.__sql.execute('drop table if exists lists')
             self.__sql.execute('drop table if exists tags')
             self.__sql.execute('drop table if exists tagging')
+            self.__sql.execute('drop table if exists notes')
             self.__sql.execute('drop table if exists metadata')
             self.__sql.commit()
 
@@ -522,27 +523,42 @@ class Yat:
         params:
             - ids (array<int>)
         """
-        with self.__sql:
-            for i in ids:
-                children = self.__sql.execute(u'select id from tasks where parent=?', (i,)).fetchall()
-                children = [tmp[0] for tmp in children]
-                self.remove_tasks(children)
-                self.__sql.execute(u'delete from tasks where id=?', (i,))
-            self.__sql.commit()
-        pass
+        # The cascade property ensure the deletion of the children
+        # If we are to change this policy punctually, we can change the
+        # children's parents here before the removal
+        self.__simple_removal(ids, 'tasks')
+
+    def remove_notes(self, ids):
+        u"""Remove notes by their ids.
+        params:
+            - ids (array<int>)
+        """
+        self.__simple_removal(ids, 'notes')
+
+    def remove_lists(self, ids):
+        u"""Remove lists by their ids. Be careful, when deleting a list, every
+        task that it contains will be deleted too.
+        param:
+            - ids (array<string>)
+        """
+        # Same remark as for the task : cascade effect.
+        self.__simple_removal(ids, 'lists')
 
     def remove_tags(self, ids):
         u"""Remove tags by their ids. Also update tasks which have these tags.
         param:
             - ids (array<string>)
         """
+        # The cascade actions remove the appropriate relations in tagging
+        self.__simple_removal(ids, 'tags')
+
+    def __simple_removal(self, ids, table):
         with self.__sql:
-            # Update tasks
-            for t in ids:
-                # Remove tags
-                self.__sql.execute(u'delete from tags where id=?', (t,))
+            self.__sql.execute(u'delete from {table} where id in ({seq})'
+                               .format(table=table, seq=', '.join(['?'] *
+                                                                  len(ids))
+                                      ), ids)
             self.__sql.commit()
-        pass
 
     def __get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
         if ids != None and None not in ids and None not in loaded_objects:
@@ -629,18 +645,6 @@ class Yat:
             return self.get_tags(names=[value])[0]
         except IndexError:
             raise WrongName 
-
-    def remove_lists(self, ids):
-        u"""Remove lists by their ids. Be careful, when deleting a list, every
-        task that it contains will be deleted too.
-        param:
-            - ids (array<string>)
-        """
-        with self.__sql:
-            for i in ids:
-                self.__sql.execute(u'delete from lists where id=?', (i,))
-            self.__sql.commit()
-        pass
 
     def get_time(self):
         u"""Return the current timestamp"""
