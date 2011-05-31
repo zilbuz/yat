@@ -431,10 +431,10 @@ class Yat:
             t.completed = r["completed"]
             t.last_modified = r["last_modified"]
             t.created = r["created"]
-            t.notes = self.get_notes(t)
 
             t.changed = False
             self.__loaded_tasks[t.id] = t
+            t.notes = self.get_notes(t)
 
             # Return only the tasks explicitly requested, not the collateral
             if t.id not in ids_to_fetch:
@@ -447,7 +447,7 @@ class Yat:
             extract = self.__extract_rows('notes', self.__loaded_notes,
                                              ids, contents, regexp)
         else:
-            extra_criteria = ('task=?', (task.id))
+            extra_criteria = ('task=?', (task.id,))
         extract = self.__extract_rows('notes', self.__loaded_notes,
                                       ids, contents, regexp, extra_criteria)
 
