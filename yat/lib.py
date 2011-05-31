@@ -375,7 +375,7 @@ class Yat:
 
     def __get_task_objects(self, extract):
         u'''Take an extract: ([Task], [SQLRow]) ; and transforms the rows
-        into fully fledged objects with a little black magic :).
+        into fully fledged objects with a little functional voodoo :).
 
         Return value: [Task]'''
         tasks = extract[0]
@@ -431,6 +431,7 @@ class Yat:
             t.completed = r["completed"]
             t.last_modified = r["last_modified"]
             t.created = r["created"]
+            t.notes = self.get_notes(t)
 
             t.changed = False
             self.__loaded_tasks[t.id] = t
