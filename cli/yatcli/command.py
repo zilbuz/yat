@@ -42,8 +42,10 @@ Long description
     
     alias = []
     u"""Array containing the different aliases for this command"""
-    options = []
-    u"""An option is defined this way:
+
+    def __init__(self):
+        options = []
+        u"""An option is defined this way:
     (short, long, attribute, default)
 with:
     - short: a single letter or None
@@ -55,10 +57,18 @@ While short, long and attribute ought to be of the str type, default can be
 any python object. The values of self.attribute is initialized with False if
 constructor is None, None otherwise, when creating the Command object."""
 
-    def __call__(self, cmd, args):
-        self.execute(cmd, self.parse_options(args))
+        self.arguments = ([], {})
+        u'''Of the form:
+    ([names], {name: (regexp, next, process)}
+with:
+    - names: the key values used as entry point
+    - name: a simple string
+    - regexp: a string containing a valid regular expression, and an identifier 'value'
+    - next: a list of names, all entries of the very same arguments dictionary
+    - process: a function taking 2 arguments : the content of the 'value' match and the return value
+      of the last argument' process function.
+    u'''
 
-    def __init__(self):
         for o in self.options:
             if len(o) != 4:
                 raise ValueError('The options must be of the form \
@@ -67,6 +77,26 @@ constructor is None, None otherwise, when creating the Command object."""
                 setattr(self, o[2], False)
             else:
                 setattr(self, o[2], None)
+
+        for k, a in self.arguments[1].iteritems():
+            self.arguments[k] = (re.compile(a[0]), a[1], a[2])
+
+    def __call__(self, cmd, args):
+        self.execute(cmd, self.parse_arrguments(self.parse_options(args)))
+
+    def parse_arguments(self, args):
+        to_examine = self.arguments[0][:]
+        to_pass = None
+        for a in args:
+            for e in to_examine:
+                p = self.arguments[1][e]
+                p[0].match(a)
+                if m == None:
+                    continue
+                to_examine = p[1]
+                to_pass = p[2](m.groupdict()['value'], to_pass)
+
+        return to_pass
 
     def parse_options(self, args):
         stripped_args = args[:]
