@@ -24,6 +24,8 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
+import re
+import yatcli
 
 class Command:
     u"""Abstract class for instrospection
@@ -40,6 +42,99 @@ Long description
     
     alias = []
     u"""Array containing the different aliases for this command"""
+    options = []
+    u"""An option is defined this way:
+    (short, long, attribute, default)
+with:
+    - short: a single letter or None
+    - long: a single word or None. In the word can be used lower-case letters,
+            hyphens and digits
+    - attribute: a valid python name
+    - constructor: a function building an object out of a string
+While short, long and attribute ought to be of the str type, default can be
+any python object. The values of self.attribute is initialized with False if
+constructor is None, None otherwise, when creating the Command object."""
+
+    def __call__(self, cmd, args):
+        self.execute(cmd, self.parse_options(args))
+
+    def __init__(self):
+        for o in self.options:
+            if len(o) != 4:
+                raise ValueError('The options must be of the form \
+                                 (short, long, attribute, type)')
+            if o[3] == None:
+                setattr(self, o[2], False)
+            else:
+                setattr(self, o[2], None)
+
+    def parse_options(self, args):
+        stripped_args = args[:]
+
+        # We cannot use a for loop because we need to be able to make a
+        # jump to reach the next argument inside of the loop
+        it = iter(args)
+
+        # We load the options into dictionaries in order not to have to go
+        # through the list at every element of args
+        short_dict = {}
+        long_dict = {}
+        for o in self.options:
+            if o[0] != None:
+                short_dict[o[0]] = (o[2], o[3])
+            if o[1] != None:
+                long_dict[o[1]] = (o[2], o[3])
+
+        re_long = re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.*))?$')
+        re_short= re.compile('^-(?P<options>[a-zA-Z]+)$')
+
+        try:
+            while(True):
+                a = it.next()
+                res = re_long.match(a)
+                if res != None:
+                    option = long_dict[res.groupdict()['name']]
+                    if option[1] == None:
+                        setattr(self, option[0], True)
+                    else:
+                        value = res.groupdict()['value']
+                        if value == None:
+                            raise yatcli.MissingArgument
+                        setattr(self, option[0], option[1]('value'))
+                    stripped_args.remove(a)
+                    continue
+
+                res = re_short.match(a)
+                if res != None:
+                    # Same reason as above : we need flexibility and complex
+                    # exception management
+                    it_l = iter([l for l in re.split('([a-zA-Z])',
+                                                   res.groupdict()['options'])
+                               if len(l) == 1])
+                    try:
+                        l = it_l.next()
+                        while(True):
+                            option = short_dict[l]
+                            if option[1] == None:
+                                setattr(self, option[0], True)
+                                l = it_l.next()
+                                continue
+                            # If it doesn't raise an exception,
+                            # there is another short option : Error
+                            try:
+                                l = it_l.next()
+                                raise yatcli.MissingArgument
+                            except StopIteration:
+                                value = it.next()
+                                setattr(self, option[0], option[1](value))
+                                stripped_args.remove(value)
+                                break
+                    except StopIteration:   # for the loop over the letters
+                        pass
+                    stripped_args.remove(a)
+        except StopIteration:   # for the loop over the arguments
+            pass
+        return stripped_args
 
     def execute(self, cmd, args):
         u"""Method actually doing something

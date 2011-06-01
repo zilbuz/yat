@@ -65,6 +65,9 @@ name = None
 commands = None
 aliases = None
 
+class MissingArgument(Exception):
+    pass
+
 class colors:
     u"""ASCII code to change console colors. f... is for foreground colors, and
     b... is for background colors"""
