@@ -9,6 +9,8 @@ from docutils.writers import manpage
 
 import os
 import sys
+import subprocess
+import nose
 
 class BuildDoc(Command):
     description = "Build the documentation."
@@ -16,7 +18,7 @@ class BuildDoc(Command):
 
     def initialize_options(self):
         self.build_dir = None
-        self.src_dir = sys.argv[0].split(os.path.sep)
+        self.src_dir = os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
         self.src_dir.pop()
 
     def finalize_options(self):
@@ -92,11 +94,39 @@ class InstallDoc(Command):
             man_origin_dir = '/'.join([man_build_dir, 'man{0}'.format(i)])
             self.copy_tree(man_origin_dir, man_install_dir)
 
+class Test(Command):
+    description = 'Run a bunch of tests'
+    user_options = []
+
+    def initialize_options(self):
+        self.build_lib = None
+        self.build_scripts = None
+        self.source_dir = os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
+        self.source_dir.pop()
+        if self.source_dir[-1] == '.':
+            self.source_dir.pop()
+
+    def finalize_options(self):
+        self.set_undefined_options('build',
+                                   ('build_lib', 'build_lib'),
+                                   ('build_scripts', 'build_scripts')
+                                  )
+    def run(self):
+        self.run_command('build')
+        sys.path[:0] = ['/'.join(self.source_dir), '/'.join(self.source_dir + ['cli'])]
+        retcall = subprocess.call(['/usr/bin/nosetests', '/'.join(self.source_dir),
+                                  '/'.join(self.source_dir+['cli']), '-e=yatest',
+                                 '-e=setup.py'])
+
+
 build.sub_commands.append(('build_doc', None))
 install.sub_commands.append(('install_doc', None))
 
 setup(name='yat',
-      cmdclass={'build_doc':BuildDoc, 'install_doc':InstallDoc},
+      cmdclass={'build_doc':BuildDoc,
+                'install_doc':InstallDoc,
+                'test':Test
+               },
       version='0.3',
       description='Todolist manager',
       author='yat Development Team',
