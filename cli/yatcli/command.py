@@ -27,7 +27,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import re
 import yatcli
 
-class Command:
+class Command(object):
     u"""Abstract class for instrospection
     
 If you wish to add a command, you have to create a class that derive from this
@@ -44,7 +44,8 @@ Long description
     u"""Array containing the different aliases for this command"""
 
     def __init__(self):
-        options = []
+        if not hasattr(self, 'options'):
+            self.options = []
         u"""An option is defined this way:
     (short, long, attribute, default)
 with:
@@ -57,7 +58,8 @@ While short, long and attribute ought to be of the str type, default can be
 any python object. The values of self.attribute is initialized with False if
 constructor is None, None otherwise, when creating the Command object."""
 
-        self.arguments = ([], {})
+        if not hasattr(self, 'arguments'):
+            self.arguments = ([], {})
         u'''Of the form:
     ([names], {name: (regexp, next, process)}
 with:
@@ -79,10 +81,10 @@ with:
                 setattr(self, o[2], None)
 
         for k, a in self.arguments[1].iteritems():
-            self.arguments[k] = (re.compile(a[0]), a[1], a[2])
+            self.arguments[1][k] = (re.compile(a[0]), a[1], a[2])
 
     def __call__(self, cmd, args):
-        self.execute(cmd, self.parse_arrguments(self.parse_options(args)))
+        self.execute(cmd, self.parse_arguments(self.parse_options(args)))
 
     def parse_arguments(self, args):
         to_examine = self.arguments[0][:]
@@ -90,7 +92,7 @@ with:
         for a in args:
             for e in to_examine:
                 p = self.arguments[1][e]
-                p[0].match(a)
+                m = p[0].match(a)
                 if m == None:
                     continue
                 to_examine = p[1]

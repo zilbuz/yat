@@ -57,100 +57,75 @@ Options:
 """
 
     alias = [u"remove", u"rm"]
-
     def __init__(self):
-        self.re_force = re.compile(r'^(--force|-f)$')
-        self.re_interactive = re.compile(r'^(--interactive|-i)$')
-        self.force = False
-        self.interactive = False
+        self.options = ([
+            ('f', 'force', 'force', None),
+            ('i', 'interactive', 'interactive', None),
+            ('r', 'recursive', 'recursive', None),
+            ('n', 'no-recursive', 'no_recursive', None)
+        ])
+
+        self.ids_to_remove = []
+        self.select_type('task')
+        self.arguments = (['type', 'id', 'regexp'], {
+            'type'  :   ('^(?P<value>task|list|tag)$',
+                         ['id', 'regexp'], self.select_type),
+            'id'    :   ('^id=(?P<value>[0-9]+)$',
+                         ['id', 'regexp'], self.add_id_to_remove),
+            'regexp':   ('^(?P<value>.*)$', ['id', 'regexp'],
+                         self.process_regexp)
+        })
+        super(RemoveCommand, self).__init__()
+
+    def select_type(self, value, trail=None):
+        u'''Select the internal methods to use to process the arguments.'''
+        self.interactive_text = lambda x: ('Do you want to delete this {0}:\n'.format(value) +
+                            '\n  {0.content}\n    priority: {0.priority}'.format(x))
+        self.get_obj = getattr(yatcli.lib, 'get_{0}s'.format(value))
+        if value == 'list':
+            self.removal_function = lambda x: (
+                yatcli.lib.remove_lists(x, (not self.no_recursive or
+                                            self.recursive),
+                                        (self.recursive and
+                                         not self.no_recursive)))
+        elif value == 'task':
+            old_text = self.interactive_text
+            self.interactive_text = (lambda x: old_text(x)+
+                                     '\n    due date: {0}'
+                                     .format(yatcli.parse_output_date(x.due_date)))
+
+            self.removal_function = lambda x: (
+                yatcli.lib.remove_tasks(x,
+                                        not self.no_recursive or
+                                        self.recursive))
+        else:
+            self.removal_function = getattr(yatcli.lib, 'remove_{0}s'.format(value))
+        return False
+
+    def add_id_to_remove(self, value, trail):
+        if (self.interactive and not
+            yatcli.yes_no_question(self.interactive_text(
+                self.get_obj(ids=[int(value)])), default=True)):
+            return True
+        self.ids_to_remove.append(int(value))
+
+    def process_regexp(self, value, trail):
+        if (value == '*' and not self.force and 
+            not yatcli.yes_no_question(
+                "This operation is potentially disastrous. Are you so desperate ?",
+                default = True)):
+            return True
+        objects = self.get_obj(regexp=value)
+        if not self.force and self.interactive:
+            for o in objects:
+                if yatcli.yes_no_question(self.interactive_text(o)):
+                    self.ids_to_remove.append(o.id)
+            return True
+        self.ids_to_remove.extend([o.id for o in objects])
+        return True
 
     def execute(self, cmd, args):
-        for a in args[:]:
-            res = self.re_force.match(a)
-            if res != None:
-                self.force = True
-                args.remove(a)
-                continue
-            res = self.re_interactive.match(a)
-            if res != None:
-                self.interactive = True
-                args.remove(a)
-                continue
-
-        if args == []:
+        if not self.parse_arguments(self.parse_options(args)):
             print self.__doc__.split('\n',1)[0]," ",args
             return
-            
-        cmd = ""
-        if args[0] in [u"task", u"list", u"tag"]:
-            cmd = args[0]
-            args = args[1:]
-        else:
-            cmd = u"task"
-
-        re_number = re.compile("^id=([0-9]+)$")
-
-        operation = u""
-        identifier = u""
-       
-        a = " ".join(args)
-        res = re_number.match(a)
-        if res is not None:
-            a = res.group(1)
-            operation = u"="
-            identifier = u"id"
-        else:
-            operation = u" regexp "
-
-            # Ask a confirmation for the * expression.
-            if a == '*' and not self.force:
-                res = yatcli.yes_no_question("This operation is potentially disastrous. Are you so desperate ?", default = True)
-                if not res:
-                    return
-
-            if cmd == u"task":
-                identifier = cmd
-            else:
-                identifier = u"name"
-
-        if cmd in [u"list", u"tag"]:
-            ids = []
-            if operation == u'=':
-                ids = [a, ]
-            else:
-                if cmd == "tag":
-                    temp = yatcli.lib.get_tags(regexp=a)
-                else:
-                    temp = yatcli.lib.get_lists(regexp=a)
-
-                for t in temp:
-                    txt = u"Do you want to delete this " + cmd + u":\n" 
-                    txt += t.content 
-                    txt += u" (priority: " + str(t.priority) + u") ?"
-                    if not yatcli.yes_no_question(txt):
-                        continue
-                    ids.append(str(t.id))
-
-            # Removing the tasks belonging to the list
-            if cmd == u'list':
-                yatcli.lib.remove_lists(ids)
-            # Updating the tag list for the concerned tags.
-            else:
-                yatcli.lib.remove_tags(ids)
-        else: # removing a task
-            ids = []
-            if operation == u'=':
-                temp = yatcli.lib.get_tasks(ids = [int(a)])
-            else:
-                temp = yatcli.lib.get_tasks(regexp = a)
-
-            for t in temp:
-                if self.interactive:
-                    txt = u"Do you want to delete this task:\n" + t.content
-                    txt += u" (priority: " + str(t.priority)
-                    txt += u", due date: " + yatcli.parse_output_date(t.due_date) + u") ?"
-                    if not yatcli.yes_no_question(txt):
-                        continue
-                ids.append(t.id)
-
-            yatcli.lib.remove_tasks(ids)
+        self.removal_function(self.ids_to_remove)
