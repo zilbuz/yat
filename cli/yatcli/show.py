@@ -189,7 +189,7 @@ Options:
             tree.parent.display_callback(next_recursion)
 
         def group_print(group):
-            tasks = yatcli.lib.get_tasks(group=group)
+            tasks = yatcli.lib.get_tasks(groups=[group])
             n_tasks = len(tasks)
             n_completed = 0
             for t in tasks:

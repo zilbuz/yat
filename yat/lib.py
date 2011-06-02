@@ -279,6 +279,7 @@ class Yat:
         It returns a tuple of list. The first list contains all the objects
         already loaded, the second the raw data to process.'''
         loaded = []
+        # Fetch'em all !
         if ids == None and names == None and regexp == None:
             if extra_criteria == None:
                 rows = self.__sql.execute(u'select * from {0}'
@@ -302,11 +303,14 @@ class Yat:
                                            content in ({2}) or
                                            content regexp ?) {3}'''
                                                .format(table_name,
-                                                       ', '.join('?'*len(ids)),
-                                                       ', '.join('?'*len(names)),
+                                                       ', '.join(['?']*len(ids)),
+                                                       ', '.join(['?']*len(names)),
                                                        extra_criteria[0]),
                                                (ids + names + [regexp] +
                                                 extra_criteria[1])).fetchall()
+        # Theoretically, it might be faster to remove an object from a set
+        # if it is implemented as an unbalanced B-Tree : log(n) complexity to reach
+        # the node, and 1 to delete the object
         set_rows = set(rows)
         for r in rows:
             try:    # Try to fetch the loaded object.
@@ -316,31 +320,48 @@ class Yat:
                 pass
         return (loaded, list(set_rows))
 
-    def get_tasks(self, ids=None, names=None, regexp=None, group=None):
+    def get_tasks(self, ids=None, names=None, regexp=None, groups=None):
         u'''Returns a list of tasks matching the input data. If ids, names,
-        regexp and group all equal None, every task will be fetched.'''
+        regexp and group all equal None, every task will be fetched.
+            ids: [int], ids to be loaded/fetched
+            names: [str], the exact names of the tasks
+            regexp: str, a valid regular expression to compare against the 
+                    content attribute.
+            groups: [Group], grab all the tasks associated with these
+                    particular tags/lists. Note that it is possible to mix them.
+        '''
         loaded = []
-        if group != None:
+        rows=[]
+        if groups != None:
             if ids == None: ids = []    # Otherwise, it would pull everything
-            if issubclass(type(group), List):
-                rows = self.__sql.execute(u'''select * from tasks
-                                          where list=?''', (group.id,)
-                                         ).fetchall()
-            elif issubclass(type(group), Tag):
-                rows = self.__sql.execute(u'''select tasks.*
-                                          from tasks, tagging
-                                          where tagging.tag=? and
-                                          tasks.id=tagging.task''', (group.id,)
-                                         ).fetchall()
-            else: rows=[]
-            set_rows = set(rows)
-            for r in rows:
-                try:
-                    loaded.append(self.__loaded_tasks[int(r['id'])])
-                    set_rows.remove(r)
-                except KeyError as e:
-                    pass
-            loaded = self.__get_task_objects((loaded, list(set_rows)))
+            lists = []
+            tags = []
+            for g in groups:
+                if issubclass(type(g), List):
+                    lists.append(g.id)
+                    continue
+                if issubclass(type(g), Tag):
+                    tags.append(g.id)
+                    continue
+
+            if lists != []:
+                rows.extend(self.__sql.execute(
+                    u'''select * from tasks where list in ({0})'''
+                    .format(', '.join(['?']*len(lists))), lists).fetchall())
+            if tags != []:
+                rows.extend(self.__sql.execute(
+                    u''' select tasks.* from tasks, tagging
+                    where tagging.tag in ({0}) and tasks.id=tagging.task'''
+                    .format(', '.join(['?']*len(tags))), tags).fetchall())
+
+        set_rows = set(rows)
+        for r in rows:
+            try:
+                loaded.append(self.__loaded_tasks[int(r['id'])])
+                set_rows.remove(r)
+            except KeyError as e:
+                pass
+        loaded = self.__get_task_objects((loaded, list(set_rows)))
         return loaded + self.__get_task_objects(
             self.__extract_rows("tasks", self.__loaded_tasks,
                                 ids, names, regexp))
