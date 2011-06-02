@@ -501,7 +501,7 @@ class Yat:
         pass
 
     def __get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
-        if ids != None and None not in ids and None not in loaded_objects:
+        if ids != None and None in ids and None not in loaded_objects:
             loaded_objects[None] = nocls(self)
         extract = self.__extract_rows(cls._table_name, loaded_objects,
                                       ids, names, regexp)
@@ -531,6 +531,10 @@ class Yat:
                                           where tagging.task=? and
                                           tagging.tag=tags.id''', (task.id,)
                                          ).fetchall()
+            if rows == []:
+                # We have to load NoTag here, since there wouldn't be any request
+                # for the None id
+                self.__loaded_tags[None]= NoTag(self)
             set_rows = set(rows)
             for r in rows:
                 try:
