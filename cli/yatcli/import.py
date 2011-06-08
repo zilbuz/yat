@@ -67,10 +67,8 @@ database into a format suited for the new version of yat.
             migration = (cmd == u'migrate' and
                          f == yatcli.lib.config['yatdir'] + '/yat.db')
             leg = yatcli.yat.legacy.analyze_db(filename = f,
-                                            current_lib = yatcli.lib,
-                                            migration = migration)
-            # So far, we get the objects as sets (hence the strange operator).
-            # It might change.
+                                            current_lib = yatcli.lib)
+
             objects = leg.get_tasks() + leg.get_lists() + leg.get_tags()
             if migration:
                 # When migrating, once we have all the old data, we don't want

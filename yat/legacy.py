@@ -36,8 +36,7 @@ import re
 import sqlite3
 
 class V0_1:
-    def __init__(self, current_lib, db, migration):
-        self.migration = migration
+    def __init__(self, current_lib, db):
         self.enc = current_lib.config 
 
         self.config = current_lib.config
@@ -159,7 +158,7 @@ class V0_1:
     def get_tags(self, ids = None, regexp = None):
         return self._get_groups(Tag, self.__tag_ids, 'tags', ids, regexp)
 
-def analyze_db(filename=None, current_lib=None, migration=False):
+def analyze_db(filename=None, current_lib=None):
     u"""Check the version of the database pointed by filename, and return the
     appropriate library.
     
@@ -185,7 +184,7 @@ def analyze_db(filename=None, current_lib=None, migration=False):
 
     # Get the appropriate library
     if version == "0.1":
-        lib = V0_1(current_lib, filename, migration)
+        lib = V0_1(current_lib, filename)
     elif version == "0.2":
         lib = Yat(db_path=filename)
     else:
