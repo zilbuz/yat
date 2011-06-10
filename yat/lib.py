@@ -56,8 +56,6 @@ class Yat:
         u'''Compare an expression to a string and returns True if there
         is a match.
         '''
-        if expr == None:
-            return False
         # Replace all * and ? with .* and .? (but not \* and \?)
         regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
         regex = re.sub(r'([^\\])\?', r'\1.?', regex)
@@ -161,6 +159,7 @@ class Yat:
         self.__operators[">="] = lambda x, y: x >= y
         self.__operators["<="] = lambda x, y: x <= y
 
+        # Dictionaries used to avoid duplicating objects
         self.__loaded_tasks = {}
         self.__loaded_lists = {}
         self.__loaded_tags = {}
@@ -248,6 +247,8 @@ class Yat:
                 return self.get_tasks([int(value)])[0]
             except IndexError:
                 raise WrongId
+
+        # If the value isn't an ID, we assume it is a full name.
         try:
             return self.get_tasks(names=[value])[0]
         except IndexError:
@@ -255,29 +256,41 @@ class Yat:
 
     def get_loaded_tasks(self):
         u'''Returns a list of all the tasks that were already pulled from
-        the DB.'''
+        the DB. Complexity : O(n) = n'''
         return [t for t in self.__loaded_tasks.itervalues()]
 
     def __extract_rows(self, table_name, loaded_objects,
                        ids, names, regexp, extra_criteria = None):
-        u'''Extract the data out of the DB. It also checks wether it was already
+        u'''Extract the data out of the DB. It also checks whether it was already
         loaded, in which case it replaces it by the object.
         Arguments:
-            str:table_name : The name of the table from where the data will be
-                             extracted
-            dict:loaded_objects: dict to check wether a row was already loaded
-                                 or not.
-            list(int):ids:  A list of ids to load.
-            list(str):names:    A list of *exact* names to load.
-            str:regexp:     A regexp to compare with the content of the data.
-            (string, (values)):extra_criteria:  The string is a SQL predicat
-                such as 'parent=? and id=?' and "values" is a tuple containing
-                the values to insert in the string.
+            table_name (str): 
+                The name of the table from where the data will be extracted
+
+            loaded_objects (dict):
+                dict to check wether a row was already loaded or not.
+
+            ids ([int]):
+                A list of ids to load.
+
+            names ([str]):
+                A list of *exact* names to load.
+
+            regexp (str):
+                A regexp to compare with the content of the data.
+
+            extra_criteria (str, [values]):
+                The string is a SQL predicat such as 'parent=? and id=?' and
+                "values" is a list containing the values to insert
+                in the string.
 
         If ids, names and regexp are all None, the whole table will be fetched.
 
         It returns a tuple of list. The first list contains all the objects
-        already loaded, the second the raw data to process.'''
+        already loaded, the second the raw data to process.
+
+        Complexity : Good question !'''
+
         loaded = []
         # Fetch'em all !
         if ids == None and names == None and regexp == None:
@@ -293,32 +306,76 @@ class Yat:
             if extra_criteria == None:
                 extra_criteria = ('', [])
             else:
+                # We can safely assume that the extra criteria won't be
+                # the only ones, hence the 'and'
                 extra_criteria = ('and ' + extra_criteria[0], list(extra_criteria[1]))
-            if ids == None:
-                ids = []
-            if names == None:
-                names = []
-            rows = self.__sql.execute(u'''select * from {0}
-                                           where (id in ({1}) or 
-                                           content in ({2}) or
-                                           content regexp ?) {3}'''
-                                               .format(table_name,
-                                                       ', '.join(['?']*len(ids)),
-                                                       ', '.join(['?']*len(names)),
-                                                       extra_criteria[0]),
-                                               (ids + names + [regexp] +
-                                                extra_criteria[1])).fetchall()
-        # Theoretically, it might be faster to remove an object from a set
-        # if it is implemented as an unbalanced B-Tree : log(n) complexity to reach
-        # the node, and 1 to delete the object
-        set_rows = set(rows)
-        for r in rows:
-            try:    # Try to fetch the loaded object.
-                loaded.append(loaded_objects[int(r['id'])])
-                set_rows.remove(r)  # If it is there, the row is useless
-            except KeyError as e:
-                pass
-        return (loaded, list(set_rows))
+
+            # To optimize the query, we have to create a new composed one
+            # related to what is provided in argument. If there was no ID
+            # provided, there's no need to test against the ids !
+            # condition_string is what follows the 'where' statement.
+            # condition_arguments is what will replace all the ? in condition_string
+            condition_string = ''
+            condition_arguments = []
+
+            if ids != None:
+                # First, remove from the list what has already been loaded.
+                ids_to_load = []
+                for i in ids:
+                    if i in self.__loaded_tasks:
+                        loaded.append(i)
+                    else:
+                        ids_to_load.append(i)
+
+                # If everything has already been loaded, there's no need to
+                # test against the ids.
+                if ids_to_load != []:
+                    condition_string = 'id in ({0})'.format(', '.join(['?']*len(ids_to_load))))
+                    condition_arguments.extend(ids_to_load)
+
+            if names != None and names != []:
+                # If there's already a condition
+                if condition_string != '':
+                    condition_string += ' or '
+                condition_string += 'content in ({0})'
+                condition_string = condition_string.format(', '.join(['?']*
+                                                                     len(names)))
+                condition_arguments.extend(names)
+
+            if regexp != None:
+                if condition_string != '':
+                    condition_string += ' or '
+                condition_string += 'content regexp ?'
+                condition_arguments.append(regexp)
+
+            # Prepare the request in advance
+            request = (u'select * from {0} where ({1}) {2}'
+                       .format(table_name, condition_string, extra_criteria[0]))
+
+            if extra_criteria != None and condition_string != '':
+                extra_criteria = ('and ' + extra_criteria[0], list(extra_criteria[1]))
+            elif extra_criteria == None:
+                extra_criteria = ('', [])
+            # Don't forget the extra arguments !
+            sql_arguments = condition_arguments + extra_criteria[1]
+
+            # Fetch the rows only if there's some conditions
+            rows = []
+            if extra_criteria[0] != '' or condition_string != '':
+                rows = self.__sql.execute(request, sql_arguments).fetchall()
+
+                # Theoretically, it might be faster to remove an object from a set
+                # if it is implemented as an unbalanced B-Tree : log(n) complexity to reach
+                # the node, and 1 to delete the object
+                set_rows = set(rows)
+                for r in rows:
+                    try:    # Try to fetch the loaded object.
+                        loaded.append(loaded_objects[int(r['id'])])
+                        set_rows.remove(r)  # If it is there, the row is useless
+                    except KeyError as e:
+                        pass
+                rows = list(set_rows)
+        return (loaded, rows)
 
     def get_tasks(self, ids=None, names=None, regexp=None, groups=None):
         u'''Returns a list of tasks matching the input data. If ids, names,
@@ -332,10 +389,12 @@ class Yat:
         '''
         loaded = []
         rows=[]
+        list_criterium = None
+        lists = []
+        tags = []
+
         if groups != None:
             if ids == None: ids = []    # Otherwise, it would pull everything
-            lists = []
-            tags = []
             for g in groups:
                 if issubclass(type(g), List):
                     lists.append(g.id)
@@ -344,45 +403,48 @@ class Yat:
                     tags.append(g.id)
                     continue
 
+            # For the lists, use the extra_criteria parameter in order to
+            # benefit from the complex query optimizations.
             if lists != []:
-                rows.extend(self.__sql.execute(
-                    u'''select * from tasks where list in ({0})'''
-                    .format(', '.join(['?']*len(lists))), lists).fetchall())
+                list_criterium = (
+                    'list in ({0})'.format(', '.join(['?']*len(lists))),
+                    lists)
+
+            # For the tags, we have to do a separate query because of the
+            # many-to-many relationship
             if tags != []:
                 rows.extend(self.__sql.execute(
                     u''' select tasks.* from tasks, tagging
                     where tagging.tag in ({0}) and tasks.id=tagging.task'''
                     .format(', '.join(['?']*len(tags))), tags).fetchall())
 
-        set_rows = set(rows)
-        for r in rows:
-            try:
-                loaded.append(self.__loaded_tasks[int(r['id'])])
-                set_rows.remove(r)
-            except KeyError as e:
-                pass
-        loaded = self.__get_task_objects((loaded, list(set_rows)))
+                set_rows = set(rows)
+                for r in rows:
+                    try:
+                        loaded.append(self.__loaded_tasks[int(r['id'])])
+                        set_rows.remove(r)
+                    except KeyError as e:
+                        pass
+                loaded = self.__get_task_objects((loaded, list(set_rows)))
+
         return loaded + self.__get_task_objects(
             self.__extract_rows("tasks", self.__loaded_tasks,
-                                ids, names, regexp))
+                                ids, names, regexp, list_criterium))
 
     def get_children(self, task):
         u'''Returns all the direct subtasks of a given task.'''
-        rows = self.__sql.execute(u'''select * from tasks where parent=?''',
-                                  (task.id,)).fetchall()
-        loaded = []
-        set_rows = set(rows)
-        for r in rows:
-            try:
-                loaded.append(self.__loaded_tasks[int(r['id'])])
-                set_rows.remove(r)
-            except KeyError as e:
-                pass
-        return self.__get_task_objects((loaded, list(set_rows)))
+
+        # Simply use the extra_criteria parameter to fetch the direct children
+        return self.__get_task_objects(
+            self.__extract_rows("tasks", self.__loaded_tasks,
+                                extra_criteria=('parent=?', [task.id])))
 
     def __get_task_objects(self, extract):
-        u'''Take an extract: ([Task], [SQLRow]) ; and transforms the rows
-        into fully fledged objects with a little functional voodoo :).
+        u'''Take an extract and transforms the rows into fully fledged objects
+        with a little functional voodoo :).
+
+        extract ([Task], [SQLRow]):
+            Usually, what is returned by a call to self.__extract_rows()
 
         Return value: [Task]'''
         tasks = extract[0]
@@ -412,7 +474,9 @@ class Yat:
         # Sorry Basile, I needed this one.
         def distance(row):
             u'''The distance represents here the number of rows which have to
-            be processed before this one.'''
+            be processed before this one.
+            Careful, recursive !
+            '''
             # If there's no parent or it is already loaded, then it can be
             # loaded right away
             if row['parent'] == None or (int(row['parent']) in
@@ -420,14 +484,18 @@ class Yat:
                 return 0
             return distance(id_to_row[int(row['parent'])])+1
 
+        # Build a complete list of all rows to be transformed into tasks,
+        # and then sort it out in order to meet every dependency.
         rows = [r for r in id_to_row.itervalues()]
         rows = sorted(rows, key=distance)
+
+        # The actual transformation from rows to Tasks
         for r in rows:
             t = Task(self)
             t.id = int(r["id"])
             if r['parent'] == None:
                 t.parent = None
-            else:   # If everything go as planned, it is already loaded
+            else:   # Thanks to the careful sorting, it has to be already loaded
                 t.parent = self.__loaded_tasks[int(r['parent'])]
 
             t.content = r["content"]
@@ -439,6 +507,8 @@ class Yat:
             t.last_modified = r["last_modified"]
             t.created = r["created"]
 
+            # As usual, when pulling it from the DB we have to switch back
+            # the changed flag to False.
             t.changed = False
             self.__loaded_tasks[t.id] = t
             t.notes = self.get_notes(t)
@@ -449,12 +519,32 @@ class Yat:
         return tasks
 
     def get_notes(self, task=None, ids=None, contents=None, regexp=None):
+        u'''Grab notes from the database and build the objects if needed.
+        The arguments are pretty mutch the same as for the other get_* methods.
+        As always, if ids, contents and regexp are all equal None, the method
+        considers all notes, modulo the specified task (if specified)
+
+        task (Task):
+            If you just want to examin the notes of a given task.
+
+        ids ([int]):
+            A list of ids corresponding to notes to fetch.
+
+        contents ([str]):
+            A list of exact contents to match. In that particular case, it
+            seems highly improbable that someone would reproduce the whole
+            content of a note, but it has to be there for API consistency.
+
+        regexp (str):
+            A regular expression to compare against the contents.
+
+        Return value: [Note]
+        '''
         if task == None:
             extra_criteria = None
-            extract = self.__extract_rows('notes', self.__loaded_notes,
-                                             ids, contents, regexp)
         else:
             extra_criteria = ('task=?', (task.id,))
+
         extract = self.__extract_rows('notes', self.__loaded_notes,
                                       ids, contents, regexp, extra_criteria)
 
@@ -466,11 +556,16 @@ class Yat:
             note.content = n['content']
             note.hash = n['hash_id']
             note.created = n['created']
+
+            # As usual, when pulling it from the DB we have to switch back
+            # the changed flag to False.
             note.changed = False
+
             self.__loaded_notes[note.id] = note
             loaded.append(note)
 
         return loaded
+
     def _add_task(self, task):
         u'''Adds a task to the DB.
         '''
@@ -537,21 +632,18 @@ class Yat:
         # If we are to change this policy punctually, we can change the
         # children's parents here before the removal
         if not recursive:
+            query = '''
+            replace into tasks (id, content, parent, priority, due_date,
+                list, completed, last_modified, created, hash_id)
+            select t1.id, t1.content, t2.parent, t1.priority, t1.due_date,
+                t1.list, t1.completed, t1.list_modified, t1.created, t1.hash_id
+            from tasks as t1, tasks as t2
+            where t1.parent=t2.id and t2.id in ({0})
+            '''.format(', '.join(['?']*len(ids)))
+
             with self.__sql:
-                self.__sql.execute('''replace into tasks
-                                   (id, content,parent, priority, due_date,
-                                    list, completed, last_modified,
-                                    created, hash_id
-                                   )
-                                   select t1.id, t1.content, t2.parent,
-                                   t1.priority, t1.due_date, t1.list,
-                                   t1.completed, t1.last_modified,
-                                   t1.created, t1.hash_id
-                                   from tasks as t1, tasks as t2
-                                   where t1.parent=t2.id
-                                   and t2.id in ({seq})
-                                   '''.format(seq=', '.join(['?']*len(ids))),
-                                   ids)
+                self.__sql.execute(query, ids)
+
         self.__simple_removal(ids, 'tasks')
 
     def remove_notes(self, ids):
@@ -635,11 +727,12 @@ class Yat:
         loaded = []
         if task != None:
             ids = []    # Otherwise, the second step would fetch'em all
+            query = u'''select tags.* from tags, tagging
+            where tagging.task=? and tagging.tag=tags.id'''
+
             with self.__sql:
-                rows = self.__sql.execute(u'''select tags.* from tags, tagging
-                                          where tagging.task=? and
-                                          tagging.tag=tags.id''', (task.id,)
-                                         ).fetchall()
+                rows = self.__sql.execute(query, [task.id]).fetchall()
+
             if rows == []:
                 # We have to load NoTag here, since there wouldn't be any request
                 # for the None id
