@@ -221,6 +221,7 @@ class Yat:
                     id integer primary key,
                     content text,
                     task integer references tasks(id) on delete cascade,
+                    last_modified real,
                     created real,
                     hash_id varchar(64)
                 )""")
@@ -303,13 +304,6 @@ class Yat:
                                                   extra_criteria[0]),
                                           extra_criteria[1]).fetchall()
         else:
-            if extra_criteria == None:
-                extra_criteria = ('', [])
-            else:
-                # We can safely assume that the extra criteria won't be
-                # the only ones, hence the 'and'
-                extra_criteria = ('and ' + extra_criteria[0], list(extra_criteria[1]))
-
             # To optimize the query, we have to create a new composed one
             # related to what is provided in argument. If there was no ID
             # provided, there's no need to test against the ids !
@@ -322,15 +316,15 @@ class Yat:
                 # First, remove from the list what has already been loaded.
                 ids_to_load = []
                 for i in ids:
-                    if i in self.__loaded_tasks:
-                        loaded.append(i)
+                    if i in loaded_objects:
+                        loaded.append(loaded_objects[i])
                     else:
                         ids_to_load.append(i)
 
                 # If everything has already been loaded, there's no need to
                 # test against the ids.
                 if ids_to_load != []:
-                    condition_string = 'id in ({0})'.format(', '.join(['?']*len(ids_to_load))))
+                    condition_string = 'id in ({0})'.format(', '.join(['?']*len(ids_to_load)))
                     condition_arguments.extend(ids_to_load)
 
             if names != None and names != []:
@@ -348,16 +342,18 @@ class Yat:
                 condition_string += 'content regexp ?'
                 condition_arguments.append(regexp)
 
-            # Prepare the request in advance
-            request = (u'select * from {0} where ({1}) {2}'
-                       .format(table_name, condition_string, extra_criteria[0]))
-
             if extra_criteria != None and condition_string != '':
                 extra_criteria = ('and ' + extra_criteria[0], list(extra_criteria[1]))
+                condition_string = '(' + condition_string + ')'
             elif extra_criteria == None:
                 extra_criteria = ('', [])
             # Don't forget the extra arguments !
             sql_arguments = condition_arguments + extra_criteria[1]
+
+            # Prepare the request in advance
+            request = (u'select * from {0} where {1} {2}'
+                       .format(table_name, condition_string, extra_criteria[0]))
+
 
             # Fetch the rows only if there's some conditions
             rows = []
@@ -436,8 +432,8 @@ class Yat:
 
         # Simply use the extra_criteria parameter to fetch the direct children
         return self.__get_task_objects(
-            self.__extract_rows("tasks", self.__loaded_tasks,
-                                extra_criteria=('parent=?', [task.id])))
+            self.__extract_rows("tasks", self.__loaded_tasks, None, None, None,
+                                ('parent=?', [task.id])))
 
     def __get_task_objects(self, extract):
         u'''Take an extract and transforms the rows into fully fledged objects
@@ -636,7 +632,7 @@ class Yat:
             replace into tasks (id, content, parent, priority, due_date,
                 list, completed, last_modified, created, hash_id)
             select t1.id, t1.content, t2.parent, t1.priority, t1.due_date,
-                t1.list, t1.completed, t1.list_modified, t1.created, t1.hash_id
+                t1.list, t1.completed, t1.last_modified, t1.created, t1.hash_id
             from tasks as t1, tasks as t2
             where t1.parent=t2.id and t2.id in ({0})
             '''.format(', '.join(['?']*len(ids)))
@@ -834,24 +830,29 @@ class Yat:
         note.check_values()
         with self.__sql:
             self.__sql.execute(u'''insert into notes
-                               values(null, ?, ?, ?, ?)''',
-                               (note.content, note.task.id, note.created,
-                                note.hash))
+                               values(null, ?, ?, ?, ?, ?)''',
+                               (note.content, note.task.id, self.get_time(),
+                                note.created, note.hash))
             note_row = self.__sql.execute(u'''select * from notes
                                           where task=? and
                                           created=? and content=?''',
                                           (note.task.id, note.created, note.content)
                                          ).fetchone()
-        note.id = note_row["id"]
+        note.id = int(note_row["id"])
+        note.last_modified = int(note_row['last_modified'])
+        note.changed = False
 
     def _edit_note(self, note):
         note.check_values()
         if note.id == None:
             return
+        t = self.get_time()
+        query = u'''update notes set content=?, parent=?, last_modified=?
+            where id=?'''
+        arguments = (note.content, note.parent, t, note.id)
         with self.__sql:
-            self.__sql.execute(u'''update notes
-                               set content=?, parent=? where id=?''',
-                               (note.content, note.parent, note.id))
+            self.__sql.execute(query, arguments)
+            note.last_modified = t
         note.changed = False
 
     def _add_group(self, table_name, group):
@@ -862,7 +863,7 @@ class Yat:
                                        where content=?
                                        ''' % table_name, (group.content,)
                                       ).fetchone()
-        group.id = group_row['id']
+        group.id = int(group_row['id'])
         group.priority = group_row['priority']
         group.created = group_row['created']
         group.last_modified = group_row['last_modified']
@@ -872,9 +873,11 @@ class Yat:
         group.check_values()
         if group.id == None:
             return
+        t = self.get_time()
+        query = u'update %s set content=?, priority=?, last_modified=? where id=?' % table_name
         with self.__sql:
-            self.__sql.execute(u'update %s set content=?, priority=?, last_modified=? where id=?' % table_name,
-                    (group.content, group.priority, self.get_time(), group.id))
+            self.__sql.execute(query, (group.content, group.priority, t, group.id))
+            group.last_modified = t
         group.changed = False
 
     def _add_tag_or_list(self, table, name, priority, created = 0):
