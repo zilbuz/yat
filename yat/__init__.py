@@ -28,5 +28,6 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 from lib import *
+from tree import Tree
 import legacy
 
