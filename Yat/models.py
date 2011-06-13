@@ -466,7 +466,15 @@ Careful, the <trees> list will be modified on site.
 
         # Do the same for the last section of the list
         sublist = trees[reference[1]:]
-        sublist.sort(key=lambda t: t.significant_value(criteria[1]),
-                     reverse=criteria[1][1])
+        # Sort it a first time
+        criteria_copy = criteria[:]
+        while len(criteria_copy) > 1:
+            try:
+                sublist.sort(key=(lambda t:
+                                  t.significant_value(criteria_copy[1])
+                                 ), reverse=criteria_copy[1][1])
+                break
+            except AttributeError as e:
+                criteria_copy = criteria_copy[1:]
         Tree.__subsort_trees(sublist, criteria[1:])
         trees[reference[1]:] = sublist
