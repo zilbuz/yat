@@ -66,6 +66,7 @@ Options:
         ])
 
         self.ids_to_remove = []
+        self.regexp = None
         self.select_type('task')
         self.arguments = (['type', 'id', 'regexp'], {
             'type'  :   ('^(?P<value>task|list|tag)$',
@@ -73,7 +74,7 @@ Options:
             'id'    :   ('^id=(?P<value>[0-9]+)$',
                          ['id', 'regexp', None], self.add_id_to_remove),
             'regexp':   ('^(?P<value>.*)$', ['id', 'regexp', None],
-                         self.process_regexp)
+                         lambda x,y: setattr(self, 'regexp', self.regexp+' '+x) or True if self.regexp != None else setattr(self, 'regexp', x) or True)
         })
         super(RemoveCommand, self).__init__()
 
@@ -110,23 +111,26 @@ Options:
         self.ids_to_remove.append(int(value))
         return True
 
-    def process_regexp(self, value, trail):
-        if (value == '*' and not self.force and 
+    def process_regexp(self):
+        if self.regexp == None:
+            return
+        if (self.regexp == '*' and not self.force and 
             not yatcli.yes_no_question(
                 "This operation is potentially disastrous. Are you so desperate ?",
                 default = True)):
-            return True
-        objects = self.get_obj(regexp=value)
+            return
+        objects = self.get_obj(regexp=self.regexp)
         if not self.force and self.interactive:
             for o in objects:
                 if yatcli.yes_no_question(self.interactive_text(o)):
                     self.ids_to_remove.append(o.id)
-            return True
+            return
         self.ids_to_remove.extend([o.id for o in objects])
-        return True
+        return
 
     def execute(self, cmd, args):
         if not self.parse_arguments(self.parse_options(args)):
             print self.__doc__.split('\n',1)[0]," ",args
             return
+        self.process_regexp()
         self.removal_function(self.ids_to_remove)
