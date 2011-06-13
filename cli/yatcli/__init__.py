@@ -35,6 +35,7 @@ import os
 import sys
 import yat
 import command
+import re
 
 # import all the command to load the aliases no matter what
 import add
@@ -192,7 +193,7 @@ def parse_input_date(date):
     u"""This function parses a string representing a date, and return the
     corresponding timestamp. Raises a ValueError if there is an error in the
     date."""
-    regex_date = lib.config["re.date"].match(date)
+    regex_date = re.match(lib.config["re.date"], date)
     re_date = regex_date.groupdict()
     year = int(re_date["year"])
     if lib.config["cli.input_date"] == "dd/mm":
