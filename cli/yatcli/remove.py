@@ -71,8 +71,8 @@ Options:
             'type'  :   ('^(?P<value>task|list|tag)$',
                          ['id', 'regexp'], self.select_type),
             'id'    :   ('^id=(?P<value>[0-9]+)$',
-                         ['id', 'regexp'], self.add_id_to_remove),
-            'regexp':   ('^(?P<value>.*)$', ['id', 'regexp'],
+                         ['id', 'regexp', None], self.add_id_to_remove),
+            'regexp':   ('^(?P<value>.*)$', ['id', 'regexp', None],
                          self.process_regexp)
         })
         super(RemoveCommand, self).__init__()
@@ -108,6 +108,7 @@ Options:
                 self.get_obj(ids=[int(value)])), default=True)):
             return True
         self.ids_to_remove.append(int(value))
+        return True
 
     def process_regexp(self, value, trail):
         if (value == '*' and not self.force and 

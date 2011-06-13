@@ -71,6 +71,8 @@ with:
       of the last argument' process function.
     u'''
 
+        if not hasattr(self, 'breakdown'):
+            self.breakdown = False
         for o in self.options:
             if len(o) != 4:
                 raise ValueError('The options must be of the form \
@@ -87,16 +89,33 @@ with:
         self.execute(cmd, self.parse_arguments(self.parse_options(args)))
 
     def parse_arguments(self, args):
+        if self.breakdown:
+            args_cpy = []
+            for a in args:
+                args_cpy.extend(a.split(' '))
+            args = args_cpy
         to_examine = self.arguments[0][:]
         to_pass = None
         for a in args:
+            m = None
             for e in to_examine:
+                if e == None:
+                    continue
                 p = self.arguments[1][e]
                 m = p[0].match(a)
                 if m == None:
                     continue
-                to_examine = p[1]
+                if callable(p[1]):
+                    to_examine = p[1](m.groupdict()['value'])
+                else:
+                    to_examine = p[1]
                 to_pass = p[2](m.groupdict()['value'], to_pass)
+                break
+            if m == None:
+                raise Exception('Unknown argument')
+            
+        if None not in to_examine:
+            raise Exception('Argument missing')
 
         return to_pass
 
