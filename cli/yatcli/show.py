@@ -223,7 +223,8 @@ Options:
                                    len(arguments['prefix']))
 
             # Prepare and split tags
-            tags = ", ".join([t.content for t in task.tags])
+            tags = sorted(task.tags, key = lambda t: len(t.content))
+            tags = ", ".join([t.content for t in tags])
             tags = self.__split_text(tags, self.tagswidth)
 
             # Print the first line of the current task
