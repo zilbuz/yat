@@ -65,7 +65,7 @@ The possible attributes for a list or a tag are:
 
     def __init__(self):
         self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
-        self.re_due_date = re.compile(u"^due_date={0}$".format(
+        self.re_due_date = re.compile(u"^due_date=({0})$".format(
             yatcli.lib.config["re.date"]))
         self.re_parent = re.compile(u"^parent=({0})$".format(
             yatcli.lib.config["re.id"]))
@@ -129,7 +129,7 @@ The possible attributes for a list or a tag are:
             res = self.re_due_date.match(a)
             if res != None:
                 try:
-                    to_edit.due_date = yatcli.parse_input_date(res)
+                    to_edit.due_date = yatcli.parse_input_date(res.group(1))
                 except ValueError:
                     yatcli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
                             f = sys.stderr,

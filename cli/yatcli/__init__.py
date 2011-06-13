@@ -188,9 +188,11 @@ def yes_no_question(txt, default = False, i = None, o = None):
     else:
         return rep[0] != "n"
 
-def parse_input_date(regex_date):
-    u"""This function transform the object returned by the date regexp in a
-    timestamp. Raise a ValueError if there is an error in the date."""
+def parse_input_date(date):
+    u"""This function parses a string representing a date, and return the
+    corresponding timestamp. Raises a ValueError if there is an error in the
+    date."""
+    regex_date = lib.config["re.date"].match(date)
     re_date = regex_date.groupdict()
     year = int(re_date["year"])
     if lib.config["cli.input_date"] == "dd/mm":

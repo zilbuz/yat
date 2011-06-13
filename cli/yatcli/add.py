@@ -111,7 +111,7 @@ Adding a tag:
             yatcli.lib.config["re.list_name"]))
         u"""Regex for the list"""
 
-        self.re_date = re.compile(u"^\^{0}$".format(yatcli.lib.config["re.date"]))
+        self.re_date = re.compile(u"^\^({0})$".format(yatcli.lib.config["re.date"]))
         u"""Regex for the date"""
 
     def execute(self, cmd, args):
@@ -176,7 +176,7 @@ Adding a tag:
                 res = self.re_date.match(a)
                 if res != None:
                     try:
-                        new_task.due_date = yatcli.parse_input_date(res)
+                        new_task.due_date = yatcli.parse_input_date(res.group(1))
                     except ValueError:
                         yatcli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
                                 f = sys.stderr,
