@@ -74,11 +74,11 @@ Options:
             'id'    :   ('^id=(?P<value>[0-9]+)$',
                          ['id', 'regexp', None], self.add_id_to_remove),
             'regexp':   ('^.*$', ['id', 'regexp', None],
-                         lambda x,y: self.regexp.append(x) or True)
+                         self.regexp)
         })
         super(RemoveCommand, self).__init__()
 
-    def select_type(self, value, trail=None):
+    def select_type(self, value):
         u'''Select the internal methods to use to process the arguments.'''
         self.interactive_text = lambda x: ('Do you want to delete this {0}:\n'.format(value) +
                             '\n  {0.content}\n    priority: {0.priority}'.format(x))
@@ -103,13 +103,13 @@ Options:
             self.removal_function = getattr(yatcli.lib, 'remove_{0}s'.format(value))
         return False
 
-    def add_id_to_remove(self, value, trail):
+    def add_id_to_remove(self, value):
         if (self.interactive and not
             yatcli.yes_no_question(self.interactive_text(
                 self.get_obj(ids=[int(value)])), default=True)):
-            return True
+            return
         self.ids_to_remove.append(int(value))
-        return True
+        return
 
     def process_regexp(self):
         if self.regexp == []:
@@ -129,9 +129,6 @@ Options:
         self.ids_to_remove.extend([o.id for o in objects])
         return
 
-    def execute(self, cmd, args):
-        if not self.parse_arguments(self.parse_options(args)):
-            print self.__doc__.split('\n',1)[0]," ",args
-            return
+    def execute(self, cmd):
         self.process_regexp()
         self.removal_function(self.ids_to_remove)

@@ -62,14 +62,12 @@ the shell doesn't expand them.
 
         self.arguments = (['id', 'regexp'], {
             'id'    :   ('^id=(?P<value>[0-9]+)$', ['id', 'regexp', None],
-                         lambda x,y: self.ids_to_process.append(x)),
-            'regexp':   ('.*', ['regexp', None],
-                         lambda x,y: self.regexp.append(x))
+                         self.ids_to_process),
+
+            'regexp':   ('.*', ['regexp', None], self.regexp)
         })
 
-    def execute(self, cmd, args):
-        self.parse_arguments(self.parse_options(args))
-
+    def execute(self, cmd):
         if self.regexp == []:
             regexp = None
         else:

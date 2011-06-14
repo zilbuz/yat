@@ -61,7 +61,7 @@ constructor is None, None otherwise, when creating the Command object."""
         if not hasattr(self, 'arguments'):
             self.arguments = ([None], {})
         u'''Of the form:
-    ([names], {name: (regexp, next, process)}
+    ([names], {name: (regexp, next, process)})
 with:
     - names: the key values used as entry point
     - name: a simple string
@@ -76,7 +76,8 @@ with:
 
     def __call__(self, cmd, args):
         self.command = cmd
-        self.execute(cmd, self.parse_arguments(self.parse_options(args)))
+        self.parse_arguments(self.parse_options(args))
+        self.execute(cmd)
 
     def parse_arguments(self, args):
         for k, a in self.arguments[1].iteritems():
@@ -91,7 +92,6 @@ with:
             to_examine = self.arguments[0](self.command)
         else:
             to_examine = self.arguments[0]
-        to_pass = None
         for a in args:
             m = None
             for e in to_examine:
@@ -109,15 +109,22 @@ with:
                     to_examine = p[1](value)
                 else:
                     to_examine = p[1]
-                to_pass = p[2](value, to_pass)
+
+                if callable(p[2]):
+                    p[2](value)
+                elif isinstance(p[2], str):
+                    setattr(self, p[2], value)
+                elif isinstance(p[2], list):
+                    p[2].append(value)
+                else:
+                    raise TypeError("The last member of the argument tuple should \
+                                    be a string, a list or a callable.")
                 break
             if m == None:
-                raise Exception('Unknown argument {0}'.format(a.__repr__()))
+                raise Exception('Unknown argument: {0}'.format(a))
             
         if None not in to_examine:
             raise Exception('Argument missing')
-
-        return to_pass
 
     def parse_options(self, args):
         for o in self.options:
@@ -197,7 +204,7 @@ with:
             pass
         return stripped_args
 
-    def execute(self, cmd, args):
+    def execute(self, cmd):
         u"""Method actually doing something
         Params:
             -cmd: alias used to invoke the command

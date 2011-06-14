@@ -37,23 +37,27 @@ the name of a command is provided, show the specific help text for this command.
 """
 
     alias = [u"help"]
+    def __init__(self):
+        super(HelpCommand, self).__init__()
+        self.cmd = self
+        self.detailed = False
+        self.attributes = (['command', None]), {
+            'command':  ('^.*$', [None], self.__set_cmd)
+        }
 
-    def execute(self, cmd, args):
-        detailed = False
-        cmd = self
+    def __set_cmd(self, value):
+        u'''Load the command specified by value.'''
+        self.cmd = yatcli.aliases[value]
+        self.detailed = True
 
-        if len(args) > 0:
-            if args[0] in yatcli.aliases:
-                cmd = yatcli.aliases[args[0]]()
-                detailed = True
+    def execute(self, cmd):
+        helptxt = self.cmd.__doc__.split('\n\n', 1)
 
-        helptxt = cmd.__doc__.split('\n\n', 1)
-
-        if detailed:
+        if self.detailed:
             yatcli.output(helptxt[1].format(name = yatcli.name))
 
-        if cmd.alias[0] == u"help":
-            if not detailed:
+        if self.cmd.alias[0] == u"help":
+            if not self.detailed:
                 yatcli.output(
                 u"""{name} (Yet Another Todolist) is a very simple commandline todolist manager.
 
@@ -97,5 +101,3 @@ The different commands are:""".format(name = yatcli.name))
             yatcli.output(u" detailed informations on a specific command.")
 
         yatcli.output()
-        pass
-    pass

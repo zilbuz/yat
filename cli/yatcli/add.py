@@ -108,38 +108,36 @@ Adding a tag:
             'type':     ('^(?P<value>task|list|tag)$',
                          lambda x: whole_task if x == 'task' else (
                              ['list_name'] if x == 'list' else ['tag_name']),
-                         lambda x,y: setattr(self, 'cmd', x)),
+                         'cmd'),
 
             # A tag element of a task definition
             'tag':      ('^#(?P<value>{0})$'.format(yatcli.lib.config["re.tag_name"]),
-                         whole_task, lambda x,y: self.tags_to_add.append(x)),
+                         whole_task, self.tags_to_add),
 
             # The list element of a task definition
             'list':     ('^>(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
-                         whole_task, lambda x,y: setattr(self, 'list', x)),
+                         whole_task, 'list'),
             
             'parent':   ('^~(?P<value>{0})$'.format(yatcli.lib.config['re.id']),
-                         whole_task, lambda x,y: setattr(self, 'parent', x)),
+                         whole_task, 'parent'),
 
             # The priority for a task only !
             'priority': ('^\*(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
-                         whole_task, lambda x,y: setattr(self, 'priority', int(x))),
+                         whole_task, 'priority'),
 
             'date':     ('^\^(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
-                         whole_task, lambda x,y: setattr(self, 'date', x)),
+                         whole_task, 'date'),
 
             # Will be added to the content.
-            'word':     ('^.*$', whole_task,
-                         lambda x,y: self.content.append(x)),
+            'word':     ('^.*$', whole_task, self.content),
 
-            'tag_name': ('^(?P<value>{0})$'.format(yatcli.lib.config['re.tag_name']),
-                         ['group_priority', None], lambda x,y: self.content.append(x)),
+            'tag_name': ('^{0}$'.format(yatcli.lib.config['re.tag_name']),
+                         ['group_priority', None], self.content),
 
-            'list_name':('^(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
-                         ['group_priority', None], lambda x,y: self.content.append(x)),
+            'list_name':('^{0}$'.format(yatcli.lib.config['re.list_name']),
+                         ['group_priority', None], self.content),
 
-            'group_priority': ('^-?\d\d*$', [None],
-                               lambda x,y: setattr(self, 'priority', int(x)))
+            'group_priority': ('^-?\d\d*$', [None], 'priority')
         })
 
 
@@ -172,8 +170,7 @@ Adding a tag:
                 new_tags.add(new_tag)
         obj.tags |= new_tags
 
-    def execute(self, cmd, args):
-        self.parse_arguments(self.parse_options(args))
+    def execute(self, cmd):
         obj = self.get_object()
         if self.cmd == 'task':
             # Set the tags

@@ -54,8 +54,7 @@ Options:
             ('n', 'no-recursive', 'no_recursive', None)
         ])
 
-    def execute(self, cmd, args):
-        self.parse_options(args)
+    def execute(self, cmd):
         if not self.force:
             if not yatcli.yes_no_question(u"Are you sure you want to delete all your completed tasks ?"):
                 return

@@ -58,16 +58,12 @@ database into a format suited for the new version of yat.
             return [None]
 
     def __init__(self):
-        self.arguments = (self.__cmd_switch, {
-            'filename': ('^.*$', ['filename', None],
-                         lambda x,y: self.files.append(x))
-        })
         super(MigrateCommand, self).__init__()
+        self.arguments = (self.__cmd_switch, {
+            'filename': ('^.*$', ['filename', None], self.files)
+        })
 
-    def execute(self, cmd, args):
-        self.command = cmd
-        self.parse_arguments(args)
-
+    def execute(self, cmd):
         for f in self.files:
             # leg is the library associated with the DB to import.
             leg = yatcli.yat.legacy.analyze_db(filename = f,

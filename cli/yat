@@ -272,7 +272,7 @@ def main(argv):
     try:
         yatcli.lib.get_lock(force_lock)
         # Executing command with the rest of the arguments
-        cmd.execute(cmd_alias, cmd_args)
+        cmd(cmd_alias, cmd_args)
     except yat.exceptions.ExistingLock:
         yatcli.output(u"[ERR] A lock is already set up, the command was ignored.",
                 f = sys.stderr, foreground = yatcli.colors.errf, background =

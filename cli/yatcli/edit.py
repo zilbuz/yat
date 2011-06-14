@@ -69,14 +69,13 @@ The possible attributes for a list or a tag are:
 
         self.breakdown = False
         self.cmd = 'task'
-        self.content = []
+        self.content = None
         self.tags_to_add = []
         self.tags_to_rm = []
         whole_task = ['tags', 'list', 'rm_tags', 'parent', 'date', 'priority', 'task_name', None]
         self.arguments = (['type', 'id'], {
             # The first argument, 'tag', 'task' or 'list'
-            'type':     ('^(?P<value>task|list|tag)$', ['id'],
-                         lambda x,y: setattr(self, 'cmd', x)),
+            'type':     ('^(?P<value>task|list|tag)$', ['id'], 'cmd'),
 
             'id':       ('^id=(?P<value>{0})$'.format(yatcli.lib.config["re.id"]),
                          lambda x: (
@@ -85,49 +84,48 @@ The possible attributes for a list or a tag are:
                              if self.cmd == 'task' else 
                              ['list_name', 'group_priority'] if self.cmd == 'list' else
                              ['tag_name', 'group_priority']),
-                         lambda x,y: setattr(self, 'id', int(x))),
+                         'id'),
 
             # A tag element of a task definition
             'tags':      ('^add_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
-                         whole_task, lambda x,y: self.tags_to_add.extend(x.split(','))),
+                         whole_task, lambda x: self.tags_to_add.extend(x.split(','))),
 
             'rm_tags':      ('^remove_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
-                         whole_task, lambda x,y: self.tags_to_rm.extend(x.split(','))),
+                         whole_task, lambda x: self.tags_to_rm.extend(x.split(','))),
 
             # The list element of a task definition
             'list':     ('^list=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
-                         whole_task, lambda x,y: setattr(self, 'list', x)),
+                         whole_task, 'list'),
             
             'parent':   ('^parent=(?P<value>{0})$'.format(yatcli.lib.config['re.id']),
-                         whole_task, lambda x,y: setattr(self, 'parent', x)),
+                         whole_task, 'parent'),
 
             # The priority for a task only !
             'priority': ('^priority=(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
-                         whole_task, lambda x,y: setattr(self, 'priority', x)),
+                         whole_task, 'priority'),
 
             'date':     ('^due_date=(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
-                         whole_task, lambda x,y: setattr(self, 'date', x)),
+                         whole_task, 'date'),
 
             # Will be added to the content.
-            'task_name':('^task=(?P<value>.*)$', whole_task,
-                         lambda x,y: setattr(self, 'content', [x])),
+            'task_name':('^task=(?P<value>.*)$', whole_task, 'content'),
 
             'tag_name': ('^name=(?P<value>{0})$'.format(yatcli.lib.config['re.tag_name']),
-                         ['group_priority', None], lambda x,y: setattr(self, 'content', [x])),
+                         ['group_priority', None], 'content'),
 
             'list_name':('^name=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
-                         ['group_priority', None], lambda x,y: setattr(self, 'content', [x])),
+                         ['group_priority', None], 'content'),
 
             'group_priority': ('^priority=(?P<value>-?\d\d*)$',
                                lambda x: ['tag_name', None] if self.cmd == 'tag'
-                               else ['list_name', None],
-                               lambda x,y: setattr(self, 'priority', x))
+                                   else ['list_name', None],
+                               'priority')
         })
 
     def edit_content(self, obj):
-        if self.content == []:
+        if self.content == None:
             return
-        obj.content = " ".join(self.content)
+        obj.content = self.content
 
     def edit_tags(self, obj):
         super(EditCommand, self).edit_tags(obj)
