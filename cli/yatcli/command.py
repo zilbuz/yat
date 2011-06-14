@@ -86,6 +86,7 @@ with:
             self.arguments[1][k] = (re.compile(a[0]), a[1], a[2])
 
     def __call__(self, cmd, args):
+        self.command = cmd
         self.execute(cmd, self.parse_arguments(self.parse_options(args)))
 
     def parse_arguments(self, args):
@@ -94,7 +95,10 @@ with:
             for a in args:
                 args_cpy.extend(a.split(' '))
             args = args_cpy
-        to_examine = self.arguments[0][:]
+        if callable(self.arguments[0]):
+            to_examine = self.arguments[0](self.command)
+        else:
+            to_examine = self.arguments[0]
         to_pass = None
         for a in args:
             m = None
@@ -105,11 +109,15 @@ with:
                 m = p[0].match(a)
                 if m == None:
                     continue
+                try:
+                    value = m.grooupdict()['value']
+                except KeyError:
+                    value = a
                 if callable(p[1]):
-                    to_examine = p[1](m.groupdict()['value'])
+                    to_examine = p[1](value)
                 else:
                     to_examine = p[1]
-                to_pass = p[2](m.groupdict()['value'], to_pass)
+                to_pass = p[2](value, to_pass)
                 break
             if m == None:
                 raise Exception('Unknown argument')

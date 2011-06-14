@@ -45,6 +45,7 @@ import help
 import edit
 import done
 import clean
+import migrate
 
 __all__ = [
         "command",
@@ -55,7 +56,7 @@ __all__ = [
         "edit",
         "done",
         "clean",
-        "import"
+        "migrate"
         ]
 u"""All filename listed here will be loaded when using the expression
     "from Commands import *"

@@ -30,7 +30,7 @@ import sys
 import yatcli
 from command import Command
 
-class ImportCommand(Command):
+class MigrateCommand(Command):
     u"""Change the completed status of a task.
 
 usage : {name} import <file.db>
@@ -46,31 +46,35 @@ database into a format suited for the new version of yat.
 
     alias = [u"import", u"migrate"]
 
+    def __cmd_switch(self, alias):
+        '''Analyzes the alias used and initialize the environment accordingly.
+        It returns the list of the possible following arguments.'''
+        if alias == 'import':
+            self.files = []
+            self.migration = False
+            return ['filename']
+        elif alias == 'migrate':
+            self.files = [yatcli.lib.config['yatdir'] + '/yat.db']
+            return [None]
+
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
+        self.arguments = (self.__cmd_switch, {
+            'filename': ('^.*$', ['filename', None],
+                         lambda x,y: self.files.append(x))
+        })
+        super(MigrateCommand, self).__init__()
 
     def execute(self, cmd, args):
-        if cmd == u"migrate":
-            # When migrating, the only DB to import is the default one.
-            files = [yatcli.lib.config['yatdir'] + '/yat.db']
-        elif len(args) == 0:
-            yatcli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help import'", 
-                    f = sys.stderr,
-                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
-                    bold = yatcli.colors.errbold)
-            return
-        else:
-            files = args
+        self.command = cmd
+        self.parse_arguments(args)
 
         for f in files:
             # leg is the library associated with the DB to import.
-            migration = (cmd == u'migrate' and
-                         f == yatcli.lib.config['yatdir'] + '/yat.db')
             leg = yatcli.yat.legacy.analyze_db(filename = f,
                                             current_lib = yatcli.lib)
 
             objects = leg.get_tasks() + leg.get_lists() + leg.get_tags()
-            if migration:
+            if self.migration:
                 # When migrating, once we have all the old data, we don't want
                 # the old layout sticking around :)
                 leg.delete_tables()
