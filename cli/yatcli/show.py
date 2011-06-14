@@ -51,15 +51,11 @@ Options:
         self.textwidth = 0
         self.tagswidth = 0
         self.datewidth = max(int(yatcli.lib.config["cli.output_datetime_length"]), 8)
-        self.show_completed = False
+        self.options = [('a', 'show-completed', 'show_completed', None)]
 
     def execute(self, cmd, args):
-
+        self.parse_options(args)
         # Parse the options of the command
-        for a in args:
-            res = re.match("^(--show-completed|-a)$", a)
-            if res != None:
-                self.show_completed = True
         self.check_contextual = True    # Until an option is implemented
 
         # Testing the alias used to call ListCommand
