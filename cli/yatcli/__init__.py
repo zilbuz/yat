@@ -35,6 +35,7 @@ import os
 import sys
 import yat
 import command
+import re
 
 # import all the command to load the aliases no matter what
 import add
@@ -44,6 +45,7 @@ import help
 import edit
 import done
 import clean
+import migrate
 
 __all__ = [
         "command",
@@ -54,7 +56,7 @@ __all__ = [
         "edit",
         "done",
         "clean",
-        "import"
+        "migrate"
         ]
 u"""All filename listed here will be loaded when using the expression
     "from Commands import *"
@@ -64,6 +66,9 @@ lib = None
 name = None
 commands = None
 aliases = None
+
+class MissingArgument(Exception):
+    pass
 
 class colors:
     u"""ASCII code to change console colors. f... is for foreground colors, and
@@ -185,9 +190,11 @@ def yes_no_question(txt, default = False, i = None, o = None):
     else:
         return rep[0] != "n"
 
-def parse_input_date(regex_date):
-    u"""This function transform the object returned by the date regexp in a
-    timestamp. Raise a ValueError if there is an error in the date."""
+def parse_input_date(date):
+    u"""This function parses a string representing a date, and return the
+    corresponding timestamp. Raises a ValueError if there is an error in the
+    date."""
+    regex_date = re.match(lib.config["re.date"], date)
     re_date = regex_date.groupdict()
     year = int(re_date["year"])
     if lib.config["cli.input_date"] == "dd/mm":

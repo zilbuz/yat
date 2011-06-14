@@ -445,27 +445,30 @@ class Yat:
         Return value: [Task]'''
         tasks = extract[0]
         rows = extract[1]
-        parent_ids = []
         id_to_row = {}  # id:row
         for r in rows:
             id_to_row[int(r["id"])] = r
 
-            # Gather all the parents' ids.
-            if (r['parent'] != None and
-                r['parent'] not in self.__loaded_tasks.iterkeys()):
-                parent_ids.append(int(r['parent']))
+        while len(rows) > 0:
+            parent_ids = []
+            for r in rows:
+                # Gather all the parents' ids.
+                if (r['parent'] != None and
+                    r['parent'] not in self.__loaded_tasks.iterkeys()):
+                    parent_ids.append(int(r['parent']))
 
-        ids_to_fetch = []
-        for i in parent_ids:
-            # If we didn't already grabbed it
-            if i not in id_to_row.iterkeys():
-                ids_to_fetch.append(i)
+            ids_to_fetch = []
+            for i in parent_ids:
+                # If we didn't already grabbed it
+                if i not in id_to_row.iterkeys():
+                    ids_to_fetch.append(i)
 
-        parent_extract = self.__extract_rows('tasks', self.__loaded_tasks,
-                                             ids_to_fetch, None, None)
-        # We discard the tasks already loaded.
-        for r in parent_extract[1]:     # Don't care about redundancy, overwrite if needed
-            id_to_row[int(r["id"])] = r
+            parent_extract = self.__extract_rows('tasks', self.__loaded_tasks,
+                                                 ids_to_fetch, None, None)
+            # We discard the tasks already loaded.
+            for r in parent_extract[1]:     # Don't care about redundancy, overwrite if needed
+                id_to_row[int(r["id"])] = r
+            rows = parent_extract[1]
 
         # Sorry Basile, I needed this one.
         def distance(row):
@@ -617,7 +620,7 @@ class Yat:
             self.__sql.commit()
         task.changed = False
 
-    def remove_tasks(self, ids, recursive=True):
+    def remove_tasks(self, ids, recursive=False):
         u"""Remove tasks by their ids
         params:
             - ids (array<int>)

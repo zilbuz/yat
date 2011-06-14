@@ -26,6 +26,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import re
 import sys
+from collections import deque
 
 import yatcli
 from command import Command
@@ -51,33 +52,38 @@ the shell doesn't expand them.
     alias = [u"done", u"undone"]
 
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
+        super(DoneCommand, self).__init__()
+        self.ids_to_process = []
+        self.regexp = []
+        self.options = ([
+            ('r', 'recursive', 'recursive', None),
+            ('n', 'no-recursive', 'no_recursive', None)
+        ])
 
-    def execute(self, cmd, args):
-        if len(args) == 0:
-            yatcli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help done'", 
-                    f = sys.stderr,
-                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
-                    bold = yatcli.colors.errbold)
+        self.arguments = (['id', 'regexp'], {
+            'id'    :   ('^id=(?P<value>[0-9]+)$', ['id', 'regexp', None],
+                         self.ids_to_process),
 
-        id = None
-        regexp = []
-        for a in args:
-            res = self.re_id.match(a)
-            if res != None:
-                id = res.group(1)
-                break
-            regexp.append(a)
+            'regexp':   ('.*', ['regexp', None], self.regexp)
+        })
 
-        regexp = " ".join(regexp)
-
-        yatcli.yat.Task.class_lib = yatcli.lib
-        if id != None:
-            tasks = yatcli.lib.get_tasks(ids=[int(id)])
+    def execute(self, cmd):
+        if self.regexp == []:
+            regexp = None
         else:
-            tasks = yatcli.lib.get_tasks(regexp=regexp)
+            regexp = " ".join(self.regexp)
 
         done = cmd == u"done"
-        for task in tasks:
-            task.completed = done
-            task.save()
+        tasks = deque(yatcli.lib.get_tasks(ids = self.ids_to_process,
+                                           regexp = regexp))
+        while True:
+            try:
+                t = tasks.popleft()
+            except IndexError:
+                break
+            t.completed = done
+            t.save()
+            if self.recursive and not self.no_recursive:
+                processed.add(t)
+                tasks.extend([c for c in yatcli.lib.get_children(t)
+                              if c not in processed])

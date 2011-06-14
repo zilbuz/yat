@@ -47,21 +47,15 @@ Options:
     alias = [u"clean"]
 
     def __init__(self):
-        self.re_force = re.compile(r'^(--force|-f)$')
-        self.re_interactive = re.compile(r'^(--interactive|-i)$')
-        self.force = False
-        self.interactive = False
+        super(CleanCommand, self).__init__()
+        self.options = ([
+            ('f', 'force', 'force', None),
+            ('i', 'interactive', 'interactive', None),
+            ('r', 'recursive', 'recursive', None),
+            ('n', 'no-recursive', 'no_recursive', None)
+        ])
 
-    def execute(self, cmd, args):
-        # Parse args
-        for a in args:
-            res = self.re_force.match(a)
-            if res != None:
-                self.force = True
-            res = self.re_interactive.match(a)
-            if res != None:
-                self.interactive = True
-
+    def execute(self, cmd):
         if not self.force:
             if not yatcli.yes_no_question(u"Are you sure you want to delete all your completed tasks ?"):
                 return
@@ -74,8 +68,8 @@ Options:
                     txt = u"Do you want to delete this task:\n" + t.content 
                     txt += u" (priority: " + str(t.priority)
                     txt += u", due date: " + yatcli.parse_output_date(t.due_date) + u") ?"
-                    if not yatcli.yes_no_question(txt):
+                    if not yatcli.yes_no_question(txt, True):
                         continue
                 tasks_ids.append(t.id)
         
-        yatcli.lib.remove_tasks(tasks_ids)
+        yatcli.lib.remove_tasks(tasks_ids, self.recursive and not self.no_recursive)

@@ -96,105 +96,127 @@ Adding a tag:
     alias = [u"add"]
 
     def __init__(self):
-        self.re_priority = re.compile(u"^\*({0})$".format(
-            yatcli.lib.config["re.priority"]))
-        u"""Regex for the priorty"""
+        super(AddCommand, self).__init__()
 
-        self.re_tag = re.compile(u"^#({0})$".format(yatcli.lib.config["re.tag_name"]))
-        u"""Regex for the tags"""
+        self.breakdown = True
+        self.cmd = 'task'
+        self.content = []
+        self.tags_to_add = []
+        whole_task = ['tag', 'list', 'parent', 'date', 'priority', 'word', None]
 
-        self.re_parent = re.compile(u"^~({0})$".format(
-            yatcli.lib.config["re.id"]))
-        u"""Regex for the parent task"""
+        def type_next(value):
+            if value == 'task': return whole_task
+            return ['{0}_name'.format(value)]
 
-        self.re_list = re.compile(u"^>({0})$".format(
-            yatcli.lib.config["re.list_name"]))
-        u"""Regex for the list"""
+        self.arguments = (['type', 'tag', 'list', 'parent', 'date', 'priority', 'word'], {
+            # The first argument, 'tag', 'task' or 'list'
+            'type':     ('^(?P<value>task|list|tag)$', type_next, 'cmd'),
 
-        self.re_date = re.compile(u"^\^{0}$".format(yatcli.lib.config["re.date"]))
-        u"""Regex for the date"""
+            # A tag element of a task definition
+            'tag':      ('^#(?P<value>{0})$'.format(yatcli.lib.config["re.tag_name"]),
+                         whole_task, self.tags_to_add),
 
-    def execute(self, cmd, args):
-        cmd = ""
-        if args[0] in ["task", "list", "tag"]:
-            cmd = args[0]
-            args = args[1:]
+            # The list element of a task definition
+            'list':     ('^>(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
+                         whole_task, 'list'),
+            
+            'parent':   ('^~(?P<value>{0})$'.format(yatcli.lib.config['re.id']),
+                         whole_task, 'parent'),
 
-        # If there is no more arguments, return immediately
-        if len(args) == 0:
+            # The priority for a task only !
+            'priority': ('^\*(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
+                         whole_task, 'priority'),
+
+            'date':     ('^\^(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
+                         whole_task, 'date'),
+
+            # Will be added to the content.
+            'word':     ('^.*$', whole_task, self.content),
+
+            'tag_name': ('^{0}$'.format(yatcli.lib.config['re.tag_name']),
+                         ['group_priority', None], self.content),
+
+            'list_name':('^{0}$'.format(yatcli.lib.config['re.list_name']),
+                         ['group_priority', None], self.content),
+
+            'group_priority': ('^-?\d\d*$', [None], 'priority')
+        })
+
+
+    def edit_content(self, obj):
+        if self.content == []:
+            yatcli.output("[ERR] There is no actual content !.", 
+                    f = sys.stderr,
+                    foreground = yatcli.colors.errf, background = 
+                    yatcli.colors.errb, bold = yatcli.colors.errbold)
             return
+        obj.content = ' '.join(self.content)
 
-        # Process command
-        if cmd in ["tag", "list"]:
-            if cmd == "tag":
-                group = yatcli.yat.Tag(yatcli.lib)
-            elif cmd == "list":
-                group = yatcli.yat.List(yatcli.lib)
-            group.content = args[0]
-            if len(args) > 1:
-                # The second argument is the priority
-                group.priority = int(args[1])
-            else:
-                group.priority = 0
+    def get_object(self):
+        if self.cmd == 'list':
+            return yatcli.yat.List(yatcli.lib)
+        elif self.cmd == 'tag':
+            return yatcli.yat.Tag(yatcli.lib)
+        elif self.cmd == 'task':
+            return yatcli.yat.Task(yatcli.lib)
 
-            group.save(yatcli.lib)
+    def edit_tags(self, obj):
+        new_tags = set()
+        for n in self.tags_to_add:
+            try:
+                new_tags.add(yatcli.lib.get_tag(n, False))
+            except:
+                #If the tags don't exist, create them
+                new_tag = yatcli.yat.Tag(yatcli.lib)
+                new_tag.content = n
+                new_tags.add(new_tag)
+        obj.tags |= new_tags
 
+    def execute(self, cmd):
+        obj = self.get_object()
+        if self.cmd == 'task':
+            # Set the tags
+            self.edit_tags(obj)
+
+            #Set the list
+            try:
+                obj.list = yatcli.lib.get_list(self.list, False)
+            except yatcli.yat.WrongName:
+                obj.list = yatcli.yat.List(yatcli.lib)
+                obj.list.content = self.list
+            except AttributeError:
+                # It means the list hasn't been specified
+                pass
+
+            # Set the parent
+            try:
+                obj.parent = yatcli.lib.get_task(int(self.parent))
+            except yatcli.yat.WrongId:
+                yatcli.output("[ERR] The specified parent task doesn't exist.", 
+                        f = sys.stderr,
+                        foreground = yatcli.colors.errf, background = 
+                        yatcli.colors.errb, bold = yatcli.colors.errbold)
+                return
+            except AttributeError:
+                # The parent hasn't been specified
+                pass
+
+            # Set the due_date
+            try:
+                obj.due_date = yatcli.parse_input_date(self.due_date)
+            except ValueError:
+                yatcli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
+                        f = sys.stderr,
+                        foreground = yatcli.colors.errf, background = 
+                        yatcli.colors.errb, bold = yatcli.colors.errbold)
+                return
+            except AttributeError:
+                pass
+
+        # Common attributes
+        self.edit_content(obj)
+        try:
+            obj.priority = self.priority
+        except AttributeError:
             pass
-        else: # Adding a task
-            # Init params
-            new_task = yatcli.yat.Task(yatcli.lib)
-            tag_names = []
-            text = []
-
-            # Look for symbols
-            for a in args:
-                # Priority
-                res = self.re_priority.match(a)
-                if res != None:
-                    new_task.priority = int(res.group(1))
-                    continue
-                # Tags
-                res = self.re_tag.match(a)
-                if res != None:
-                    tag_names.append(res.group(1))
-                    continue
-                # List
-                res = self.re_list.match(a)
-                if res != None:
-                    try:
-                        new_task.list = yatcli.lib.get_list(res.group(1))
-                    except:
-                        new_task.list = yatcli.yat.List(yatcli.lib)
-                        new_task.list.content = res.group(1)
-                    continue
-                # Parent task
-                res = self.re_parent.match(a)
-                if res != None:
-                    new_task.parent = yatcli.lib.get_task(int(res.group(1)))
-                    continue
-                # Date
-                res = self.re_date.match(a)
-                if res != None:
-                    try:
-                        new_task.due_date = yatcli.parse_input_date(res)
-                    except ValueError:
-                        yatcli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
-                                f = sys.stderr,
-                                foreground = yatcli.colors.errf, background = 
-                                yatcli.colors.errb, bold = yatcli.colors.errbold)
-                        return
-                    continue
-                # Regular text
-                text.append(a)
-
-            new_task.content = " ".join(text)
-            new_task.tags = set()
-            for n in tag_names:
-                try:
-                    new_task.tags.add(yatcli.lib.get_tag(n, False))
-                except:
-                    new_tag = yatcli.yat.Tag(yatcli.lib)
-                    new_tag.content = n
-                    new_task.tags.add(new_tag)
-            new_task.save(yatcli.lib)
-
+        obj.save(yatcli.lib)

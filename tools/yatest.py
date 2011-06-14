@@ -33,6 +33,7 @@ import os
 import re
 import subprocess
 import sys
+import shlex
 
 # Global names
     # Metadata dictionnary
@@ -145,7 +146,10 @@ def launch_test(cfg, test):
     global metadata
     output("Calling programme with arguments : " + test)
     output("\tconfig-file: " + metadata["config-file"])
-    subprocess.call([metadata["yat"], cfg, test])
+    if test == '""' or test == "''":
+        test = ''
+    args = shlex.split(' '.join([metadata['yat'], cfg, test]))
+    subprocess.call(args)
     output("\t-> done")
 
 def output(txt, type = "info", linebreak = True):

@@ -94,7 +94,7 @@ add task task 34 to edit
 add task task 35 to edit (list4 to list5) >list4
 add task task 36 to edit (tag3 and tag4 to tag4, tag5 and tag6) #tag3 #tag4
     # Testing name, due date and priority
-edit id=34 task=task 34 to edit -> name, due date and priority edited due_date=12/08/2014 priority=3
+edit id=34 task="task 34 to edit -> name, due date and priority edited" due_date=12/08/2014 priority=3
     # Testing list
 edit task id=35 list=list5
     # Testing tags

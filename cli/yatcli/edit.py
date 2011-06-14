@@ -28,9 +28,9 @@ import re
 import sys
 
 import yatcli
-from command import Command
+from add import AddCommand
 
-class EditCommand(Command):
+class EditCommand(AddCommand):
     u"""Edit the attributes of a task
 
 usage: {name} edit [task|list|tag] id=<id> [<attribute>=<value>]*
@@ -63,122 +63,79 @@ The possible attributes for a list or a tag are:
 
     alias = [u"edit"]
 
+    def __after_id(self, value):
+        if self.cmd == 'task':
+            return ['rm_tags', 'tags', 'list', 'parent', 'date', 'priority', 'task_name'] 
+        else: return ['{0}_name'.format(self.cmd), 'group_priority']
+
+    def __process_rm_tags(self, value):
+        self.tags_to_rm.extend(value.split(','))
+
+    def __process_add_tags(self, value):
+        self.tags_to_add.extend(value.split(','))
+
+    def __after_group_priority(self, value):
+        return ['{0}_name'.format(self.cmd), None]
+
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
-        self.re_due_date = re.compile(u"^due_date={0}$".format(
-            yatcli.lib.config["re.date"]))
-        self.re_parent = re.compile(u"^parent=({0})$".format(
-            yatcli.lib.config["re.id"]))
-        self.re_priority = re.compile(u"^priority=({0})$".format(
-            yatcli.lib.config["re.priority"]))
-        self.re_add_tags = re.compile(u"^add_tags=({0})$".format(
-            yatcli.lib.config["re.tags_list"]))
-        self.re_remove_tags = re.compile(u"^remove_tags=({0})$".format(
-            yatcli.lib.config["re.tags_list"]))
-        self.re_list = re.compile(u"list=({0})".format(
-            yatcli.lib.config["re.list_name"]))
-        self.re_tol_priority = re.compile(u"^priority=(-?\d\d*)$")
-        self.re_tol_name = re.compile(u"^name=({0}|{1})$".format(
-            yatcli.lib.config["re.list_name"], yatcli.lib.config["re.tag_name"]))
-        self.re_name = re.compile(u"^task=(.*)$")
+        # We skip the AddCommand __init__()
+        super(AddCommand, self).__init__()
 
-    def execute(self, cmd, args):
+        self.breakdown = False
+        self.cmd = 'task'
+        self.content = None
+        self.tags_to_add = []
+        self.tags_to_rm = []
+        whole_task = ['tags', 'list', 'rm_tags', 'parent', 'date', 'priority', 'task_name', None]
+        self.arguments = (['type', 'id'], {
+            # The first argument, 'tag', 'task' or 'list'
+            'type':     ('^(?P<value>task|list|tag)$', ['id'], 'cmd'),
 
-        if len(args) == 0:
-            yatcli.output(st = u"[ERR] You must provide some arguments to edit an element. See 'yat help edit'.", 
-                    f = sys.stderr,
-                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
-                    bold = yatcli.colors.errbold)
+            'id':       ('^id=(?P<value>{0})$'.format(yatcli.lib.config["re.id"]),
+                         self.__after_id, 'id'),
+
+            # A tag element of a task definition
+            'tags':      ('^add_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
+                         whole_task, self.__process_add_tags),
+
+            'rm_tags':      ('^remove_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
+                         whole_task, self.__process_rm_tags),
+
+            # The list element of a task definition
+            'list':     ('^list=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
+                         whole_task, 'list'),
+            
+            'parent':   ('^parent=(?P<value>{0})$'.format(yatcli.lib.config['re.id']),
+                         whole_task, 'parent'),
+
+            # The priority for a task only !
+            'priority': ('^priority=(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
+                         whole_task, 'priority'),
+
+            'date':     ('^due_date=(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
+                         whole_task, 'date'),
+
+            # Will be added to the content.
+            'task_name':('^task=(?P<value>.*)$', whole_task, 'content'),
+
+            'tag_name': ('^name=(?P<value>{0})$'.format(yatcli.lib.config['re.tag_name']),
+                         ['group_priority', None], 'content'),
+
+            'list_name':('^name=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
+                         ['group_priority', None], 'content'),
+
+            'group_priority': ('^priority=(?P<value>-?\d\d*)$',
+                               self.__after_group_priority, 'priority')
+        })
+
+    def edit_content(self, obj):
+        if self.content == None:
             return
+        obj.content = self.content
 
-        if args[0] in [u"task", u"list", u"tag"]:
-            element = args[0]
-            args = args[1:]
-        else:
-            element = u"task"
+    def edit_tags(self, obj):
+        super(EditCommand, self).edit_tags(obj)
+        obj.tags -= set(yatcli.lib.get_tags(names=self.tags_to_rm))
 
-        to_edit = None
-
-        task = None
-        yatcli.yat.Task.class_lib = yatcli.lib
-        for a in args:
-            res = self.re_id.match(a)
-            if to_edit == None and res != None:
-                if element == u'task':
-                    to_edit = yatcli.lib.get_task(res.group(1))
-                elif element == u'tag':
-                    to_edit = yatcli.lib.get_tag(res.group(1))
-                elif element == u'list':
-                    to_edit = yatcli.lib.get_list(res.group(1))
-                continue
-
-            if element in [u"list", u"tag"]:
-                res = self.re_tol_priority.match(a)
-            else:
-                res = self.re_priority.match(a)
-            if res != None:
-                to_edit.priority = int(res.group(1))
-                continue
-
-            if element in [u"list", u"tag"]:
-                res = self.re_tol_name.match(a)
-                if res != None:
-                    to_edit.content = res.group(1)
-                    continue
-
-            res = self.re_due_date.match(a)
-            if res != None:
-                try:
-                    to_edit.due_date = yatcli.parse_input_date(res)
-                except ValueError:
-                    yatcli.output("[ERR] The due date isn't well formed. See 'yat help edit'.", 
-                            f = sys.stderr,
-                            foreground = yatcli.colors.errf, background =
-                            yatcli.colors.errb, bold = yatcli.colors.errbold)
-                    return
-                continue
-
-            res = self.re_parent.match(a)
-            if res != None:
-                to_edit.parent = yatcli.yat.Task.get_task(res.group(1))
-                continue
-
-            res = self.re_list.match(a)
-            if res != None:
-                try:
-                    to_edit.list = yatcli.lib.get_list(res.group(1), False) 
-                except:
-                    to_edit.list = yatcli.yat.List(yatcli.lib)
-                    to_edit.list.content = res.group(1)
-                continue
-
-            res = self.re_add_tags.match(a)
-            if res != None:
-                tag_names = res.group(1).split(',')
-                for n in tag_names:
-                    try:
-                        to_edit.tags.add(yatcli.lib.get_tag(n, False))
-                    except:
-                        tag = yatcli.yat.Tag(yatcli.lib)
-                        tag.content = n
-                        to_edit.tags.add(tag)
-                continue
-
-            res = self.re_remove_tags.match(a)
-            if res != None:
-                to_edit.tags -= set(yatcli.lib.get_tags(names=res.group(1).split(',')))
-                continue
-
-            res = self.re_name.match(a)
-            if task == None and res != None:
-                task = [res.group(1)]
-                continue
-
-            if task != None:
-                task.append(a)
-
-        if task != None:
-            task = " ".join(task)
-            if element == 'task': 
-                to_edit.content = task
-        to_edit.save()
+    def get_object(self):
+        return getattr(yatcli.lib, 'get_{0}'.format(self.cmd))(self.id)
