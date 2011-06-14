@@ -26,6 +26,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import re
 import sys
+from collections import deque
 
 import yatcli
 from command import Command
@@ -51,6 +52,7 @@ the shell doesn't expand them.
     alias = [u"done", u"undone"]
 
     def __init__(self):
+        super(DoneCommand, self).__init__()
         self.ids_to_process = []
         self.regexp = []
         self.options = ([
@@ -61,7 +63,7 @@ the shell doesn't expand them.
         self.arguments = (['id', 'regexp'], {
             'id'    :   ('^id=(?P<value>[0-9]+)$', ['id', 'regexp', None],
                          lambda x,y: self.ids_to_process.append(x)),
-            'regexp':   ('?P<value>.*', ['regexp', None],
+            'regexp':   ('.*', ['regexp', None],
                          lambda x,y: self.regexp.append(x))
         })
 
@@ -81,8 +83,8 @@ the shell doesn't expand them.
                 t = tasks.popleft()
             except IndexError:
                 break
-            task.completed = done
-            task.save()
+            t.completed = done
+            t.save()
             if self.recursive and not self.no_recursive:
                 processed.add(t)
                 tasks.extend([c for c in yatcli.lib.get_children(t)

@@ -68,7 +68,7 @@ database into a format suited for the new version of yat.
         self.command = cmd
         self.parse_arguments(args)
 
-        for f in files:
+        for f in self.files:
             # leg is the library associated with the DB to import.
             leg = yatcli.yat.legacy.analyze_db(filename = f,
                                             current_lib = yatcli.lib)
