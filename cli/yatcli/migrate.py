@@ -59,6 +59,7 @@ database into a format suited for the new version of yat.
 
     def __init__(self):
         super(MigrateCommand, self).__init__()
+        self.files = []
         self.arguments = (self.__cmd_switch, {
             'filename': ('^.*$', ['filename', None], self.files)
         })

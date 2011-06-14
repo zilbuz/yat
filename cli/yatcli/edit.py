@@ -66,13 +66,13 @@ The possible attributes for a list or a tag are:
     def __after_id(self, value):
         if self.cmd == 'task':
             return ['rm_tags', 'tags', 'list', 'parent', 'date', 'priority', 'task_name'] 
-        else return ['{0}_name'.format(self.cmd), 'group_priority']
+        else: return ['{0}_name'.format(self.cmd), 'group_priority']
 
     def __process_rm_tags(self, value):
-        self.tags_to_rm.extend(x.split(','))
+        self.tags_to_rm.extend(value.split(','))
 
     def __process_add_tags(self, value):
-        self.tags_to_add.extend(x.split(','))
+        self.tags_to_add.extend(value.split(','))
 
     def __after_group_priority(self, value):
         return ['{0}_name'.format(self.cmd), None]
@@ -125,7 +125,7 @@ The possible attributes for a list or a tag are:
                          ['group_priority', None], 'content'),
 
             'group_priority': ('^priority=(?P<value>-?\d\d*)$',
-                               self.after_group_priority, 'priority')
+                               self.__after_group_priority, 'priority')
         })
 
     def edit_content(self, obj):

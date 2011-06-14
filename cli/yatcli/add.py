@@ -105,9 +105,8 @@ Adding a tag:
         whole_task = ['tag', 'list', 'parent', 'date', 'priority', 'word', None]
 
         def type_next(value):
-            if x == 'task': return whole_task
-            if x == 'tag': return ['tag_name']
-            if x == 'list': return ['list_name']
+            if value == 'task': return whole_task
+            return ['{0}_name'.format(value)]
 
         self.arguments = (['type', 'tag', 'list', 'parent', 'date', 'priority', 'word'], {
             # The first argument, 'tag', 'task' or 'list'

@@ -47,6 +47,7 @@ Options:
     alias = [u"clean"]
 
     def __init__(self):
+        super(CleanCommand, self).__init__()
         self.options = ([
             ('f', 'force', 'force', None),
             ('i', 'interactive', 'interactive', None),

@@ -260,6 +260,8 @@ with:
                         setattr(self, option[0], True)
                         try:
                             l = it_l.next()
+                        except StopIteration:
+                            break
                         continue
 
                     #Plain value option

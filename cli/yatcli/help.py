@@ -41,7 +41,7 @@ the name of a command is provided, show the specific help text for this command.
         super(HelpCommand, self).__init__()
         self.cmd = self
         self.detailed = False
-        self.attributes = (['command', None]), {
+        self.arguments = (['command', None]), {
             'command':  ('^.*$', [None], self.__set_cmd)
         }
 
