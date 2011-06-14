@@ -51,33 +51,39 @@ the shell doesn't expand them.
     alias = [u"done", u"undone"]
 
     def __init__(self):
-        self.re_id = re.compile(u"^id=({0})$".format(yatcli.lib.config["re.id"]))
+        self.ids_to_process = []
+        self.regexp = []
+        self.options = ([
+            ('r', 'recursive', 'recursive', None),
+            ('n', 'no-recursive', 'no_recursive', None)
+        ])
+
+        self.arguments = (['id', 'regexp'], {
+            'id'    :   ('^id=(?P<value>[0-9]+)$', ['id', 'regexp', None],
+                         lambda x,y: self.ids_to_process.append(x)),
+            'regexp':   ('?P<value>.*', ['regexp', None],
+                         lambda x,y: self.regexp.append(x))
+        })
 
     def execute(self, cmd, args):
-        if len(args) == 0:
-            yatcli.output(st = u"[ERR] You must provide some informations to the command. See 'yat help done'", 
-                    f = sys.stderr,
-                    foreground = yatcli.colors.errf, background = yatcli.colors.errb,
-                    bold = yatcli.colors.errbold)
+        self.parse_arguments(self.parse_options(args))
 
-        id = None
-        regexp = []
-        for a in args:
-            res = self.re_id.match(a)
-            if res != None:
-                id = res.group(1)
-                break
-            regexp.append(a)
-
-        regexp = " ".join(regexp)
-
-        yatcli.yat.Task.class_lib = yatcli.lib
-        if id != None:
-            tasks = yatcli.lib.get_tasks(ids=[int(id)])
+        if self.regexp == []:
+            regexp = None
         else:
-            tasks = yatcli.lib.get_tasks(regexp=regexp)
+            regexp = " ".join(self.regexp)
 
         done = cmd == u"done"
-        for task in tasks:
+        tasks = deque(yatcli.lib.get_tasks(ids = self.ids_to_process,
+                                           regexp = regexp))
+        while True:
+            try:
+                t = tasks.popleft()
+            except IndexError:
+                break
             task.completed = done
             task.save()
+            if self.recursive and not self.no_recursive:
+                processed.add(t)
+                tasks.extend([c for c in yatcli.lib.get_children(t)
+                              if c not in processed])
