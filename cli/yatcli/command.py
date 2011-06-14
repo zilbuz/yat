@@ -59,7 +59,7 @@ any python object. The values of self.attribute is initialized with False if
 constructor is None, None otherwise, when creating the Command object."""
 
         if not hasattr(self, 'arguments'):
-            self.arguments = ([], {})
+            self.arguments = ([None], {})
         u'''Of the form:
     ([names], {name: (regexp, next, process)}
 with:
@@ -73,23 +73,15 @@ with:
 
         if not hasattr(self, 'breakdown'):
             self.breakdown = False
-        for o in self.options:
-            if len(o) != 4:
-                raise ValueError('The options must be of the form \
-                                 (short, long, attribute, type)')
-            if o[3] == None:
-                setattr(self, o[2], False)
-            else:
-                setattr(self, o[2], None)
-
-        for k, a in self.arguments[1].iteritems():
-            self.arguments[1][k] = (re.compile(a[0]), a[1], a[2])
 
     def __call__(self, cmd, args):
         self.command = cmd
         self.execute(cmd, self.parse_arguments(self.parse_options(args)))
 
     def parse_arguments(self, args):
+        for k, a in self.arguments[1].iteritems():
+            self.arguments[1][k] = (re.compile(a[0]), a[1], a[2])
+
         if self.breakdown:
             args_cpy = []
             for a in args:
@@ -110,7 +102,7 @@ with:
                 if m == None:
                     continue
                 try:
-                    value = m.grooupdict()['value']
+                    value = m.groupdict()['value']
                 except KeyError:
                     value = a
                 if callable(p[1]):
@@ -120,7 +112,7 @@ with:
                 to_pass = p[2](value, to_pass)
                 break
             if m == None:
-                raise Exception('Unknown argument')
+                raise Exception('Unknown argument {0}'.format(a.__repr__()))
             
         if None not in to_examine:
             raise Exception('Argument missing')
@@ -128,6 +120,16 @@ with:
         return to_pass
 
     def parse_options(self, args):
+        for o in self.options:
+            if len(o) != 4:
+                raise ValueError('The options must be of the form \
+                                 (short, long, attribute, type)')
+            if o[3] == None:
+                setattr(self, o[2], False)
+            else:
+
+                setattr(self, o[2], None)
+
         stripped_args = args[:]
 
         # We cannot use a for loop because we need to be able to make a
