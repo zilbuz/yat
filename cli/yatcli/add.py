@@ -103,12 +103,15 @@ Adding a tag:
         self.content = []
         self.tags_to_add = []
         whole_task = ['tag', 'list', 'parent', 'date', 'priority', 'word', None]
+
+        def type_next(value):
+            if x == 'task': return whole_task
+            if x == 'tag': return ['tag_name']
+            if x == 'list': return ['list_name']
+
         self.arguments = (['type', 'tag', 'list', 'parent', 'date', 'priority', 'word'], {
             # The first argument, 'tag', 'task' or 'list'
-            'type':     ('^(?P<value>task|list|tag)$',
-                         lambda x: whole_task if x == 'task' else (
-                             ['list_name'] if x == 'list' else ['tag_name']),
-                         'cmd'),
+            'type':     ('^(?P<value>task|list|tag)$', type_next, 'cmd'),
 
             # A tag element of a task definition
             'tag':      ('^#(?P<value>{0})$'.format(yatcli.lib.config["re.tag_name"]),

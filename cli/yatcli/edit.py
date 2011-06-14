@@ -63,6 +63,20 @@ The possible attributes for a list or a tag are:
 
     alias = [u"edit"]
 
+    def __after_id(self, value):
+        if self.cmd == 'task':
+            return ['rm_tags', 'tags', 'list', 'parent', 'date', 'priority', 'task_name'] 
+        else return ['{0}_name'.format(self.cmd), 'group_priority']
+
+    def __process_rm_tags(self, value):
+        self.tags_to_rm.extend(x.split(','))
+
+    def __process_add_tags(self, value):
+        self.tags_to_add.extend(x.split(','))
+
+    def __after_group_priority(self, value):
+        return ['{0}_name'.format(self.cmd), None]
+
     def __init__(self):
         # We skip the AddCommand __init__()
         super(AddCommand, self).__init__()
@@ -78,20 +92,14 @@ The possible attributes for a list or a tag are:
             'type':     ('^(?P<value>task|list|tag)$', ['id'], 'cmd'),
 
             'id':       ('^id=(?P<value>{0})$'.format(yatcli.lib.config["re.id"]),
-                         lambda x: (
-                             ['rm_tags', 'tags', 'list', 'parent',
-                              'date', 'priority', 'task_name']
-                             if self.cmd == 'task' else 
-                             ['list_name', 'group_priority'] if self.cmd == 'list' else
-                             ['tag_name', 'group_priority']),
-                         'id'),
+                         self.__after_id, 'id'),
 
             # A tag element of a task definition
             'tags':      ('^add_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
-                         whole_task, lambda x: self.tags_to_add.extend(x.split(','))),
+                         whole_task, self.__process_add_tags),
 
             'rm_tags':      ('^remove_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
-                         whole_task, lambda x: self.tags_to_rm.extend(x.split(','))),
+                         whole_task, self.__process_rm_tags),
 
             # The list element of a task definition
             'list':     ('^list=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
@@ -117,9 +125,7 @@ The possible attributes for a list or a tag are:
                          ['group_priority', None], 'content'),
 
             'group_priority': ('^priority=(?P<value>-?\d\d*)$',
-                               lambda x: ['tag_name', None] if self.cmd == 'tag'
-                                   else ['list_name', None],
-                               'priority')
+                               self.after_group_priority, 'priority')
         })
 
     def edit_content(self, obj):
