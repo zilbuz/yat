@@ -505,7 +505,7 @@ class Yat:
             self.__sql.commit()
         task.changed = False
 
-    def remove_tasks(self, ids, recursive=True):
+    def remove_tasks(self, ids, recursive=False):
         u"""Remove tasks by their ids
         params:
             - ids (array<int>)

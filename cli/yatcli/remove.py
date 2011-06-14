@@ -97,8 +97,8 @@ Options:
 
             self.removal_function = lambda x: (
                 yatcli.lib.remove_tasks(x,
-                                        not self.no_recursive or
-                                        self.recursive))
+                                        (self.recursive and
+                                         not self.no_recursive)))
         else:
             self.removal_function = getattr(yatcli.lib, 'remove_{0}s'.format(value))
         return False
