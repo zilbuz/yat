@@ -66,15 +66,15 @@ Options:
         ])
 
         self.ids_to_remove = []
-        self.regexp = None
+        self.regexp = []
         self.select_type('task')
         self.arguments = (['type', 'id', 'regexp'], {
             'type'  :   ('^(?P<value>task|list|tag)$',
                          ['id', 'regexp'], self.select_type),
             'id'    :   ('^id=(?P<value>[0-9]+)$',
                          ['id', 'regexp', None], self.add_id_to_remove),
-            'regexp':   ('^(?P<value>.*)$', ['id', 'regexp', None],
-                         lambda x,y: setattr(self, 'regexp', self.regexp+' '+x) or True if self.regexp != None else setattr(self, 'regexp', x) or True)
+            'regexp':   ('^.*$', ['id', 'regexp', None],
+                         lambda x,y: self.regexp.append(x) or True)
         })
         super(RemoveCommand, self).__init__()
 
@@ -112,8 +112,9 @@ Options:
         return True
 
     def process_regexp(self):
-        if self.regexp == None:
+        if self.regexp == []:
             return
+        self.regexp = ' '.join(self.regexp)
         if (self.regexp == '*' and not self.force and 
             not yatcli.yes_no_question(
                 "This operation is potentially disastrous. Are you so desperate ?",
