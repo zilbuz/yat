@@ -96,9 +96,11 @@ Adding a tag:
     alias = [u"add"]
 
     def __init__(self):
+        super(AddCommand, self).__init__()
+
         self.breakdown = True
         self.cmd = 'task'
-        self.content = None
+        self.content = []
         self.tags_to_add = []
         whole_task = ['tag', 'list', 'parent', 'date', 'priority', 'word', None]
         self.arguments = (['type', 'tag', 'list', 'parent', 'date', 'priority', 'word'], {
@@ -121,53 +123,61 @@ Adding a tag:
 
             # The priority for a task only !
             'priority': ('^\*(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
-                         whole_task, lambda x,y: setattr(self, 'priority', x)),
+                         whole_task, lambda x,y: setattr(self, 'priority', int(x))),
 
             'date':     ('^\^(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
                          whole_task, lambda x,y: setattr(self, 'date', x)),
 
             # Will be added to the content.
-            'word':     ('^(?P<value>.*)$', whole_task,
-                         lambda x,y: (
-                             setattr(self, 'content', ' '.join([self.content, x]))
-                             if self.content != None else setattr(self, 'content', x))),
+            'word':     ('^.*$', whole_task,
+                         lambda x,y: self.content.append(x)),
 
             'tag_name': ('^(?P<value>{0})$'.format(yatcli.lib.config['re.tag_name']),
-                         ['group_priority', None], lambda x,y: setattr(self, 'content', x)),
+                         ['group_priority', None], lambda x,y: self.content.append(x)),
 
             'list_name':('^(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
-                         ['group_priority', None], lambda x,y: setattr(self, 'content', x)),
+                         ['group_priority', None], lambda x,y: self.content.append(x)),
 
-            'group_priority': ('^(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
-                         [None], lambda x,y: setattr(self, 'priority', x))
+            'group_priority': ('^-?\d\d*$', [None],
+                               lambda x,y: setattr(self, 'priority', int(x)))
         })
 
-        super(AddCommand, self).__init__()
 
-    def execute(self, cmd, args):
-        self.parse_arguments(self.parse_options(args))
-        if self.content == None:
+    def edit_content(self, obj):
+        if self.content == []:
             yatcli.output("[ERR] There is no actual content !.", 
                     f = sys.stderr,
                     foreground = yatcli.colors.errf, background = 
                     yatcli.colors.errb, bold = yatcli.colors.errbold)
             return
-        if self.cmd == 'list':
-            obj = yatcli.yat.List(yatcli.lib)
-        elif self.cmd == 'tag':
-            obj = yatcli.yat.Tag(yatcli.lib)
-        elif self.cmd == 'task':
-            obj = yatcli.yat.Task(yatcli.lib)
+        obj.content = ' '.join(self.content)
 
+    def get_object(self):
+        if self.cmd == 'list':
+            return yatcli.yat.List(yatcli.lib)
+        elif self.cmd == 'tag':
+            return yatcli.yat.Tag(yatcli.lib)
+        elif self.cmd == 'task':
+            return yatcli.yat.Task(yatcli.lib)
+
+    def edit_tags(self, obj):
+        new_tags = set()
+        for n in self.tags_to_add:
+            try:
+                new_tags.add(yatcli.lib.get_tag(n, False))
+            except:
+                #If the tags don't exist, create them
+                new_tag = yatcli.yat.Tag(yatcli.lib)
+                new_tag.content = n
+                new_tags.add(new_tag)
+        obj.tags |= new_tags
+
+    def execute(self, cmd, args):
+        self.parse_arguments(self.parse_options(args))
+        obj = self.get_object()
+        if self.cmd == 'task':
             # Set the tags
-            for n in self.tags_to_add:
-                try:
-                    obj.tags.add(yatcli.lib.get_tag(n, False))
-                except:
-                    #If the tags don't exist, create them
-                    new_tag = yatcli.yat.Tag(yatcli.lib)
-                    new_tag.content = n
-                    obj.tags.add(new_tag)
+            self.edit_tags(obj)
 
             #Set the list
             try:
@@ -205,7 +215,7 @@ Adding a tag:
                 pass
 
         # Common attributes
-        obj.content = self.content
+        self.edit_content(obj)
         try:
             obj.priority = self.priority
         except AttributeError:

@@ -171,7 +171,7 @@ def main(argv):
     """
 
     # Process args
-    args = (" ".join(argv)).split(" ")
+    args = argv[:]
     for i in range(len(args)):
         args[i] = args[i].decode('utf-8')
 
@@ -229,7 +229,6 @@ def main(argv):
         c = inspect.getmembers(m[1], yatcli.isCommand)
         if c != []:
             cmd_objs.extend(c)
-    print cmd_objs
     yatcli.commands = dict(cmd_objs)
     
     yatcli.aliases = {}
@@ -250,7 +249,6 @@ def main(argv):
         cmd_args = []
         cmd_alias = "tasks"
         if len(args) > 1:
-            print yatcli.aliases
             if args[1] in yatcli.aliases:
                 cmd = yatcli.aliases[args[1]]()
                 cmd_alias = args[1]
@@ -274,7 +272,6 @@ def main(argv):
     try:
         yatcli.lib.get_lock(force_lock)
         # Executing command with the rest of the arguments
-        print cmd_alias
         cmd.execute(cmd_alias, cmd_args)
     except yat.exceptions.ExistingLock:
         yatcli.output(u"[ERR] A lock is already set up, the command was ignored.",
