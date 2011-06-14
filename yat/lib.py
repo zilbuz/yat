@@ -56,6 +56,8 @@ class Yat:
         u'''Compare an expression to a string and returns True if there
         is a match.
         '''
+        if expr == None:
+            return False
         # Replace all * and ? with .* and .? (but not \* and \?)
         regex = re.sub(r'([^\\]?)\*', r'\1.*', expr)
         regex = re.sub(r'([^\\])\?', r'\1.?', regex)
@@ -276,7 +278,6 @@ class Yat:
 
         It returns a tuple of list. The first list contains all the objects
         already loaded, the second the raw data to process.'''
-        rows = []
         loaded = []
         if ids == None and names == None and regexp == None:
             if extra_criteria == None:
@@ -289,37 +290,23 @@ class Yat:
                                           extra_criteria[1]).fetchall()
         else:
             if extra_criteria == None:
-                extra_criteria = ('', ())
+                extra_criteria = ('', [])
             else:
-                extra_criteria = ('and ' + extra_criteria[0], extra_criteria[1])
-            if ids != None:
-                for i in ids:
-                    try:    # Since we can already be sure, it might be better
-                            # to check that before the SQL request
-                        loaded.append(loaded_objects[i])
-                    except KeyError as e:
-                        rows.extend(self.__sql.execute(u'''select * from {0}
-                                                       where id=? {1}'''
-                                                       .format(table_name,
-                                                               extra_criteria[0]),
-                                                       (i,)+ extra_criteria[1]
-                                                      ).fetchall())
-            if names != None:
-                for n in names:
-                    rows.extend(self.__sql.execute(u'''select * from {0}
-                                                   where content=? {1}'''
-                                                   .format(table_name,
-                                                           extra_criteria[0]),
-                                                   (n,) + extra_criteria[1]
-                                                  ).fetchall())
-
-            if regexp != None:
-                rows.extend(self.__sql.execute(u'''select * from {0}
-                                               where content regexp ? {1}'''
+                extra_criteria = ('and ' + extra_criteria[0], list(extra_criteria[1]))
+            if ids == None:
+                ids = []
+            if names == None:
+                names = []
+            rows = self.__sql.execute(u'''select * from {0}
+                                           where (id in ({1}) or 
+                                           content in ({2}) or
+                                           content regexp ?) {3}'''
                                                .format(table_name,
+                                                       ', '.join('?'*len(ids)),
+                                                       ', '.join('?'*len(names)),
                                                        extra_criteria[0]),
-                                               (regexp,) + extra_criteria[1]
-                                              ).fetchall())
+                                               (ids + names + [regexp] +
+                                                extra_criteria[1])).fetchall()
         set_rows = set(rows)
         for r in rows:
             try:    # Try to fetch the loaded object.
@@ -354,10 +341,9 @@ class Yat:
                 except KeyError as e:
                     pass
             loaded = self.__get_task_objects((loaded, list(set_rows)))
-        return loaded +self.__get_task_objects(self.__extract_rows("tasks",
-                                                            self.__loaded_tasks,
-                                                            ids, names,
-                                                            regexp))
+        return loaded + self.__get_task_objects(
+            self.__extract_rows("tasks", self.__loaded_tasks,
+                                ids, names, regexp))
 
     def get_children(self, task):
         u'''Returns all the direct subtasks of a given task.'''
@@ -603,7 +589,7 @@ class Yat:
             self.__sql.commit()
 
     def __get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
-        if ids != None and None not in ids and None not in loaded_objects:
+        if ids != None and None in ids and None not in loaded_objects:
             loaded_objects[None] = nocls(self)
         extract = self.__extract_rows(cls._table_name, loaded_objects,
                                       ids, names, regexp)
@@ -633,6 +619,10 @@ class Yat:
                                           where tagging.task=? and
                                           tagging.tag=tags.id''', (task.id,)
                                          ).fetchall()
+            if rows == []:
+                # We have to load NoTag here, since there wouldn't be any request
+                # for the None id
+                self.__loaded_tags[None]= NoTag(self)
             set_rows = set(rows)
             for r in rows:
                 try:

@@ -316,14 +316,11 @@ in this group's context.'''
 
 class List(Group):
     u'''This class represent the "meta-data" of a list. It is NOT a container !'''
-    list_id = {}
     _table_name = 'lists'
 
     def __init__(self, lib):
         u"""Constructs a List from an sql entry."""
         super(List, self).__init__(lib)
-        if self.id != None:
-            List.list_id[self.id] = self
 
     def __str__(self):
         retour = "List " + str(self.id)
@@ -353,14 +350,11 @@ the algorithms of Group.'''
 
 class Tag(Group):
     u'''This class represent the "meta-data" of a tag. It is NOT a container !'''
-    tag_id = {}
     _table_name = 'tags'
 
     def __init__(self, lib, sql_line = None):
         u"""Constructs a Tag from an sql entry."""
         super(Tag, self).__init__(lib)
-        if self.id != None:
-            Tag.tag_id[self.id] = self
 
     def child_policy(self, task):
         u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
@@ -395,20 +389,25 @@ class NoGroup(object):
 
 class NoList(NoGroup, List):
     # List provides unique algorithms, but here we override its polymorphism abilities
-    __instance = None
     __mro__ = (NoGroup, Group, object, List)
+    __instance = None
     def __new__(cls, lib):
-        if cls.__instance != None:
-            return cls.__instance
-        return super(NoList, cls).__new__(cls)
+        if cls.__instance == None:
+            cls.__instance = super(NoList, cls).__new__(cls)
+        return cls.__instance
 
     def __init__(self, lib):
         super(NoList, self).__init__(lib)
-        List.list_id[None] = self
 
 class NoTag(NoGroup, Tag):
     # Same as for NoList's MRO.
     __mro__ = (NoGroup, Group, object, Tag)
+    __instance = None
+
+    def __new__(cls, lib):
+        if cls.__instance == None:
+            cls.__instance = super(NoTag, cls).__new__(cls)
+        return cls.__instance
 
     def __init__(self, lib):
         super(NoTag, self).__init__(lib)
