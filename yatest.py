@@ -30,20 +30,69 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import yat
 import sqlite3
+import os.path
+import os
+import shutil
 
-def load_sql(sql_files, db):
-    u'''Executes the SQL code into the db file. Careful : there is no checking
-    whatsoever. If the db file doesn't exist, it will be created, but the
-    initialization has to be done inside the SQL code. If it exists, you'd
-    better make sure the db file has the proper structure. The SQL statements
-    will be executed in the order of the list.
-    
-    Note that db is a file name, and sql_files a list of file names'''
+class Tools(object):
+    backup = {}
 
-def load_yat(config_file, sql_files):
-    u'''Loads a Yat object using the config file provided. If one or more SQL
-    files come along, they will be executed into the db specified by the config
-    file.
+    @classmethod
+    def exec_sql(cls, sql_files, db):
+        u'''Executes the SQL code into the db file. Careful : there is no checking
+        whatsoever. If the db file doesn't exist, it will be created, but the
+        initialization has to be done inside the SQL code. If it exists, you'd
+        better make sure the db file has the proper structure. The SQL statements
+        will be executed in the order of the list.
+        
+        sql_files is a list of file names, and db a file name.
+        All paths must be absolute, since it can be tricky to determine the
+        emplacement of the file with a relative path : relative to the calling
+        module, to this module, or to the working directory... ?
+        '''
+        # We need to use a stack mechanism when facing several modification
+        # because of the setup() and the actual test functions.
+        if os.path.exists(db):
+            try:
+                previous_backup = cls.backup[db][-1]
+                num = len(cls.backup[db])
+            except IndexError:
+                previous_backup = None
+            if previous_backup == None:
+                # create the first backup
+                bak = db+'.bak0'
+            else:
+                # increment the numbering
+                bak = previous_backup[:len(previous_backup)-1]+str(num)
+            shutil.copy(db, bak)
+        else:
+            bak = None
+        try:
+            cls.backup[db].append(bak)
+        except IndexError:
+            cls.backup[db] = [bak]
+        
+        db = sqlite3.connect(db)
+        for f in sql_files:
+            db.executescript(open(f).read())
 
-    Please note that both config_file and sql_file are file names (str objects).'''
+        db.close()
+
+    @classmethod
+    def restore_db(cls, db):
+        u'''Restore the given db (filename, absolute path) to its original
+        state, assuming it was once modified by exec_sql or indirectly by
+        load_yat (but in that case it might be best to use restore_yat instead,
+        even though it shouldn't change anything)
+        '''
+        try:
+            bak = cls.backup[db].pop()
+        except IndexError:
+            return
+        # If there is a backup but it is None, it means we created the file
+        # once upon a time
+        if bak == None:
+            os.remove(db)
+            return
+        shutil.move(bak, db)
 
