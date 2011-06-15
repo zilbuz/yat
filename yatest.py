@@ -34,7 +34,16 @@ import os.path
 import os
 import shutil
 
-class Tools(object):
+def assert_raise(cls, function, *args):
+    u'''Check that the function called with args as arguments raises
+    an exception of type cls.'''
+    try:
+        function(*args)
+        assert not 'The function {0}{1} didn\'t raise {3}'.format(function, args, cls)
+    except cls:
+        pass
+
+class SQLTools(object):
     backup = {}
 
     @classmethod
