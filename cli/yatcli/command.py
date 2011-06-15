@@ -176,11 +176,11 @@ with:
 
             # If there wasn't any match, the argument must be ill-formed
             if m == None:
-                raise Exception('Unknown argument: {0}'.format(a))
+                raise yatcli.BadArgument('Unknown argument: {0}'.format(a))
             
         # A potential grammatical end of the command is signaled by the None key
         if None not in to_examine:
-            raise yatcli.MIssingArgument('Argument missing !')
+            raise yatcli.MissingArgument('Argument missing !')
 
     def parse_options(self, args):
         u'''Parse the args provided using self.options. It modifies self and
@@ -204,11 +204,11 @@ with:
         long_dict = {}
         for o in self.options:
             if o[0] != None:
-                short_dict[o[0]] = (o[2], o[3])
+                short_dict[o[0][0]] = (o[2], o[3])
             if o[1] != None:
                 long_dict[o[1]] = (o[2], o[3])
 
-        re_long = re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.*))?$')
+        re_long = re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.+)?)?$')
         re_short= re.compile('^-(?P<options>[a-zA-Z]+)$')
 
         # We cannot use a for loop because we need to be able to make a
@@ -233,7 +233,7 @@ with:
                     value = res.groupdict()['value']
                     if value == None:
                         raise yatcli.MissingArgument
-                    setattr(self, option[0], option[1]('value'))
+                    setattr(self, option[0], option[1](value))
                 stripped_args.remove(a)
                 continue
 
@@ -247,12 +247,10 @@ with:
                            if len(l) == 1])
 
                 #Bootstrapping the loop over the letters
-                try:
-                    l = it_l.next()
-                except StopIteration:
-                    stripped_args.remove(a)
-                    continue
+                l = it_l.next()
                 while(True):
+                    print short_dict
+                    print l
                     option = short_dict[l]
 
                     #Boolean option
@@ -262,18 +260,20 @@ with:
                             l = it_l.next()
                         except StopIteration:
                             break
-                        continue
-
+                    else:
                     #Plain value option
-                    try:
-                        # If there is a next letter, there's a syntax error.
-                        l = it_l.next()
-                        raise yatcli.MissingArgument
-                    except StopIteration:
-                        value = it.next()
-                        setattr(self, option[0], option[1](value))
-                        stripped_args.remove(value)
-                        break
+                        try:
+                            # If there is a next letter, there's a syntax error.
+                            l = it_l.next()
+                            raise yatcli.BadArgument
+                        except StopIteration:
+                            try:
+                                value = it.next()
+                            except StopIteration:
+                                raise yatcli.MissingArgument
+                            setattr(self, option[0], option[1](value))
+                            stripped_args.remove(value)
+                            break
                 stripped_args.remove(a)
         return stripped_args
 
