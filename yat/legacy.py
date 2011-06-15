@@ -35,17 +35,23 @@ from exceptions import *
 import re
 import sqlite3
 
-class V0_1:
+class V0_1(Yat):
     def __init__(self, current_lib, db):
-        self.enc = current_lib.config 
-
         self.config = current_lib.config
 
-        self.__sql = sqlite3.connect(db)
-        self.__sql.row_factory = sqlite3.Row
-        self.__list_ids = {}
-        self.__tag_ids = {}
-        self.__task_ids = {}
+        self._Yat__sql = sqlite3.connect(db)
+        self._Yat__sql.row_factory = sqlite3.Row
+        self._loaded_lists = {}
+        self._loaded_tags = {}
+        self._loaded_tasks = {}
+        self._loaded_lists[1] = NoList(self)
+        self._loaded_tags[1] = NoTag(self)
+        methods_not_implemented = [
+            '_add_task', '_edit_task', '_add_group', '_edit_group',
+            '_add_note', '_edit_note', 'remove_tags', 'remove_tasks',
+            'remove_lists', 'remove_notes'
+        ]
+        for m in methods_not_implemented: setattr(self, m, self.not_implemented)
 
     def delete_tables(self):
         with self.__sql:
@@ -54,109 +60,54 @@ class V0_1:
             self.__sql.execute('drop table tags')
             self.__sql.commit()
 
-    def get_tasks(self, ids=None, regexp=None):
-        if ids == None and regexp == None:
-            task_rows = self.__sql.execute('select * from tasks').fetchall()
-        else:
-            task_rows = set()
-            if ids != None:
-                for i in ids:
-                    with self.__sql:
-                        task_rows.add(self.__sql.execute(u'''select * from tasks
-                                                        where id=?
-                                                        ''', (i,)).fetchone())
-            if regexp != None:
-                with self.__sql:
-                    task_rows |= self.__sql.execute(u'''select * from tasks
-                                                    where regexp task ?
-                                                    ''', (regexp,)).fetchall()
+    # Limit the API to what is actually supported by the DB
+    def get_tasks(self, ids=None, names=None, regexp=None):
+        return super(V0_1, self).get_tasks(ids=ids, names=names, regexp=regexp)
 
-        tasks = []
-        self.__list_ids[1] = NoList(self)
-        self.__tag_ids[1] = NoTag(self)
+    def get_tags(self, ids=None, names=None, regexp=None):
+        return super(V0_1, self).get_tags(ids=ids, names=names, regexp=regexp)
+
+    def not_implemented(self, *args):
+        raise NotImplemented
+
+    def get_notes(self, task=None, ids=None, names=None, regexp=None):
+        return []
+    # Reminder : an extract is a tuple of a list of loaded tasks
+    # and a list of DB rows
+    def _get_task_objects(self, extract):
+        tasks = extract[0]
+        task_rows = extract[1]
         for r in task_rows:
-            try:
-                t = task_ids[int(r["id"])]
-            except:
-                t = Task(self)
-                t.content = r["task"]
-                t.priority = int(r["priority"])
-                t.due_date = r["due_date"]
-                t.completed = r["completed"]
-                t.created = r["created"]
-                try:
-                    t.list = self.__list_ids[int(r["list"])]
-                except:
-                    with self.__sql:
-                        list_row = self.__sql.execute(u'''select * from lists
-                                                    where id=?
-                                                    ''', (int(r["list"]),)).fetchone()
-                    list_ = List(self)
-                    list_.content = list_row["name"]
-                    list_.priority = list_row["priority"]
-                    list_.created = list_row["created"]
-                    self.__list_ids[int(r["list"])] = list_
-                    t.list = list_
+            tsk = Task(self)
+            tsk.id = int(r['id'])
+            tsk.content = r["task"]
+            tsk.priority = int(r["priority"])
+            tsk.due_date = float(r["due_date"])
+            tsk.completed = r["completed"]
+            tsk.created = float(r["created"])
+            tsk.list = self.get_list(int(r["list"]))
 
-                tag_ids = [int(i) for i in r['tags'].split(',')]
-                t.tags = set() 
-                for i in tag_ids:
-                    try:
-                        t.tags.add(self.__tag_ids[i])
-                    except:
-                        with self.__sql:
-                            tag_row = self.__sql.execute(u'''select * from tags
-                                                        where id=?''', (i,)).fetchone()
-                        tag_ = Tag(self)
-                        tag_.content = tag_row['name']
-                        tag_.priority = tag_row['priority']
-                        tag_.created = tag_row['created']
-                        self.__tag_ids[i] = tag_
-                        t.tags.add(tag_)
-                tasks.append(t)
-                self.__task_ids[int(r["id"])] = t
-
+            # We have to do the tags manually because get_tags(task)
+            # relies on a DB scheme that doesn't exist yet
+            tag_ids = [int(i) for i in r['tags'].split(',')]
+            tsk.tags = set(self.get_tags(ids=tag_ids))
+            tasks.append(tsk)
+            self._loaded_tasks[tsk.id] = tsk
         return tasks
 
-    def _get_groups(self, cls, group_ids, table, ids = None, regexp = None):
-        if ids == None and regexp == None:
-            with self.__sql:
-                group_rows = self.__sql.execute('select * from %s' % table).fetchall()
-        else:
-            if ids != None:
-                for i in ids:
-                    with self.__sql:
-                        group_rows.append(self.__sql.execute(u'''
-                                                            select * from %s 
-                                                            where id=?
-                                                            ''' % table,
-                                                            (i,)).fetchone())
-            if regexp != None:
-                with self.__sql:
-                    group_rows.extend(self.__sql.execute(u'''select * from %s
-                                                        where regexp name ?
-                                                        ''' % table,
-                                                        (regexp,)).fetchall())
-
-        groups = []
-        for r in group_rows:
-            try:
-                groups.append(group_ids[int(r["id"])])
-            except KeyError:
-                group_ = cls(self)
-                group_.content = r["name"]
-                group_.priority = r["priority"]
-                group_.created = r["created"]
-                group_ids[int(r["id"])] = group_
-                groups.append(group_)
-
+    def _get_group_objects(self, cls, loaded_objects, extract):
+        groups = extract[0]
+        rows = extract[1]
+        for r in rows:
+            g = cls(self)
+            g.id = int(r["id"])
+            g.content = r["name"]
+            g.priority = r["priority"]
+            g.created = r["created"]
+            g.changed = False
+            loaded_objects[g.id] = g
+            groups.append(g)
         return groups
-
-    def get_lists(self, ids = None, regexp = None):
-        return self._get_groups(List, self.__list_ids, 'lists', ids, regexp)
-
-    def get_tags(self, ids = None, regexp = None):
-        return self._get_groups(Tag, self.__tag_ids, 'tags', ids, regexp)
 
 def analyze_db(filename=None, current_lib=None):
     u"""Check the version of the database pointed by filename, and return the

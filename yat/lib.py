@@ -49,7 +49,7 @@ VERSION = u"0.2b-dev"
 # Current version for the database.
 DB_VERSION = u"0.2"
 
-class Yat:
+class Yat(object):
 
     @staticmethod
     def regexp(expr, item):
@@ -160,10 +160,10 @@ class Yat:
         self.__operators["<="] = lambda x, y: x <= y
 
         # Dictionaries used to avoid duplicating objects
-        self.__loaded_tasks = {}
-        self.__loaded_lists = {}
-        self.__loaded_tags = {}
-        self.__loaded_notes = {}
+        self._loaded_tasks = {}
+        self._loaded_lists = {}
+        self._loaded_tags = {}
+        self._loaded_notes = {}
         pass
 
     def delete_tables(self):
@@ -258,9 +258,9 @@ class Yat:
     def get_loaded_tasks(self):
         u'''Returns a list of all the tasks that were already pulled from
         the DB. Complexity : O(n) = n'''
-        return [t for t in self.__loaded_tasks.itervalues()]
+        return [t for t in self._loaded_tasks.itervalues()]
 
-    def __extract_rows(self, table_name, loaded_objects,
+    def _extract_rows(self, table_name, loaded_objects,
                        ids, names, regexp, extra_criteria = None):
         u'''Extract the data out of the DB. It also checks whether it was already
         loaded, in which case it replaces it by the object.
@@ -417,30 +417,30 @@ class Yat:
                 set_rows = set(rows)
                 for r in rows:
                     try:
-                        loaded.append(self.__loaded_tasks[int(r['id'])])
+                        loaded.append(self._loaded_tasks[int(r['id'])])
                         set_rows.remove(r)
                     except KeyError as e:
                         pass
-                loaded = self.__get_task_objects((loaded, list(set_rows)))
+                loaded = self._get_task_objects((loaded, list(set_rows)))
 
-        return loaded + self.__get_task_objects(
-            self.__extract_rows("tasks", self.__loaded_tasks,
+        return loaded + self._get_task_objects(
+            self._extract_rows("tasks", self._loaded_tasks,
                                 ids, names, regexp, list_criterium))
 
     def get_children(self, task):
         u'''Returns all the direct subtasks of a given task.'''
 
         # Simply use the extra_criteria parameter to fetch the direct children
-        return self.__get_task_objects(
-            self.__extract_rows("tasks", self.__loaded_tasks, None, None, None,
+        return self._get_task_objects(
+            self._extract_rows("tasks", self._loaded_tasks, None, None, None,
                                 ('parent=?', [task.id])))
 
-    def __get_task_objects(self, extract):
+    def _get_task_objects(self, extract):
         u'''Take an extract and transforms the rows into fully fledged objects
         with a little functional voodoo :).
 
         extract ([Task], [SQLRow]):
-            Usually, what is returned by a call to self.__extract_rows()
+            Usually, what is returned by a call to self._extract_rows()
 
         Return value: [Task]'''
         tasks = extract[0]
@@ -454,7 +454,7 @@ class Yat:
             for r in rows:
                 # Gather all the parents' ids.
                 if (r['parent'] != None and
-                    r['parent'] not in self.__loaded_tasks.iterkeys()):
+                    r['parent'] not in self._loaded_tasks.iterkeys()):
                     parent_ids.append(int(r['parent']))
 
             ids_to_fetch = []
@@ -463,7 +463,7 @@ class Yat:
                 if i not in id_to_row.iterkeys():
                     ids_to_fetch.append(i)
 
-            parent_extract = self.__extract_rows('tasks', self.__loaded_tasks,
+            parent_extract = self._extract_rows('tasks', self._loaded_tasks,
                                                  ids_to_fetch, None, None)
             # We discard the tasks already loaded.
             for r in parent_extract[1]:     # Don't care about redundancy, overwrite if needed
@@ -479,7 +479,7 @@ class Yat:
             # If there's no parent or it is already loaded, then it can be
             # loaded right away
             if row['parent'] == None or (int(row['parent']) in
-                                         self.__loaded_tasks.iterkeys()):
+                                         self._loaded_tasks.iterkeys()):
                 return 0
             return distance(id_to_row[int(row['parent'])])+1
 
@@ -495,7 +495,7 @@ class Yat:
             if r['parent'] == None:
                 t.parent = None
             else:   # Thanks to the careful sorting, it has to be already loaded
-                t.parent = self.__loaded_tasks[int(r['parent'])]
+                t.parent = self._loaded_tasks[int(r['parent'])]
 
             t.content = r["content"]
             t.due_date = r["due_date"]
@@ -509,7 +509,7 @@ class Yat:
             # As usual, when pulling it from the DB we have to switch back
             # the changed flag to False.
             t.changed = False
-            self.__loaded_tasks[t.id] = t
+            self._loaded_tasks[t.id] = t
             t.notes = self.get_notes(t)
 
             # Return only the tasks explicitly requested, not the collateral
@@ -544,7 +544,7 @@ class Yat:
         else:
             extra_criteria = ('task=?', (task.id,))
 
-        extract = self.__extract_rows('notes', self.__loaded_notes,
+        extract = self._extract_rows('notes', self._loaded_notes,
                                       ids, contents, regexp, extra_criteria)
 
         loaded = extract[0][:]
@@ -560,7 +560,7 @@ class Yat:
             # the changed flag to False.
             note.changed = False
 
-            self.__loaded_notes[note.id] = note
+            self._loaded_notes[note.id] = note
             loaded.append(note)
 
         return loaded
@@ -643,14 +643,14 @@ class Yat:
             with self.__sql:
                 self.__sql.execute(query, ids)
 
-        self.__simple_removal(ids, 'tasks')
+        self._simple_removal(ids, 'tasks')
 
     def remove_notes(self, ids):
         u"""Remove notes by their ids.
         params:
             - ids (array<int>)
         """
-        self.__simple_removal(ids, 'notes')
+        self._simple_removal(ids, 'notes')
 
     def remove_lists(self, ids, list_recursion=True, task_recursion=False):
         u"""Remove lists by their ids. Be careful, when deleting a list, every
@@ -682,7 +682,7 @@ class Yat:
                                    where list in ({seq})
                                    '''.format(seq=', '.join(['?'] * len(ids))),
                                    ids)
-        self.__simple_removal(ids, 'lists')
+        self._simple_removal(ids, 'lists')
 
     def remove_tags(self, ids):
         u"""Remove tags by their ids. Also update tasks which have these tags.
@@ -690,9 +690,9 @@ class Yat:
             - ids (array<string>)
         """
         # The cascade actions remove the appropriate relations in tagging
-        self.__simple_removal(ids, 'tags')
+        self._simple_removal(ids, 'tags')
 
-    def __simple_removal(self, ids, table):
+    def _simple_removal(self, ids, table):
         with self.__sql:
             self.__sql.execute(u'delete from {table} where id in ({seq})'
                                .format(table=table, seq=', '.join(['?'] *
@@ -700,14 +700,14 @@ class Yat:
                                       ), ids)
             self.__sql.commit()
 
-    def __get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
+    def _get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
         if ids != None and None in ids and None not in loaded_objects:
             loaded_objects[None] = nocls(self)
-        extract = self.__extract_rows(cls._table_name, loaded_objects,
+        extract = self._extract_rows(cls._table_name, loaded_objects,
                                       ids, names, regexp)
-        return self.__get_group_objects(cls, loaded_objects, extract)
+        return self._get_group_objects(cls, loaded_objects, extract)
     
-    def __get_group_objects(self, cls, loaded_objects, extract):
+    def _get_group_objects(self, cls, loaded_objects, extract):
         groups = extract[0]
         rows = extract[1]
         for r in rows:
@@ -735,35 +735,35 @@ class Yat:
             if rows == []:
                 # We have to load NoTag here, since there wouldn't be any request
                 # for the None id
-                self.__loaded_tags[None]= NoTag(self)
+                self._loaded_tags[None]= NoTag(self)
             set_rows = set(rows)
             for r in rows:
                 try:
-                    loaded.append(self.__loaded_tags[int(r['id'])])
+                    loaded.append(self._loaded_tags[int(r['id'])])
                     set_rows.remove(r)
                 except KeyError:
                     pass
-            loaded = self.__get_group_objects(Tag, self.__loaded_tags,
+            loaded = self._get_group_objects(Tag, self._loaded_tags,
                                               (loaded, list(set_rows)))
-        return loaded + self.__get_groups(Tag, NoTag, self.__loaded_tags,
+        return loaded + self._get_groups(Tag, NoTag, self._loaded_tags,
                                            ids, names, regexp)
 
     def get_loaded_lists(self):
-        return [l for l in self.__loaded_lists.itervalues()]
+        return [l for l in self._loaded_lists.itervalues()]
 
     def get_loaded_tags(self):
-        return [l for l in self.__loaded_tags.itervalues()]
+        return [l for l in self._loaded_tags.itervalues()]
 
     def get_lists(self, ids=None, names=None, regexp=None):
-        return self.__get_groups(List, NoList, self.__loaded_lists, ids, names, regexp)
+        return self._get_groups(List, NoList, self._loaded_lists, ids, names, regexp)
 
     def get_list(self, value, value_is_id=True):
         if value == None:
             try:
-                return self.__loaded_lists[None]
+                return self._loaded_lists[None]
             except KeyError as e:
-                self.__loaded_lists[None] = NoList(self)
-                return self.__loaded_lists[None]
+                self._loaded_lists[None] = NoList(self)
+                return self._loaded_lists[None]
         if value_is_id:
             try:
                 return self.get_lists([int(value)])[0]
@@ -777,10 +777,10 @@ class Yat:
     def get_tag(self, value, value_is_id=True):
         if value == None:
             try:
-                return self.__loaded_tags[None]
+                return self._loaded_tags[None]
             except KeyError as e:
-                self.__loaded_tags[None] = NoTag(self)
-                return self.__loaded_tags[None]
+                self._loaded_tags[None] = NoTag(self)
+                return self._loaded_tags[None]
         if value_is_id:
             try:
                 return self.get_tags([int(value)])[0]
