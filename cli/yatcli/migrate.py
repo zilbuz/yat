@@ -50,7 +50,6 @@ database into a format suited for the new version of yat.
         '''Analyzes the alias used and initialize the environment accordingly.
         It returns the list of the possible following arguments.'''
         if alias == 'import':
-            self.files = []
             self.migration = False
             return ['filename']
         elif alias == 'migrate':
