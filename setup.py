@@ -113,10 +113,13 @@ class Test(Command):
                                   )
     def run(self):
         self.run_command('build')
-        sys.path[:0] = ['/'.join(self.source_dir), '/'.join(self.source_dir + ['cli'])]
-        retcall = subprocess.call(['/usr/bin/nosetests', '/'.join(self.source_dir),
-                                  '/'.join(self.source_dir+['cli']), '-e=yatest',
-                                 '-e=setup.py'])
+        src = '/'.join(self.source_dir)
+        os.putenv('PYTHONPATH', ':'.join([self.build_lib, src]))
+        retcall = subprocess.call(['/usr/local/bin/py.test',
+                                   '--cov-report', 'term-missing',
+                                   '--cov-conf', src+'/coverage.rc',
+                                   '--cov', self.build_lib,
+                                   src])
 
 
 build.sub_commands.append(('build_doc', None))
