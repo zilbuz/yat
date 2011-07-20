@@ -1,10 +1,9 @@
 #-*- coding:utf-8 -*-
 
 u"""
-yat.Library
+yat core module
 
-This file contains the classes and functions needed for basic handling
-of databases created with an old version of yat.
+This file contains the unit tests for the yat.legacy module.
 
            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
                    Version 2, December 2004 
@@ -31,34 +30,10 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import os.path
 
-#-*- coding:utf-8 -*-
-
-u"""
-           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-                   Version 2, December 2004
-
- Copyright (C) 2010, 2011
-    Basile Desloges <basile.desloges@gmail.com>
-    Simon Chopin <chopin.simon@gmail.com>
-
- Everyone is permitted to copy and distribute verbatim or modified
- copies of this license document, and changing it is allowed as long
- as the name is changed.
-
-            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
-  0. You just DO WHAT THE FUCK YOU WANT TO.
-
-This program is free software. It comes without any warranty, to
-the extent permitted by applicable law. You can redistribute it
-and/or modify it under the terms of the Do What The Fuck You Want
-To Public License, Version 2, as published by Sam Hocevar. See
-http://sam.zoy.org/wtfpl/COPYING for more details.
-"""
-
 import yat.legacy as legacy
 from yat.lib import Yat
+from yat.models import NoList, NoTag
+from yat.exceptions import UnknownDBVersion, FileNotFound
 from yatest import assert_raise, src, SQLTools as tools
 
 class TestV0_1():
@@ -104,3 +79,85 @@ class TestV0_1():
         assert_raise(TypeError, self.leg.get_tasks, [], [], [], 'groups')
         tasks = self.leg.get_tasks()
         assert len(tasks) == 3
+
+        t1 = self.leg.get_task(1)
+        assert t1.parent == None
+        assert t1.content == 'task1'
+        assert t1.list.content == 'list1'
+        assert iter(t1.tags).next().content == 'tag1'
+        assert t1.due_date == float('inf')
+
+        t2 = self.leg.get_task(2)
+        assert t2.parent == None
+        assert t2.content == 'task2'
+        assert type(t2.list) == NoList
+        assert len(t2.tags) == 0
+        assert t2.due_date == 1297537200.0
+
+        t3 = self.leg.get_task(3)
+        assert t3.parent == None
+        assert t3.content == 'task3'
+        assert t3.list == t2.list
+        assert len(t3.tags) == 2
+        for tag in t1.tags:
+            assert tag in t3.tags
+        assert t3.due_date == float('inf')
+
+    def test_get_lists(self):
+        lists = self.leg.get_lists()
+        assert len(lists) == 3
+        assert NoList(self.leg) in lists
+
+        assert type(self.leg.get_list(1)) == NoList
+
+        l1 = self.leg.get_list(2)
+        assert l1.content == 'list1'
+        assert l1.priority == 0
+
+        l2 = self.leg.get_list(3)
+        assert l2.content == 'list2'
+        assert l2.priority == -2
+
+    def test_get_tags(self):
+        tags = self.leg.get_tags()
+        assert len(tags) == 3
+        assert NoTag(self.leg) not in tags
+
+        t1 = self.leg.get_tag(2)
+        assert t1.content == 'tag1'
+        assert t1.priority == 0
+
+        t3 = self.leg.get_tag(4)
+        assert t3.content == 'tag3'
+        assert t3.priority == 4
+
+    def test_misc(self):
+        assert_raise(NotImplementedError, self.leg.not_implemented, "foo", 1)
+        assert self.leg.get_notes() == []
+
+def test_analyze_db():
+    v0_1_path = src()+os.path.sep+'v0.1.db'
+    base_path = src()+os.path.sep+'base.db'
+    future_path = src()+os.path.sep+'future.db'
+    tools.exec_sql([src()+os.path.sep+'v0.1.sql'], v0_1_path)
+    tools.exec_sql([src()+os.path.sep+'base.sql'], base_path)
+    tools.exec_sql([src()+os.path.sep+'future.sql'], future_path)
+
+    lib = Yat(config_file_path=src()+os.path.sep+'v0.1.yatrc',
+              db_path=base_path)
+
+    assert_raise(UnknownDBVersion, legacy.analyze_db, future_path, lib)
+    assert_raise(FileNotFound, legacy.analyze_db, 'bogus_path_to_nowhere', lib)
+
+    leg = legacy.analyze_db(v0_1_path, lib)
+    assert type(leg) == legacy.V0_1
+    leg.free_db()
+
+    leg = legacy.analyze_db(base_path, lib)
+    assert type(leg) == Yat
+    leg.free_db()
+
+    lib.free_db()
+    tools.restore_previous_db(v0_1_path)
+    tools.restore_previous_db(base_path)
+    tools.restore_previous_db(future_path)
