@@ -45,7 +45,7 @@ def assert_raise(cls, function, *args):
 def src():
     u'''Returns the absolute path to the directory containing the file calling
     this function.'''
-    return os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
+    return os.path.dirname(inspect.getframeinfo(inspect.currentframe().f_back).filename)
 
 class SQLTools(object):
     backup = {}
@@ -60,51 +60,71 @@ class SQLTools(object):
         
         sql_files is a list of file names, and db a file name.
         All paths must be absolute, since it can be tricky to determine the
-        emplacement of the file with a relative path : relative to the calling
+        location of the file with a relative path : relative to the calling
         module, to this module, or to the working directory... ?
         '''
         # We need to use a stack mechanism when facing several modification
         # because of the setup() and the actual test functions.
-        if os.path.exists(db):
-            try:
-                previous_backup = cls.backup[db][-1]
-                num = len(cls.backup[db])
-            except IndexError:
-                previous_backup = None
-            if previous_backup == None:
-                # create the first backup
-                bak = db+'.bak0'
+        if db not in cls.backup.iterkeys():
+            cls.backup[db] = []
+            if os.path.exists(db):
+                cls.backup[db].append(db+'.bak0')
+                shutil.copy(db, cls.backup[db][-1])
             else:
-                # increment the numbering
-                bak = previous_backup[:len(previous_backup)-1]+str(num)
-            shutil.copy(db, bak)
-        else:
-            bak = None
-        try:
-            cls.backup[db].append(bak)
-        except IndexError:
-            cls.backup[db] = [bak]
-        
-        db = sqlite3.connect(db)
-        for f in sql_files:
-            db.executescript(open(f).read())
+                cls.backup[db].append(None)
 
-        db.close()
+        db_object = sqlite3.connect(db)
+        if isinstance(sql_files, str):
+            db_object.executescript(open(sql_files).read())
+        else:
+            for f in sql_files:
+                db_object.executescript(open(f).read())
+        db_object.close()
+        cls.backup[db].append(db+'.bak'+str(len(cls.backup[db])))
+        shutil.copy(db, cls.backup[db][-1])
 
     @classmethod
-    def restore_db(cls, db):
+    def restore_previous_db(cls, db):
         u'''Restore the given db (filename, absolute path) to its original
         state, assuming it was once modified by exec_sql or indirectly by
         load_yat (but in that case it might be best to use restore_yat instead,
         even though it shouldn't change anything)
         '''
         try:
-            bak = cls.backup[db].pop()
+            current = cls.backup[db].pop()
+            bak = cls.backup[db][-1]
         except IndexError:
             return
+        except KeyError:
+            raise ValueError
         # If there is a backup but it is None, it means we created the file
         # once upon a time
         if bak == None:
             os.remove(db)
             return
-        shutil.move(bak, db)
+        shutil.copy(bak, db)
+        
+        if current != None:
+            os.remove(current)
+
+    @classmethod
+    def revert_db(cls, db):
+        u'''Use this when you have fiddled with the DB using other tools than
+        the one provided by this class.'''
+
+        try:
+            cls.backup[db].append(None)
+        except KeyError:
+            raise ValueError
+        cls.restore_previous_db(db)
+        
+    @staticmethod
+    def has_table(db, table):
+        u'''Open a DB and check whether it has the specified table.'''
+        try:
+            db = sqlite3.connect(db)
+            db.execute('select * from {0}'.format(table))
+            db.close()
+        except sqlite3.OperationalError:
+            return False
+        return True
