@@ -25,7 +25,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import yatcli
-from command import Command
+from yatcli.command import Command
 
 class HelpCommand (Command):
     u"""Show this help or a command specific help if an argument is provided
@@ -75,7 +75,7 @@ The different commands are:""".format(name = yatcli.name))
 
             # Extract docstrings from command classes
             help_txts = []
-            for name, cmd in yatcli.commands.iteritems():
+            for cmd in yatcli.commands.itervalues():
                 txt = u"\t" + cmd.alias[0]
                 txt += u"\t" + cmd.__doc__.split('\n', 1)[0]
                 if len(cmd.alias) > 1:

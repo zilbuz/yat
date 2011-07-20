@@ -24,11 +24,8 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import re
-import sys
-
 import yatcli
-from command import Command
+from yatcli.command import Command
 
 class MigrateCommand(Command):
     u"""Change the completed status of a task.

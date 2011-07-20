@@ -26,8 +26,8 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from exceptions import *
-import models
+import yat.models
+
 import re
 
 def stack_up_parents(tree):
@@ -38,7 +38,7 @@ def stack_up_parents(tree):
         if t == tree.parent:
             return tree
         if t in parents:
-            l_tree = Tree(t, policy, p)
+            l_tree = Tree(t, policy)
             l_tree.context = True
             return l_tree
         return None
@@ -161,7 +161,7 @@ class Tree(object):
     def significant_value(self, criterion):
         try:
             return self.values[criterion]
-        except KeyError as e:
+        except KeyError:
             self.values[criterion] = self.parent.significant_value(self, criterion)
             return self.values[criterion]
 
@@ -180,7 +180,7 @@ with reverse either True or False.'''
                 trees.sort(key=lambda t: t.significant_value(criteria[0]),
                              reverse=criteria[0][1])
                 break
-            except AttributeError as e:
+            except AttributeError:
                 criteria = criteria[1:]
         Tree.__subsort_trees(trees, criteria)
 
@@ -212,7 +212,7 @@ Careful, the <trees> list will be modified on site.
                                           t.significant_value(criteria_copy[1])
                                          ), reverse=criteria_copy[1][1])
                         break
-                    except AttributeError as e:
+                    except AttributeError:
                         criteria_copy = criteria_copy[1:]
                 # And then lather, rince, repeat :)
                 Tree.__subsort_trees(sublist, criteria[1:]) 
@@ -232,7 +232,7 @@ Careful, the <trees> list will be modified on site.
                                   t.significant_value(criteria_copy[1])
                                  ), reverse=criteria_copy[1][1])
                 break
-            except AttributeError as e:
+            except AttributeError:
                 criteria_copy = criteria_copy[1:]
         Tree.__subsort_trees(sublist, criteria[1:])
         trees[reference[1]:] = sublist
@@ -243,6 +243,6 @@ regexp = re.compile('^(?P<class>[A-Z][a-zA-Z]*)_(?P<function>[a-z_]+$)')
 for s in symbol_list:
     res = regexp.match(s)
     if res != None:
-        setattr(getattr(models, res.groupdict()['class']),
+        setattr(getattr(yat.models, res.groupdict()['class']),
                 res.groupdict()['function'], globals()[s])
     

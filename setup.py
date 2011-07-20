@@ -10,7 +10,6 @@ from docutils.writers import manpage
 import os
 import sys
 import subprocess
-import nose
 
 class BuildDoc(Command):
     description = "Build the documentation."
@@ -115,11 +114,10 @@ class Test(Command):
         self.run_command('build')
         src = '/'.join(self.source_dir)
         os.putenv('PYTHONPATH', ':'.join([self.build_lib, src]))
-        retcall = subprocess.call(['/usr/local/bin/py.test',
-                                   '--cov-report', 'term-missing',
-                                   '--cov-conf', src+'/coverage.rc',
-                                   '--cov', self.build_lib,
-                                   src])
+        subprocess.call(['/usr/local/bin/py.test',
+                         '--cov-report', 'term-missing',
+                         '--cov-conf', src+'/coverage.rc',
+                         '--cov', self.build_lib, src])
 
 
 build.sub_commands.append(('build_doc', None))

@@ -26,7 +26,7 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from exceptions import *
+from yat.exceptions import WrongId, IncoherentObject, WrongName
 
 class DBObject(object):
     class_lib = None
@@ -171,7 +171,7 @@ class Note(DBObject):
             try:
                 return lib.get_note(self.task, self.content, False)
             except WrongName:
-                self.id == None
+                self.id = None
             except WrongId:
                 raise IncoherentObject('A note must be associated to an existing task.')
         if self.id == None:
@@ -218,7 +218,7 @@ class Group(DBObject):
             try:
                 return getter(self.content, False)
             except WrongName:
-                self.id == None
+                self.id = None
         if self.id == None:
             lib._add_group(self._table_name, self)
         elif self.changed:

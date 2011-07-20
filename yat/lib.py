@@ -32,7 +32,6 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import datetime
 import locale
 import os
 import pickle
@@ -40,8 +39,9 @@ import re
 import sqlite3
 import sys
 import time
-from models import *
-from exceptions import *
+
+from yat.models import Task, Note, List, Tag, NoList, NoTag
+from yat.exceptions import WrongId, WrongName, WrongConfigFile, ExistingLock
 
 # Current version of yat
 # Is of the form "last_tag-development_state"
@@ -378,7 +378,7 @@ class Yat(object):
                     try:    # Try to fetch the loaded object.
                         loaded.append(loaded_objects[int(r['id'])])
                         set_rows.remove(r)  # If it is there, the row is useless
-                    except KeyError as e:
+                    except KeyError:
                         pass
                 rows = list(set_rows)
         return (loaded, rows)
@@ -429,7 +429,7 @@ class Yat(object):
                     try:
                         loaded.append(self._loaded_tasks[int(r['id'])])
                         set_rows.remove(r)
-                    except KeyError as e:
+                    except KeyError:
                         pass
                 loaded = self._get_task_objects((loaded, list(set_rows)))
 
@@ -771,7 +771,7 @@ class Yat(object):
         if value == None:
             try:
                 return self._loaded_lists[None]
-            except KeyError as e:
+            except KeyError:
                 self._loaded_lists[None] = NoList(self)
                 return self._loaded_lists[None]
         if value_is_id:
@@ -788,7 +788,7 @@ class Yat(object):
         if value == None:
             try:
                 return self._loaded_tags[None]
-            except KeyError as e:
+            except KeyError:
                 self._loaded_tags[None] = NoTag(self)
                 return self._loaded_tags[None]
         if value_is_id:

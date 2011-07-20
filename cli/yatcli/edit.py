@@ -24,11 +24,8 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import re
-import sys
-
 import yatcli
-from add import AddCommand
+from yatcli.add import AddCommand
 
 class EditCommand(AddCommand):
     u"""Edit the attributes of a task

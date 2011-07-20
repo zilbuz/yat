@@ -25,10 +25,9 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import os
-import re
 
 import yatcli
-from command import Command
+from yatcli.command import Command
 
 class ShowCommand (Command):
     u"""List the current tasks, lists or tags
@@ -73,7 +72,8 @@ Options:
                 self.tagswidth = allowable/4
                 self.textwidth = allowable - self.tagswidth
 
-            tasks = yatcli.lib.get_tasks()
+            #Load all the tasks in memory
+            yatcli.lib.get_tasks()
             if yatcli.lib.config["cli.display_group"] ==  u'list':
                 to_display = [yatcli.yat.Tree(li) for li in yatcli.lib.get_loaded_lists()]
             else:

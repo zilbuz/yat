@@ -29,11 +29,12 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from yat import *
-from exceptions import *
+from yat.lib import Yat
+from yat.models import Task, NoTag, NoList
+from yat.exceptions import FileNotFound, UnknownDBVersion
 
-import re
 import sqlite3
+import os.path
 
 class V0_1(Yat):
     def __init__(self, current_lib, db):

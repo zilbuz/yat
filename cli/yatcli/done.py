@@ -24,8 +24,6 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import re
-import sys
 from collections import deque
 
 import yatcli
