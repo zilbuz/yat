@@ -28,11 +28,10 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import yat
 import sqlite3
 import os.path
-import os
 import shutil
+import inspect
 
 def assert_raise(cls, function, *args):
     u'''Check that the function called with args as arguments raises
@@ -42,6 +41,11 @@ def assert_raise(cls, function, *args):
         assert not 'The function {0}{1} didn\'t raise {3}'.format(function, args, cls)
     except cls:
         pass
+
+def src():
+    u'''Returns the absolute path to the directory containing the file calling
+    this function.'''
+    return os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename)
 
 class SQLTools(object):
     backup = {}
@@ -104,4 +108,3 @@ class SQLTools(object):
             os.remove(db)
             return
         shutil.move(bak, db)
-
