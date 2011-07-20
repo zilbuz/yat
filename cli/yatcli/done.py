@@ -76,6 +76,7 @@ the shell doesn't expand them.
         done = cmd == u"done"
         tasks = deque(yatcli.lib.get_tasks(ids = self.ids_to_process,
                                            regexp = regexp))
+        processed = set()
         while True:
             try:
                 t = tasks.popleft()
