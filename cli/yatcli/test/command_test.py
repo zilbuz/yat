@@ -23,10 +23,10 @@ and/or modify it under the terms of the Do What The Fuck You Want
 To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
-import yatcli
+
 import yatcli.command as command
-import yatest
-import yat.exceptions
+from yatcli import BadArgument, MissingArgument
+
 from yatest import assert_raise
 class TestBoolOptions():
     def setup_method(self, method):
@@ -80,10 +80,10 @@ class TestValueOptions():
 
     def test_short_multiple_failure(self):
         self.cmd.options.append(('s', 'second', 'test2', str))
-        assert_raise(yatcli.BadArgument, self.func , ['-vs', 'test_value'])
+        assert_raise(BadArgument, self.func , ['-vs', 'test_value'])
 
     def test_short_missing_failure(self):
-        assert_raise(yatcli.MissingArgument, self.func , ['-v'])
+        assert_raise(MissingArgument, self.func , ['-v'])
 
     def test_long(self):
         result = self.func(['--value=test_value'])
@@ -92,8 +92,8 @@ class TestValueOptions():
         assert self.cmd.test == 'test_value'
 
     def test_long_missing(self):
-        assert_raise(yatcli.MissingArgument, self.func , ['--value'])
-        assert_raise(yatcli.MissingArgument, self.func , ['--value='])
+        assert_raise(MissingArgument, self.func , ['--value'])
+        assert_raise(MissingArgument, self.func , ['--value='])
 
     def test_ill_formed_option(self):
         self.cmd.options.append(('a', 'aaa', 'name'))
@@ -106,9 +106,9 @@ class TestArguments(object):
         self.cmd.arguments = (['first'], {'first':('^.*$', [None], 'first')})
 
     def test_extra_argument(self):
-        assert_raise(yatcli.MissingArgument, self.func, [])
+        assert_raise(MissingArgument, self.func, [])
         self.cmd.arguments[0][:] = [None]
-        assert_raise(yatcli.BadArgument, self.func, ['test'])
+        assert_raise(BadArgument, self.func, ['test'])
 
     def test_initial_arguments(self):
         self.cmd.command = 'foo'
@@ -128,7 +128,7 @@ class TestArguments(object):
         # More specific regexp with value extraction
         self.cmd.arguments[1]['first'] = ('^/(?P<value>.*)$', [None], 'first')
         # Feed with bad value
-        assert_raise(yatcli.BadArgument, self.func, ['test'])
+        assert_raise(BadArgument, self.func, ['test'])
 
         # Feed with legit value
         self.func(['/test'])
