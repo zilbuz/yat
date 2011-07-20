@@ -40,7 +40,8 @@ class V0_1(Yat):
     def __init__(self, current_lib, db):
         self.config = current_lib.config
 
-        self._Yat__sql = sqlite3.connect(db)
+        self._db_path = db
+        self._Yat__sql = sqlite3.connect(self._db_path)
         self._Yat__sql.row_factory = sqlite3.Row
         self._loaded_lists = {}
         self._loaded_tags = {}
@@ -55,11 +56,11 @@ class V0_1(Yat):
         for m in methods_not_implemented: setattr(self, m, self.not_implemented)
 
     def delete_tables(self):
-        with self.__sql:
-            self.__sql.execute('drop table tasks')
-            self.__sql.execute('drop table lists')
-            self.__sql.execute('drop table tags')
-            self.__sql.commit()
+        with self._Yat__sql:
+            self._Yat__sql.execute('drop table tasks')
+            self._Yat__sql.execute('drop table lists')
+            self._Yat__sql.execute('drop table tags')
+            self._Yat__sql.commit()
 
     # Limit the API to what is actually supported by the DB
     def get_tasks(self, ids=None, names=None, regexp=None):
@@ -83,7 +84,8 @@ class V0_1(Yat):
             tsk.id = int(r['id'])
             tsk.content = r["task"]
             tsk.priority = int(r["priority"])
-            tsk.due_date = float(r["due_date"])
+            tsk.due_date = (float(r["due_date"]) if r['due_date'] != None
+                            else float('inf'))
             tsk.completed = r["completed"]
             tsk.created = float(r["created"])
             tsk.list = self.get_list(int(r["list"]))

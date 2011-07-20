@@ -130,9 +130,10 @@ class Yat(object):
 
         # Connect to sqlite db
         if db_path == None:
-            self.__sql = sqlite3.connect(self.config["yatdir"] + "/yat.db")
+            self._db_path = self.config['yatdir'] + os.path.sep +'yat.db'
         else:
-            self.__sql = sqlite3.connect(db_path)
+            self._db_path = db_path
+        self.__sql = sqlite3.connect(self._db_path)
 
         # Use Row as row_factory to add access by column name and other things
         self.__sql.row_factory = sqlite3.Row
@@ -175,6 +176,13 @@ class Yat(object):
         self._loaded_tags = {}
         self._loaded_notes = {}
         pass
+
+    def free_db(self):
+        self.__sql.close()
+
+    def load_db(self):
+        self.__sql = sqlite3.connect(self._db_path)
+        self.__sql.row_factory = sqlite3.Row
 
     def delete_tables(self):
         u'''Delete all the tables created by yat from the DB.
@@ -508,13 +516,16 @@ class Yat(object):
                 t.parent = self._loaded_tasks[int(r['parent'])]
 
             t.content = r["content"]
-            t.due_date = r["due_date"]
-            t.priority = r["priority"]
+
+            t.due_date = (float(r["due_date"]) if r['due_date'] != None
+                          else float('inf'))
+
+            t.priority = int(r["priority"])
             t.list = self.get_list(r["list"])
             t.tags = set(self.get_tags(task=t))
             t.completed = r["completed"]
-            t.last_modified = r["last_modified"]
-            t.created = r["created"]
+            t.last_modified = float(r["last_modified"])
+            t.created = float(r["created"])
 
             # As usual, when pulling it from the DB we have to switch back
             # the changed flag to False.
