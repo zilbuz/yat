@@ -29,6 +29,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import yat.models
 
 import re
+import new
 
 def stack_up_parents(tree):
     u"""Static function. Given a tree with a task as root, stacks up the ancestors of the said task
@@ -243,6 +244,7 @@ regexp = re.compile('^(?P<class>[A-Z][a-zA-Z]*)_(?P<function>[a-z_]+$)')
 for s in symbol_list:
     res = regexp.match(s)
     if res != None:
-        setattr(getattr(yat.models, res.groupdict()['class']),
-                res.groupdict()['function'], globals()[s])
+        class_ = getattr(yat.models, res.groupdict()['class'])
+        setattr(class_, res.groupdict()['function'],
+                new.instancemethod(globals()[s], None, class_))
     
