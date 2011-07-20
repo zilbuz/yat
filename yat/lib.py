@@ -84,8 +84,18 @@ class Yat(object):
         self.output = sys.stdout
 
         # Config file
+        if os.name == 'nt':
+            default_config_file_path = \
+                os.path.join(os.environ.get('appdata'), 'yat.rc')
+            default_yatdir = \
+                os.path.join(os.environ.get('appdata'), 'yat')
+        else:
+            default_config_file_path = \
+                os.path.join(os.environ.get('HOME'), '.yatrc')
+            default_yatdir = \
+                os.path.join(os.environ.get('HOME'), '.yat')
         if config_file_path == None:
-            config_file_path = os.environ.get("HOME") + "/.yatrc"
+            config_file_path = default_config_file_path
         else:
             if not os.path.isfile(config_file_path):
                 raise WrongConfigFile, config_file_path
@@ -106,7 +116,7 @@ class Yat(object):
             pass
 
         # For each option, loading default if it isn't defined
-        self.config["yatdir"] = self.config.get("yatdir", "~/.yat")
+        self.config["yatdir"] = self.config.get("yatdir", default_yatdir)
         self.config["default_priority"] = self.config.get("default_priority", "1")
 
         # Default timestamp: infinite
