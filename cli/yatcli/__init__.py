@@ -1,7 +1,7 @@
 #-*- coding:utf-8 -*-
 
 u"""
-Initialisation file for the commands. Each new command should be in a separate
+Initialization file for the commands. Each new command should be in a separate
 file, and the name file should be included in the __all__ list.
 
 
