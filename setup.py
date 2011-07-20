@@ -17,7 +17,8 @@ class BuildDoc(Command):
 
     def initialize_options(self):
         self.build_dir = None
-        self.src_dir = os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
+        self.src_dir = (os.getcwd().split(os.path.sep) +
+                        sys.argv[0].split(os.path.sep))
         self.src_dir.pop()
 
     def finalize_options(self):
@@ -28,7 +29,7 @@ class BuildDoc(Command):
 
     def run(self):
         try:
-            os.makedirs('/'.join(self.build_dir))
+            os.makedirs(os.path.sep.join(self.build_dir))
         except OSError:
             pass
         # Make the man pages:
@@ -44,21 +45,20 @@ class BuildDoc(Command):
         path = ''
         for i in man_src:
             if i[1] != mem:
-                path = '/'.join(self.build_dir + ['man/man{0}'.format(i[1])])
+                path = os.path.sep.join(self.build_dir +
+                                        ['man/man{0}'.format(i[1])])
                 try:
                     os.makedirs(path)
                 except OSError:
                     pass
             mem = i[1]
-            publish_file(source_path='/'.join([man_dir,
-                                               '{0}.{1}.rst'.format(i[0],
-                                                                    i[1])
-                                              ]),
-                         destination_path='/'.join([path,
-                                                    '{0}.{1}'.format(i[0],
-                                                                     i[1])
-                                                   ]),
-                         writer=manpage.Writer())
+            publish_file(source_path = '/'.join([man_dir,
+                                                 '{0}.{1}.rst'.format(i[0],
+                                                                      i[1])]),
+                         destination_path = \
+                            os.path.sep.join([path,
+                                              '{0}.{1}'.format(i[0],i[1])]),
+                         writer = manpage.Writer())
 
 class InstallDoc(Command):
     description = 'Install the documentation.'
@@ -71,7 +71,8 @@ class InstallDoc(Command):
 
     def finalize_options(self):
         self.set_undefined_options('build_doc', ('build_dir', 'build_dir'))
-        self.set_undefined_options('install', ('install_data', 'install_prefix'))
+        self.set_undefined_options('install', ('install_data',
+                                               'install_prefix'))
         if isinstance(self.build_dir, str):
             self.build_dir = self.build_dir.split(os.path.sep)
         if isinstance(self.install_prefix, str):
@@ -79,18 +80,19 @@ class InstallDoc(Command):
 
     def run(self):
         self.run_command('build_doc')
-        man_build_dir = '/'.join(self.build_dir + ['man'])
+        man_build_dir = os.path.sep.join(self.build_dir + ['man'])
         man_cat = set([int(s[3]) for s in os.listdir(man_build_dir)
                        if (len(s) == 4 and int(s[3]) in range(1, 9) and
                            s[0:3] == 'man')])
         for i in man_cat:
             if self.install_prefix[-1] != 'usr':
-                man_install_dir = '/'.join(self.install_prefix +
+                man_install_dir = os.path.sep.join(self.install_prefix +
                                            ['man/man{0}'.format(i)])
             else:
-                man_install_dir = '/'.join(self.install_prefix +
+                man_install_dir = os.path.sep.join(self.install_prefix +
                                            ['share/man/man{0}'.format(i)])
-            man_origin_dir = '/'.join([man_build_dir, 'man{0}'.format(i)])
+            man_origin_dir = os.path.sep.join([man_build_dir,
+                                               'man{0}'.format(i)])
             self.copy_tree(man_origin_dir, man_install_dir)
 
 class Test(Command):
@@ -100,7 +102,8 @@ class Test(Command):
     def initialize_options(self):
         self.build_lib = None
         self.build_scripts = None
-        self.source_dir = os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
+        self.source_dir = \
+            os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
         self.source_dir.pop()
         if self.source_dir[-1] == '.':
             self.source_dir.pop()
@@ -113,8 +116,14 @@ class Test(Command):
     def run(self):
         self.run_command('build')
         src = '/'.join(self.source_dir)
-        os.putenv('PYTHONPATH', ':'.join([self.build_lib, src]))
-        subprocess.call(['/usr/local/bin/py.test',
+        if os.name == 'nt':
+            paths_sep = ';'
+            exec_name = 'py.test.exe'
+        else:
+            paths_sep = ':'
+            exec_name = 'py.test'
+        os.putenv('PYTHONPATH', paths_sep.join([self.build_lib, src]))
+        subprocess.call([exec_name,
                          '--cov-report', 'term-missing',
                          '--cov-conf', src+'/coverage.rc',
                          '--cov', self.build_lib, src])
