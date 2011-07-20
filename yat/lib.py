@@ -321,6 +321,13 @@ class Yat(object):
                                           .format(table_name,
                                                   extra_criteria[0]),
                                           extra_criteria[1]).fetchall()
+            copy = rows[:]
+            for r in copy:
+                try:
+                    loaded.append(loaded_objects[int(r['id'])])
+                except KeyError:
+                    continue
+                rows.remove(r)
         else:
             # To optimize the query, we have to create a new composed one
             # related to what is provided in argument. If there was no ID

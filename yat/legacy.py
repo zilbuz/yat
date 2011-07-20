@@ -66,14 +66,20 @@ class V0_1(Yat):
     def get_tasks(self, ids=None, names=None, regexp=None):
         return super(V0_1, self).get_tasks(ids=ids, names=names, regexp=regexp)
 
-    def get_tags(self, ids=None, names=None, regexp=None):
-        return super(V0_1, self).get_tags(ids=ids, names=names, regexp=regexp)
-
     def not_implemented(self, *args):
-        raise NotImplemented
+        raise NotImplementedError
 
     def get_notes(self, task=None, ids=None, names=None, regexp=None):
         return []
+
+    def get_tags(self, ids=None, names=None, regexp=None):
+        return_value = super(V0_1, self).get_tags(ids, names, regexp)
+        try:
+            return_value.remove(NoTag(self))
+        except ValueError:
+            pass
+        return return_value
+
     # Reminder : an extract is a tuple of a list of loaded tasks
     # and a list of DB rows
     def _get_task_objects(self, extract):
@@ -84,15 +90,17 @@ class V0_1(Yat):
             tsk.id = int(r['id'])
             tsk.content = r["task"]
             tsk.priority = int(r["priority"])
+
             tsk.due_date = (float(r["due_date"]) if r['due_date'] != None
                             else float('inf'))
+
             tsk.completed = r["completed"]
             tsk.created = float(r["created"])
             tsk.list = self.get_list(int(r["list"]))
 
             # We have to do the tags manually because get_tags(task)
             # relies on a DB scheme that doesn't exist yet
-            tag_ids = [int(i) for i in r['tags'].split(',')]
+            tag_ids = [int(i) for i in r['tags'].split(',') if int(i) != 1]
             tsk.tags = set(self.get_tags(ids=tag_ids))
             tasks.append(tsk)
             self._loaded_tasks[tsk.id] = tsk
@@ -108,11 +116,13 @@ class V0_1(Yat):
             g.priority = r["priority"]
             g.created = r["created"]
             g.changed = False
+
             loaded_objects[g.id] = g
             groups.append(g)
+
         return groups
 
-def analyze_db(filename=None, current_lib=None):
+def analyze_db(filename, current_lib=None):
     u"""Check the version of the database pointed by filename, and return the
     appropriate library.
     
