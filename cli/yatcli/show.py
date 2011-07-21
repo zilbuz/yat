@@ -27,6 +27,8 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import os
 
 import yatcli
+from yat.models import Group, NoList, NoTag, Task
+from yat.tree import Tree
 from yatcli.command import Command
 
 class ShowCommand (Command):
@@ -47,7 +49,10 @@ Options:
 
     def __init__(self):
         super(ShowCommand, self).__init__()
-        self.width = int(os.popen('stty size', 'r').read().split()[1])
+        if os.name == 'nt':
+            self.width = 80
+        else:
+            self.width = int(os.popen('stty size', 'r').read().split()[1])
         self.textwidth = 0
         self.tagswidth = 0
         self.datewidth = max(int(yatcli.lib.config["cli.output_datetime_length"]), 8)
@@ -277,15 +282,16 @@ Options:
             arguments['prefix'] = blank_prefix + "* "
             return arguments
 
-        yatcli.yat.Task.tree_display = task_tree_display
-        yatcli.yat.Task.display_callback = task_display_callback
-        yatcli.yat.Group.tree_display = group_tree_display
-        yatcli.yat.Group.display_callback = group_display_callback
-        yatcli.yat.Group.group_header = group_header
-        yatcli.yat.Group.display = group_print
-        yatcli.yat.NoList.group_header = nolist_header
-        yatcli.yat.NoTag.group_header = notag_header
-        yatcli.yat.Tree.display = tree_print
+        Task.tree_display = task_tree_display
+        Task.display_callback = task_display_callback
+        Group.tree_display = group_tree_display
+        Group.display_callback = group_display_callback
+        Group.group_header = group_header
+        Group.display = group_print
+        NoList.group_header = nolist_header
+        NoTag.group_header = notag_header
+
+        Tree.display = tree_print
 
 class InterruptDisplay(Exception):
     u'''For internal use.'''

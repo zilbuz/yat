@@ -147,10 +147,10 @@ def output(st = u"", f = None, linebreak = True, foreground = "",
     if lib == None:
         if f == None:
             f = sys.stderr
-        use_colors = True
+        use_colors = not os.name == 'nt'
         enc = 'utf-8'
     else:
-        use_colors = lib.config["cli.colors"]
+        use_colors = lib.config["cli.colors"] and not os.name == 'nt'
         enc = lib.enc
 
     # Default output
