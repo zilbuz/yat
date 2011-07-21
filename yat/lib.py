@@ -471,8 +471,10 @@ class Yat(object):
         tasks = extract[0]
         rows = extract[1]
         id_to_row = {}  # id:row
+        id_to_return = set()
         for r in rows:
             id_to_row[int(r["id"])] = r
+            id_to_return.add(int(r['id']))
 
         while len(rows) > 0:
             parent_ids = []
@@ -541,7 +543,7 @@ class Yat(object):
             t.notes = self.get_notes(t)
 
             # Return only the tasks explicitly requested, not the collateral
-            if t.id not in ids_to_fetch:
+            if t.id in id_to_return:
                 tasks.append(t)
         return tasks
 
