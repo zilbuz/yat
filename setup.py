@@ -33,7 +33,7 @@ class BuildDoc(Command):
         except OSError:
             pass
         # Make the man pages:
-        # Analyze every file in man/ to know wether is is a source
+        # Analyze every file in man/ to know whether is is a source
         man_dir = '/'.join(self.src_dir + ['man'])
         man_src = [(n[0], int(n[1])) for n in [s.split('.')
                                                for s in os.listdir(man_dir)]
