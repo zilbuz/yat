@@ -36,32 +36,30 @@ from yat.models import NoList, NoTag
 from yat.exceptions import UnknownDBVersion, FileNotFound
 from yatest import assert_raise, src, SQLTools as tools
 
+def setup_module():
+    TestV0_1.v0_1_path = src()+os.path.sep+'v0.1.db'
+    TestV0_1.base_path = src()+os.path.sep+'base.db'
+    tools.exec_sql([src()+os.path.sep+'v0.1.sql'], TestV0_1.v0_1_path)
+    tools.exec_sql([src()+os.path.sep+'base.sql'], TestV0_1.base_path)
+    TestV0_1.lib = Yat(config_file_path=src()+os.path.sep+'v0.1.yatrc',
+                   db_path=TestV0_1.base_path)
+    TestV0_1.leg = legacy.V0_1(TestV0_1.lib, TestV0_1.v0_1_path)
+
+def teardown_module():
+    TestV0_1.leg.free_db()
+    TestV0_1.lib.free_db()
+    tools.restore_previous_db(TestV0_1.v0_1_path)
+    tools.restore_previous_db(TestV0_1.base_path)
+
 class TestV0_1():
     @classmethod
-    def setup_class(cls):
-        cls.v0_1_path = src()+os.path.sep+'v0.1.db'
-        cls.base_path = src()+os.path.sep+'base.db'
-        tools.exec_sql([src()+os.path.sep+'v0.1.sql'], cls.v0_1_path)
-        tools.exec_sql([src()+os.path.sep+'base.sql'], cls.base_path)
-        cls.lib = Yat(config_file_path=src()+os.path.sep+'v0.1.yatrc',
-                       db_path=cls.base_path)
-        cls.leg = legacy.V0_1(cls.lib, cls.v0_1_path)
-
-    @classmethod
-    def teardown_class(cls):
+    def reset(cls):
         cls.leg.free_db()
+        tools.revert_db(cls.v0_1_path)
+        cls.leg.load_db()
         cls.lib.free_db()
-        tools.restore_previous_db(cls.v0_1_path)
-        tools.restore_previous_db(cls.base_path)
-
-    def teardown_method(self, method):
-        self.leg.free_db()
-        tools.revert_db(self.v0_1_path)
-        self.leg.load_db()
-
-        self.lib.free_db()
-        tools.revert_db(self.base_path)
-        self.lib.load_db()
+        tools.revert_db(cls.base_path)
+        cls.lib.load_db()
 
     def test_init(self):
         assert self.lib.config == self.leg.config
@@ -74,6 +72,7 @@ class TestV0_1():
         assert not tools.has_table(self.v0_1_path, 'tasks')
         assert not tools.has_table(self.v0_1_path, 'tags')
         assert not tools.has_table(self.v0_1_path, 'lists')
+        self.reset()
 
     def test_get_tasks(self):
         assert_raise(TypeError, self.leg.get_tasks, [], [], [], 'groups')
@@ -136,28 +135,23 @@ class TestV0_1():
         assert self.leg.get_notes() == []
 
 def test_analyze_db():
-    v0_1_path = src()+os.path.sep+'v0.1.db'
-    base_path = src()+os.path.sep+'base.db'
+    TestV0_1.reset()
     future_path = src()+os.path.sep+'future.db'
-    tools.exec_sql([src()+os.path.sep+'v0.1.sql'], v0_1_path)
-    tools.exec_sql([src()+os.path.sep+'base.sql'], base_path)
     tools.exec_sql([src()+os.path.sep+'future.sql'], future_path)
 
-    lib = Yat(config_file_path=src()+os.path.sep+'v0.1.yatrc',
-              db_path=base_path)
 
-    assert_raise(UnknownDBVersion, legacy.analyze_db, future_path, lib)
-    assert_raise(FileNotFound, legacy.analyze_db, 'bogus_path_to_nowhere', lib)
+    assert_raise(UnknownDBVersion, legacy.analyze_db,
+                 future_path, TestV0_1.lib)
+    assert_raise(FileNotFound, legacy.analyze_db,
+                 'bogus_path_to_nowhere', TestV0_1.lib)
 
-    leg = legacy.analyze_db(v0_1_path, lib)
+    leg = legacy.analyze_db(TestV0_1.v0_1_path,
+                            TestV0_1.lib)
     assert type(leg) == legacy.V0_1
     leg.free_db()
 
-    leg = legacy.analyze_db(base_path, lib)
+    leg = legacy.analyze_db(TestV0_1.base_path, TestV0_1.lib)
     assert type(leg) == Yat
     leg.free_db()
 
-    lib.free_db()
-    tools.restore_previous_db(v0_1_path)
-    tools.restore_previous_db(base_path)
     tools.restore_previous_db(future_path)
