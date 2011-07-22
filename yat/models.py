@@ -145,7 +145,7 @@ The return value is always None.'''
 
     def parents_in_group(self, group):
         u"""Returns True if at least one parent of self is in the group, False otherwise."""
-        return self.parent != None and (group.related_with(self.parent) or
+        return self.parent != None and (group.directly_related_with(self.parent) or
                                         self.parent.parents_in_group(group))
 
     def get_list_parents(self):

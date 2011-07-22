@@ -54,7 +54,10 @@ def Task_significant_value(self, tree, criterion):
         else:
             values = [float('inf')]
     else:
-        values = [getattr(tree.parent, criterion[0])]
+        try:
+            values = [getattr(tree.parent, criterion[0])]
+        except AttributeError:
+            raise ValueError
     values.extend([t.significant_value(criterion) for t in tree.children])
     if criterion[1]:
         reduce_function = lambda x,y: x if x > y else y
@@ -67,7 +70,7 @@ def Task_direct_children(self):
     return self.lib.get_children(self)
 
 def Task_child_policy(self, task):
-    u'''Meant to be used in a Tree construction. Defines wether a task
+    u'''Meant to be used in a Tree construction. Defines whether a task
 should be part or not'''
     return Tree(task, self.child_policy)
 
@@ -78,20 +81,23 @@ def Group_direct_children(self):
     u'''Select every member of the group that would be at the root of a tree
 in this group's context.'''
     return [c for c in self.lib.get_loaded_tasks()
-            if (c != None and self.related_with(c) and
+            if (c != None and self.directly_related_with(c) and
                 not c.parents_in_group(self))]
 
 def Group_child_callback(self, tree):
     u"""Appends the context tasks on top of the tree in the twisted cases :)"""
-    if self.related_with(tree.parent) and (not tree.parent.parents_in_group(self)
+    if self.directly_related_with(tree.parent) and (not tree.parent.parents_in_group(self)
                                      and tree.parent.parent != None):
         return stack_up_parents(tree)
     return tree
 
 def Group_significant_value(self, tree, criterion):
-    return getattr(tree.parent, criterion[0])
+    try:
+        return getattr(tree.parent, criterion[0])
+    except AttributeError:
+        raise ValueError
 
-def List_related_with(self, task):
+def List_directly_related_with(self, task):
     u'''Returns True is <task> is affiliated with the list (used in 
 the algorithms of Group.'''
     return task.list == self
@@ -100,6 +106,8 @@ def List_child_policy(self, task):
     u"""This policy excludes all the tasks that aren't on the list, except for those who have a child
     on the list, and the immediate children of a member. The nodes with a task out of the list are 
     tagged contextual."""
+    if not task.list == self and not task.parents_in_group(self):
+        return None
     tree = Tree(task, self.child_policy)
     if task.list == self:
         return tree
@@ -110,9 +118,11 @@ def List_child_policy(self, task):
 
 def Tag_child_policy(self, task):
     u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
-    return Tree(task, self.child_policy)
+    if self.directly_related_with(task) or task.parents_in_group(self):
+        return Tree(task, self.child_policy)
+    return None
 
-def Tag_related_with(self, task):
+def Tag_directly_related_with(self, task):
     u'''Returns True is <task> is tagged with <self> (used in 
 the algorithms of Group.'''
     return self in task.tags
@@ -122,7 +132,7 @@ def NoGroup_significant_value(self, tree, criterion):
         return float("-inf")
     return float('inf')
 
-def NoTag_related_with(self, task):
+def NoTag_directly_related_with(self, task):
     return task.tags == [] or task.tags == set()
 
 class Tree(object):
@@ -154,11 +164,6 @@ class Tree(object):
                     tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
                 self.children.append(tree)
 
-    def __str__(self):
-        retour = "Tree :"
-        retour += str(self.parent) + ", " + str([str(c) for c in self.children])
-        return retour
-
     def significant_value(self, criterion):
         try:
             return self.values[criterion]
@@ -181,7 +186,7 @@ with reverse either True or False.'''
                 trees.sort(key=lambda t: t.significant_value(criteria[0]),
                              reverse=criteria[0][1])
                 break
-            except AttributeError:
+            except ValueError:
                 criteria = criteria[1:]
         Tree.__subsort_trees(trees, criteria)
 
@@ -213,7 +218,7 @@ Careful, the <trees> list will be modified on site.
                                           t.significant_value(criteria_copy[1])
                                          ), reverse=criteria_copy[1][1])
                         break
-                    except AttributeError:
+                    except ValueError:
                         criteria_copy = criteria_copy[1:]
                 # And then lather, rince, repeat :)
                 Tree.__subsort_trees(sublist, criteria[1:]) 
@@ -233,7 +238,7 @@ Careful, the <trees> list will be modified on site.
                                   t.significant_value(criteria_copy[1])
                                  ), reverse=criteria_copy[1][1])
                 break
-            except AttributeError:
+            except ValueError:
                 criteria_copy = criteria_copy[1:]
         Tree.__subsort_trees(sublist, criteria[1:])
         trees[reference[1]:] = sublist
@@ -247,4 +252,4 @@ for s in symbol_list:
         class_ = getattr(yat.models, res.groupdict()['class'])
         setattr(class_, res.groupdict()['function'],
                 new.instancemethod(globals()[s], None, class_))
-    
+
