@@ -128,6 +128,42 @@ class Test(Command):
                          '--cov-conf', src+'/coverage.rc',
                          '--cov', self.build_lib, src])
 
+class Pylint(Command):
+    description = 'Run PyLint on the sources.'
+    user_options = []
+
+    def initialize_options(self):
+        self.source_dir = \
+            os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
+        self.source_dir.pop()
+        if self.source_dir[-1] == '.':
+            self.source_dir.pop()
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        src = '/'.join(self.source_dir)
+        sources = {
+            src:                    ['yat'],
+            src+os.path.sep+'cli':  ['yatcli']
+                   }
+        exec_name='pylint'
+        paths_sep = ':'
+        if os.name == 'nt':
+            exec_name='pylint.bat'
+            paths_sep = ';'
+        os.putenv('PYTHONPATH', paths_sep.join(sources.keys()))
+        working_dir = os.getcwd()
+        for path, modules in sources.iteritems():
+            print path
+            os.chdir(path)
+            for module in modules:
+                subprocess.call([exec_name, module,
+                                 '--ignore-docstrings=y', '--ignore-comments=y',
+                                 '--include-ids=y', '--reports=n',
+                                 '--disable=I0011'])
+        os.chdir(working_dir)
 
 build.sub_commands.append(('build_doc', None))
 install.sub_commands.append(('install_doc', None))
@@ -135,7 +171,8 @@ install.sub_commands.append(('install_doc', None))
 setup(name='yat',
       cmdclass={'build_doc':BuildDoc,
                 'install_doc':InstallDoc,
-                'test':Test
+                'test':Test,
+                'pylint':Pylint
                },
       version='0.3',
       description='Todolist manager',
