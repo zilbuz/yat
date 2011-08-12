@@ -38,6 +38,7 @@ import command
 import re
 
 # import all the command to load the aliases no matter what
+#pylint: disable=W0403
 import add
 import remove
 import show
@@ -46,6 +47,7 @@ import edit
 import done
 import clean
 import migrate
+#pylint: enable=W0403
 
 __all__ = [
         "command",
@@ -58,9 +60,8 @@ __all__ = [
         "clean",
         "migrate"
         ]
-u"""All filename listed here will be loaded when using the expression
-    "from Commands import *"
-"""
+# All filename listed here will be loaded when using the expression
+# "from Commands import *"
 
 lib = None
 name = None
@@ -68,11 +69,14 @@ commands = None
 aliases = None
 
 class MissingArgument(Exception):
+    '''Raised when an argument is missing. Doh !'''
     pass
 
 class BadArgument(Exception):
+    '''Raised when an unexpected argument is encountered.'''
     pass
 
+#pylint: disable=W0232,R0903
 class colors:
     u"""ASCII code to change console colors. f... is for foreground colors, and
     b... is for background colors"""
@@ -95,8 +99,8 @@ class colors:
     bcyan       = u"\033[46m"
     bwhite      = u"\033[47m"
 
-    available = ["", "black", "white", "red", "green", "yellow", "blue", "magenta",
-            "cyan"]
+    available = ["", "black", "white", "red", "green",
+                 "yellow", "blue", "magenta", "cyan"]
 
     # Shortcut to errors colors
     errf = "red"
@@ -114,15 +118,15 @@ class colors:
         background = background.lower()
 
         if foreground in colors.available and background in colors.available:
-            c = dict(inspect.getmembers(colors))
+            color_dict = dict(inspect.getmembers(colors))
 
             fcolor = u""
             if foreground != "":
-                fcolor = c["f" + foreground]
+                fcolor = color_dict["f" + foreground]
 
             bcolor = u""
             if background != "":
-                bcolor = c["b" + background]
+                bcolor = color_dict["b" + background]
             
             if bold:
                 bold_code = colors.bold
@@ -130,23 +134,24 @@ class colors:
                 bold_code = u""
                 
             return bold_code + fcolor + bcolor
-
+#pylint: enable=W0232,R0903
 
 def isCommand(obj):
     u"""Check if the parameter is a class derived from Command, without being
     Command"""
 
     if inspect.isclass(obj):
-        return (issubclass(obj, command.Command) and not(obj is command.Command))
+        return (issubclass(obj, command.Command) and
+                not(obj is command.Command))
     else:
         return False
 
-def output(st = u"", f = None, linebreak = True, foreground = "", 
-        background = "", bold = False):
+def output(string = u"", output_file = None, linebreak = True,
+           color = None, bold = False):
     # Defaults when the library isn't set yet
     if lib == None:
-        if f == None:
-            f = sys.stderr
+        if output_file == None:
+            output_file = sys.stderr
         use_colors = not os.name == 'nt'
         enc = 'utf-8'
     else:
@@ -154,23 +159,27 @@ def output(st = u"", f = None, linebreak = True, foreground = "",
         enc = lib.enc
 
     # Default output
-    if f == None:
-        f = lib.output
+    if output_file == None:
+        output_file = lib.output
 
     # Process colors
-    if use_colors:
-        st = colors.get(foreground, background, bold) + st + colors.default
+    if use_colors and color:
+        foreground = color[0] if color[0] else ''
+        background = color[1] if color[1] else ''
+        string = colors.get(foreground, background, bold) + \
+                string + colors.default
 
-    f.write(st.encode(enc))
+    output_file.write(string.encode(enc))
     if linebreak:
-        f.write(os.linesep)
+        output_file.write(os.linesep)
 
-def input(f = None):
-    if f == None:
-        f = lib.input
-    return f.readline().encode(lib.enc)
+def input(input_f = None):
+    if input_file == None:
+        input_file = lib.input
+    return input_file.readline().encode(lib.enc)
 
-def yes_no_question(txt, default = False, i = None, o = None):
+def yes_no_question(txt, default = False,
+                    input_file = None, output_file = None):
     u"""Ask the user the 'txt' yes/no question (append ' (Y/n)' or (y/N)
     depending of the 'default' parameter) and return the answer with a boolean:
     True for yes and False for no. 'i' and 'o' are the input and output to use.
@@ -182,10 +191,10 @@ def yes_no_question(txt, default = False, i = None, o = None):
     else:
         yn_txt = "y/N"
 
-    output(txt + " ("+ yn_txt + ")", f = o)
-    rep = input(i).lower()
+    output(txt + " ("+ yn_txt + ")", output_file = output_file)
+    rep = input(input_file).lower()
     while len(rep) == 0 or (rep[0] != "y" and rep[0] != "n" and rep[0] != "\n"):
-        output(yn_txt + " :", f = o)
+        output(yn_txt + " :", output_file = output_file)
         rep = input().lower()
 
     if rep[0] == "\n":
@@ -229,7 +238,8 @@ def parse_output_date(timestamp):
     u"""This function parse a timestamp into the format defined in the
     cli.output_datetime option. (empty string if the timestamp is infinite)"""
     date_string = ""
-    if timestamp != float('+inf') and timestamp != float('-inf') and timestamp != float('+nan') and timestamp != float('-nan'):
+    if (timestamp != float('+inf') and timestamp != float('-inf') and
+        timestamp != float('+nan') and timestamp != float('-nan')):
         d = datetime.datetime.fromtimestamp(timestamp)
         date_string = u"{0:" + lib.config["cli.output_datetime"] + u"}"
         date_string = date_string.format(d)

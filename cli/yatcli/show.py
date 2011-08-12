@@ -95,7 +95,7 @@ Options:
         elif cmd in [u'lists', u'tags'] :
             c = yatcli.lib.config["cli.color_group_name"]
             yatcli.output(u"<" + cmd[0:-1] + u" name> (id: <id>) - <tasks completed>/<tasks>:", 
-                    foreground = c[0], background = c[1], bold = c[2])
+                    color = (c[0], c[1]), bold = c[2])
             
             if cmd == u'lists':
                 groups = set(yatcli.lib.get_lists())
@@ -154,27 +154,25 @@ Options:
             yatcli.output()
             text_group = group.group_header()
             c = yatcli.lib.config["cli.color_group_name"]
-            yatcli.output(text_group, foreground = c[0], background = c[1], bold =
-                    c[2])
+            yatcli.output(text_group, color = (c[0], c[1]), bold = c[2])
             length = len(text_group)
-            yatcli.output(u"{s:*<{lgth}}".format(s = "*", 
-                lgth = length))
+            yatcli.output(u"{s:*<{lgth}}".format(s = "*", lgth = length))
 
             # Print header, depending on show_completed
             c = yatcli.lib.config["cli.color_header"]
             yatcli.output(u" {done}__________{t:_<{datewidth}}______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
                 done=done_column_top, t="_", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth=self.datewidth), 
-                foreground = c[0], background = c[1], bold = c[2])
+                color = (c[0], c[1]), bold = c[2])
             yatcli.output(u"{done}|Priority |{date:^{datewidth}}| Id| {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
                 done=done_column_middle, date = "Due date", datewidth = self.datewidth, 
                 task = "Task", textwidth = self.textwidth, tags = " Tags",
                 tagswidth = self.tagswidth),
-                foreground = c[0], background = c[1], bold = c[2])
+                color = (c[0], c[1]), bold = c[2])
             yatcli.output(u" {done}----------{t:-<{datewidth}}------{t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
                 done=done_column_bottom, t="-", textwidth=self.textwidth,
                 tagswidth=self.tagswidth, datewidth=self.datewidth),
-                foreground = c[0], background = c[1], bold = c[2])
+                color = (c[0], c[1]), bold = c[2])
 
         def group_display_callback(group, rec_arguments = None):
             pass
@@ -254,7 +252,7 @@ Options:
                 task = st.pop(0), textwidth = self.textwidth - len(arguments['prefix']), 
                 tags = tags.pop(0), tagswidth = self.tagswidth, 
                 datewidth = self.datewidth),
-                foreground = c[0], background = c[1], bold = c[2])
+                color = (c[0], c[1]), bold = c[2])
 
             # Blanking the prefix
             blank_prefix = ""
@@ -276,7 +274,7 @@ Options:
                     tags=ta, pref = blank_prefix, pref_width = len(blank_prefix),
                     tagswidth = self.tagswidth, t = " ", 
                     datewidth = self.datewidth),
-                    foreground = c[0], background = c[1], bold = c[2])
+                    color = (c[0], c[1]), bold = c[2])
 
             # Print the nodes of the root
             arguments['prefix'] = blank_prefix + "* "
