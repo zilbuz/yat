@@ -54,6 +54,7 @@ Options:
             ('n', 'no-recursive', 'no_recursive', None)
         ])
 
+    #pylint: disable=E1101
     def execute(self, cmd):
         if not self.force:
             if not yes_no_question(
@@ -74,3 +75,4 @@ Options:
                 tasks_ids.append(t.id)
         
         lib.remove_tasks(tasks_ids, self.recursive and not self.no_recursive)
+    #pylint: enable=E1101
