@@ -136,7 +136,7 @@ class colors:
             return bold_code + fcolor + bcolor
 #pylint: enable=W0232,R0903
 
-def isCommand(obj):
+def is_command(obj):
     u"""Check if the parameter is a class derived from Command, without being
     Command"""
 
@@ -146,8 +146,14 @@ def isCommand(obj):
     else:
         return False
 
-def output(string = u"", output_file = None, linebreak = True,
+def write(string = u"", output_file = None, linebreak = True,
            color = None, bold = False):
+    u'''Write a string in a file (or any file-like output).
+    When file isn't specified, the one in yatcli.lib is used.
+    If linebreak is set to True, a linebreak will be inserted after the
+    string.
+    color is a couple of strings used for the foreground and the background.
+    '''
     # Defaults when the library isn't set yet
     if lib == None:
         if output_file == None:
@@ -173,7 +179,10 @@ def output(string = u"", output_file = None, linebreak = True,
     if linebreak:
         output_file.write(os.linesep)
 
-def input(input_f = None):
+def read(input_file = None):
+    u'''Read a line from a file. The file defaults to the one specified
+    in yatcli.lib.
+    '''
     if input_file == None:
         input_file = lib.input
     return input_file.readline().encode(lib.enc)
@@ -191,11 +200,11 @@ def yes_no_question(txt, default = False,
     else:
         yn_txt = "y/N"
 
-    output(txt + " ("+ yn_txt + ")", output_file = output_file)
-    rep = input(input_file).lower()
+    write(txt + " ("+ yn_txt + ")", output_file = output_file)
+    rep = read(input_file).lower()
     while len(rep) == 0 or (rep[0] != "y" and rep[0] != "n" and rep[0] != "\n"):
-        output(yn_txt + " :", output_file = output_file)
-        rep = input().lower()
+        write(yn_txt + " :", output_file = output_file)
+        rep = read().lower()
 
     if rep[0] == "\n":
         return default
