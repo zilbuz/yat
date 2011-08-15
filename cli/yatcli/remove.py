@@ -83,6 +83,7 @@ Options:
                            '\n  {0.content}\n    priority: {0.priority}'
                            .format(x))
         self.get_obj = getattr(lib, 'get_{0}s'.format(value))
+        #pylint: disable=E1101
         if value == 'list':
             self.removal_function = lambda x: (
                 lib.remove_lists(x, (not self.no_recursive or self.recursive),
@@ -123,6 +124,7 @@ Options:
             return
         self.ids_to_remove.extend([o.id for o in objects])
         return
+    #pylint: enable=E1101
 
     def execute(self, cmd):
         self.process_regexp()
