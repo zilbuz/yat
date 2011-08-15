@@ -24,7 +24,6 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import yatcli
 from yatcli import lib, yes_no_question, parse_output_date
 from yatcli.command import Command
 
@@ -63,16 +62,16 @@ Options:
 
         tasks = lib.get_tasks()
         tasks_ids = []
-        for t in tasks:
-            if t.completed == 1:
+        for task in tasks:
+            if task.completed == 1:
                 if self.interactive:
-                    txt = u"Do you want to delete this task:\n" + t.content 
-                    txt += u" (priority: " + str(t.priority)
-                    txt += u", due date: " + parse_output_date(t.due_date)
+                    txt = u"Do you want to delete this task:\n" + task.content 
+                    txt += u" (priority: " + str(task.priority)
+                    txt += u", due date: " + parse_output_date(task.due_date)
                     txt += u") ?"
                     if not yes_no_question(txt, True):
                         continue
-                tasks_ids.append(t.id)
+                tasks_ids.append(task.id)
         
         lib.remove_tasks(tasks_ids, self.recursive and not self.no_recursive)
     #pylint: enable=E1101
