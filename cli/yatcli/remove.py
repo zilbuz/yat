@@ -66,7 +66,7 @@ Options:
         self.ids_to_remove = []
         self.get_obj = lib.get_tasks
         self.interactive_text = lambda x: str()
-        self.removal_function = lambda ids: raise NotImplementedError
+        self.removal_function = lambda ids: None
         self.regexp = []
         self.select_type('task')
         self.arguments = (['type', 'id', 'regexp'], {
