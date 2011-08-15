@@ -211,11 +211,11 @@ def yes_no_question(txt, default = False,
     else:
         return rep[0] != "n"
 
-def parse_input_date(date):
+def parse_input_date(date_string):
     u"""This function parses a string representing a date, and return the
     corresponding timestamp. Raises a ValueError if there is an error in the
     date."""
-    regex_date = re.match(lib.config["re.date"], date)
+    regex_date = re.match(lib.config["re.date"], date_string)
     re_date = regex_date.groupdict()
     year = int(re_date["year"])
     if lib.config["cli.input_date"] == "dd/mm":
@@ -240,8 +240,8 @@ def parse_input_date(date):
     if lib.config["cli.input_time"] == "12" and apm == "pm":
         hour += 12
 
-    d = datetime.datetime(year, month, day, hour, minute)
-    return time.mktime(d.timetuple())
+    date = datetime.datetime(year, month, day, hour, minute)
+    return time.mktime(date.timetuple())
 
 def parse_output_date(timestamp):
     u"""This function parse a timestamp into the format defined in the
@@ -249,7 +249,7 @@ def parse_output_date(timestamp):
     date_string = ""
     if (timestamp != float('+inf') and timestamp != float('-inf') and
         timestamp != float('+nan') and timestamp != float('-nan')):
-        d = datetime.datetime.fromtimestamp(timestamp)
+        date = datetime.datetime.fromtimestamp(timestamp)
         date_string = u"{0:" + lib.config["cli.output_datetime"] + u"}"
-        date_string = date_string.format(d)
+        date_string = date_string.format(date)
     return date_string
