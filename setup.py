@@ -162,7 +162,7 @@ class Pylint(Command):
                 subprocess.call([exec_name, module,
                                  '--ignore-docstrings=y', '--ignore-comments=y',
                                  '--include-ids=y', '--reports=n',
-                                 '--disable=I0011'])
+                                 '--disable=I0011', '--disable=R0801'])
         os.chdir(working_dir)
 
 build.sub_commands.append(('build_doc', None))

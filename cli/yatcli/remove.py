@@ -121,11 +121,11 @@ Options:
             return
         objects = self.get_obj(regexp=self.regexp)
         if not self.force and self.interactive:
-            for o in objects:
-                if yes_no_question(self.interactive_text(o)):
-                    self.ids_to_remove.append(o.id)
+            for obj in objects:
+                if yes_no_question(self.interactive_text(obj)):
+                    self.ids_to_remove.append(obj.id)
             return
-        self.ids_to_remove.extend([o.id for o in objects])
+        self.ids_to_remove.extend([obj.id for obj in objects])
         return
     #pylint: enable=E1101
 
