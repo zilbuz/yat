@@ -24,7 +24,7 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import yatcli
+from yatcli import lib, parse_output_date, yes_no_question
 from yatcli.command import Command
 
 class RemoveCommand (Command):
@@ -78,32 +78,30 @@ Options:
 
     def select_type(self, value):
         u'''Select the internal methods to use to process the arguments.'''
-        self.interactive_text = lambda x: ('Do you want to delete this {0}:\n'.format(value) +
-                            '\n  {0.content}\n    priority: {0.priority}'.format(x))
-        self.get_obj = getattr(yatcli.lib, 'get_{0}s'.format(value))
+        self.interactive_text = \
+                lambda x: ('Do you want to delete this {0}:\n'.format(value) +
+                           '\n  {0.content}\n    priority: {0.priority}'
+                           .format(x))
+        self.get_obj = getattr(lib, 'get_{0}s'.format(value))
         if value == 'list':
             self.removal_function = lambda x: (
-                yatcli.lib.remove_lists(x, (not self.no_recursive or
-                                            self.recursive),
-                                        (self.recursive and
-                                         not self.no_recursive)))
+                lib.remove_lists(x, (not self.no_recursive or self.recursive),
+                                 (self.recursive and not self.no_recursive)))
         elif value == 'task':
             old_text = self.interactive_text
             self.interactive_text = (lambda x: old_text(x)+
                                      '\n    due date: {0}'
-                                     .format(yatcli.parse_output_date(x.due_date)))
+                                     .format(parse_output_date(x.due_date)))
 
-            self.removal_function = lambda x: (
-                yatcli.lib.remove_tasks(x,
-                                        (self.recursive and
-                                         not self.no_recursive)))
+            self.removal_function = lambda x: \
+                lib.remove_tasks(x, (self.recursive and not self.no_recursive))
         else:
-            self.removal_function = getattr(yatcli.lib, 'remove_{0}s'.format(value))
+            self.removal_function = getattr(lib, 'remove_{0}s'.format(value))
         return False
 
     def add_id_to_remove(self, value):
         if (self.interactive and not
-            yatcli.yes_no_question(self.interactive_text(
+            yes_no_question(self.interactive_text(
                 self.get_obj(ids=[int(value)])), default=True)):
             return
         self.ids_to_remove.append(int(value))
@@ -114,14 +112,13 @@ Options:
             return
         self.regexp = ' '.join(self.regexp)
         if (self.regexp == '*' and not self.force and 
-            not yatcli.yes_no_question(
-                "This operation is potentially disastrous. Are you so desperate ?",
-                default = True)):
+            not yes_no_question( "This operation is potentially disastrous. \
+                Are you so desperate ?", default = True)):
             return
         objects = self.get_obj(regexp=self.regexp)
         if not self.force and self.interactive:
             for o in objects:
-                if yatcli.yes_no_question(self.interactive_text(o)):
+                if yes_no_question(self.interactive_text(o)):
                     self.ids_to_remove.append(o.id)
             return
         self.ids_to_remove.extend([o.id for o in objects])
