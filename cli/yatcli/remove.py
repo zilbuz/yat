@@ -103,7 +103,7 @@ Options:
     def add_id_to_remove(self, value):
         if (self.interactive and not
             yes_no_question(self.interactive_text(
-                self.get_obj(ids=[int(value)])), default=True)):
+                self.get_obj(ids=[int(value)]))[0], default=True)):
             return
         self.ids_to_remove.append(int(value))
         return
