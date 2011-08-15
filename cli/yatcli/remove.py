@@ -79,6 +79,7 @@ Options:
         })
         super(RemoveCommand, self).__init__()
 
+    #pylint: disable=E1101
     def select_type(self, value):
         u'''Select the internal methods to use to process the arguments.'''
         self.interactive_text = \
@@ -86,7 +87,6 @@ Options:
                            '\n  {0.content}\n    priority: {0.priority}'
                            .format(x))
         self.get_obj = getattr(lib, 'get_{0}s'.format(value))
-        #pylint: disable=E1101
         if value == 'list':
             self.removal_function = lambda x: (
                 lib.remove_lists(x, (not self.no_recursive or self.recursive),
