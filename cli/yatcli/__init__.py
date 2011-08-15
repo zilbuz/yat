@@ -34,11 +34,11 @@ import inspect
 import os
 import sys
 import yat
-import command
 import re
 
 # import all the command to load the aliases no matter what
 #pylint: disable=W0403
+import command
 import add
 import remove
 import show
@@ -61,7 +61,7 @@ __all__ = [
         "migrate"
         ]
 # All filename listed here will be loaded when using the expression
-# "from Commands import *"
+# "from yatcli import *"
 
 lib = None
 name = None
@@ -77,7 +77,7 @@ class BadArgument(Exception):
     pass
 
 #pylint: disable=W0232,R0903
-class colors:
+class Colors:
     u"""ASCII code to change console colors. f... is for foreground colors, and
     b... is for background colors"""
     default     = u"\033[0m"
@@ -117,8 +117,8 @@ class colors:
         foreground = foreground.lower()
         background = background.lower()
 
-        if foreground in colors.available and background in colors.available:
-            color_dict = dict(inspect.getmembers(colors))
+        if foreground in Colors.available and background in Colors.available:
+            color_dict = dict(inspect.getmembers(Colors))
 
             fcolor = u""
             if foreground != "":
@@ -129,7 +129,7 @@ class colors:
                 bcolor = color_dict["b" + background]
             
             if bold:
-                bold_code = colors.bold
+                bold_code = Colors.bold
             else:
                 bold_code = u""
                 
@@ -172,8 +172,8 @@ def write(string = u"", output_file = None, linebreak = True,
     if use_colors and color:
         foreground = color[0] if color[0] else ''
         background = color[1] if color[1] else ''
-        string = colors.get(foreground, background, bold) + \
-                string + colors.default
+        string = Colors.get(foreground, background, bold) + \
+                string + Colors.default
 
     output_file.write(string.encode(enc))
     if linebreak:
