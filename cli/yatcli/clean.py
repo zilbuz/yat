@@ -25,6 +25,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import yatcli
+from yatcli import lib, yes_no_question, parse_output_date
 from yatcli.command import Command
 
 class CleanCommand(Command):
@@ -55,19 +56,21 @@ Options:
 
     def execute(self, cmd):
         if not self.force:
-            if not yatcli.yes_no_question(u"Are you sure you want to delete all your completed tasks ?"):
+            if not yes_no_question(
+                u"Are you sure you want to delete all your completed tasks ?"):
                 return
 
-        tasks = yatcli.lib.get_tasks()
+        tasks = lib.get_tasks()
         tasks_ids = []
         for t in tasks:
             if t.completed == 1:
                 if self.interactive:
                     txt = u"Do you want to delete this task:\n" + t.content 
                     txt += u" (priority: " + str(t.priority)
-                    txt += u", due date: " + yatcli.parse_output_date(t.due_date) + u") ?"
-                    if not yatcli.yes_no_question(txt, True):
+                    txt += u", due date: " + parse_output_date(t.due_date)
+                    txt += u") ?"
+                    if not yes_no_question(txt, True):
                         continue
                 tasks_ids.append(t.id)
         
-        yatcli.lib.remove_tasks(tasks_ids, self.recursive and not self.no_recursive)
+        lib.remove_tasks(tasks_ids, self.recursive and not self.no_recursive)
