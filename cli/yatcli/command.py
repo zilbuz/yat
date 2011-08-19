@@ -44,15 +44,8 @@ It must also contain a execute(self, cmd) function.
 If you wish to parse options and arguments, you have to define an __init__()
 function calling this class' __init__, and redefine if needed self.options,
 self.arguments and self.breakdown. See the comments in the code.
-"""
-    
-    alias = []
-    u"""Array containing the different aliases for this command"""
 
-    def __init__(self):
-        if not hasattr(self, 'options'):
-            self.options = []
-        u"""An option is defined this way:
+An option is defined this way:
     (short, long, attribute, default)
 with:
     - short: a single letter or None
@@ -62,11 +55,9 @@ with:
     - constructor: a function building an object out of a string
 While short, long and attribute ought to be of the str type, default can be
 any python object. The values of self.attribute is initialized with False if
-constructor is None, None otherwise, when creating the Command object."""
+constructor is None, None otherwise, when creating the Command object.
 
-        if not hasattr(self, 'arguments'):
-            self.arguments = ([None], {})
-        u'''Of the form:
+The arguments are specified like this:
     ([initial_arguments], {key: (regexp, next, process)})
 with:
     - initial_arguments:
@@ -84,9 +75,9 @@ with:
 
     - next:
         a list of keys, pointing to the potential next arguments. For instance,
-        if you want to remove a list of yat, you type 'yat rm list id=$ID'. Here,
-        the argument entry matching 'list' would return a list containing at
-        least the key 'id'.
+        if you want to remove a list of yat, you type 'yat rm list id=$ID'.
+        Here, the argument entry matching 'list' would return a list containing
+        at least the key 'id'.
 
         next can be either a list or a function taking one argument (the
         value extracted from the regexp) and returning a list of keys.
@@ -101,12 +92,22 @@ with:
         be affected by the extracted value.
         And last, if it is a callable, it has to take one argument: the 
         extracted value.
-    u'''
+"""
+    
+    #Array containing the different aliases for this command
+    alias = []
+
+    def __init__(self):
+        if not hasattr(self, 'options'):
+            self.options = []
+
+        if not hasattr(self, 'arguments'):
+            self.arguments = ([None], {})
 
         if not hasattr(self, 'breakdown'):
             self.breakdown = False
-    u'''If self.breakdown is set to True, every argument will be divided into
-    words, ignoring the quotation marks.'''
+    # If self.breakdown is set to True, every argument will be divided into
+    # words, ignoring the quotation marks.'''
 
     def __call__(self, cmd, args):
         self.command = cmd
@@ -118,14 +119,14 @@ with:
         stripped from all options. There is no return value, every modification
         takes place in self.'''
         # Regexp compilation
-        for k, a in self.arguments[1].iteritems():
-            self.arguments[1][k] = (re.compile(a[0]), a[1], a[2])
+        for key, arg in self.arguments[1].iteritems():
+            self.arguments[1][key] = (re.compile(arg[0]), arg[1], arg[2])
 
         # Breaking down the arguments into simple words
         if self.breakdown:
             args_cpy = []
-            for a in args:
-                args_cpy.extend(a.split(' '))
+            for arg in args:
+                args_cpy.extend(arg.split(' '))
             args = args_cpy
 
         # Determine the first potential arguments
@@ -135,48 +136,48 @@ with:
             to_examine = self.arguments[0]
 
         # Analyze the arguments
-        for a in args:
-            m = None
+        for arg in args:
+            match = None
 
             # Match the argument against the potential entries
-            for e in to_examine:
+            for entry in to_examine:
                 # Indicates a possible end point. Irrelevant value.
-                if e == None:
+                if entry == None:
                     continue
 
                 # Comparing the entry regexp against the argument
-                p = self.arguments[1][e]
-                m = p[0].match(a)
-                if m == None:
+                spec = self.arguments[1][entry]
+                match = spec[0].match(arg)
+                if match == None:
                     continue
 
                 # Extract the value
                 try:
-                    value = m.groupdict()['value']
+                    value = match.groupdict()['value']
                 except KeyError:
-                    value = a
+                    value = arg
 
                 # Determine the next potential arguments
-                if callable(p[1]):
-                    to_examine = p[1](value)
+                if callable(spec[1]):
+                    to_examine = spec[1](value)
                 else:
-                    to_examine = p[1]
+                    to_examine = spec[1]
 
                 # Processing the value extracted from the regexp
-                if callable(p[2]):
-                    p[2](value)
-                elif isinstance(p[2], str):
-                    setattr(self, p[2], value)
-                elif isinstance(p[2], list):
-                    p[2].append(value)
+                if callable(spec[2]):
+                    spec[2](value)
+                elif isinstance(spec[2], str):
+                    setattr(self, spec[2], value)
+                elif isinstance(spec[2], list):
+                    spec[2].append(value)
                 else:
                     raise TypeError("The last member of the argument tuple \
                                     should be a string, a list or a callable.")
                 break
 
             # If there wasn't any match, the argument must be ill-formed
-            if m == None:
-                raise yatcli.BadArgument('Unknown argument: {0}'.format(a))
+            if match == None:
+                raise yatcli.BadArgument('Unknown argument: {0}'.format(arg))
             
         # A potential grammatical end of the command is signaled by the None key
         if None not in to_examine:
@@ -186,15 +187,15 @@ with:
         u'''Parse the args provided using self.options. It modifies self and
         returns args stripped from every argument used.'''
         # Initialization of the attributes and quick check of the option format
-        for o in self.options:
-            if len(o) != 4:
+        for opt in self.options:
+            if len(opt) != 4:
                 raise ValueError('The options must be of the form \
                                  (short, long, attribute, type)')
-            if o[3] == None:
-                setattr(self, o[2], False)
+            if opt[3] == None:
+                setattr(self, opt[2], False)
             else:
 
-                setattr(self, o[2], None)
+                setattr(self, opt[2], None)
 
         stripped_args = args[:]
 
@@ -202,11 +203,11 @@ with:
         # through the list at every element of args
         short_dict = {}
         long_dict = {}
-        for o in self.options:
-            if o[0] != None:
-                short_dict[o[0][0]] = (o[2], o[3])
-            if o[1] != None:
-                long_dict[o[1]] = (o[2], o[3])
+        for opt in self.options:
+            if opt[0] != None:
+                short_dict[opt[0][0]] = (opt[2], opt[3])
+            if opt[1] != None:
+                long_dict[opt[1]] = (opt[2], opt[3])
 
         re_long = \
                 re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.+)?)?$')
@@ -214,15 +215,15 @@ with:
 
         # We cannot use a for loop because we need to be able to make a
         # jump to reach the next argument inside of the loop
-        it = iter(args)
+        arg_iter = iter(args)
 
         while(True):
             try:
-                a = it.next()
+                arg = arg_iter.next()
             except StopIteration:
                 break
             # Testing for a long option
-            res = re_long.match(a)
+            res = re_long.match(arg)
             if res != None:
                 option = long_dict[res.groupdict()['name']]
                 
@@ -235,47 +236,45 @@ with:
                     if value == None:
                         raise yatcli.MissingArgument
                     setattr(self, option[0], option[1](value))
-                stripped_args.remove(a)
+                stripped_args.remove(arg)
                 continue
 
             # Checking if it is a cluster of short options
-            res = re_short.match(a)
+            res = re_short.match(arg)
             if res != None:
                 # Same reason as above : we need flexibility and complex
                 # exception management
-                it_l = iter([l for l in re.split('([a-zA-Z])',
+                letter_iter = iter([l for l in re.split('([a-zA-Z])',
                                                res.groupdict()['options'])
                            if len(l) == 1])
 
                 #Bootstrapping the loop over the letters
-                l = it_l.next()
+                letter = letter_iter.next()
                 while(True):
-                    print short_dict
-                    print l
-                    option = short_dict[l]
+                    option = short_dict[letter]
 
                     #Boolean option
                     if option[1] == None:
                         setattr(self, option[0], True)
                         try:
-                            l = it_l.next()
+                            letter = letter_iter.next()
                         except StopIteration:
                             break
                     else:
                     #Plain value option
                         try:
                             # If there is a next letter, there's a syntax error.
-                            l = it_l.next()
+                            letter = letter_iter.next()
                             raise yatcli.BadArgument
                         except StopIteration:
                             try:
-                                value = it.next()
+                                value = arg_iter.next()
                             except StopIteration:
                                 raise yatcli.MissingArgument
                             setattr(self, option[0], option[1](value))
                             stripped_args.remove(value)
                             break
-                stripped_args.remove(a)
+                stripped_args.remove(arg)
         return stripped_args
 
     def execute(self, cmd):
