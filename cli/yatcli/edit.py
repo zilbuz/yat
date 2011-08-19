@@ -78,8 +78,7 @@ The possible attributes for a list or a tag are:
     #pylint: enable=W0613
 
     def __init__(self):
-        # We skip the AddCommand __init__()
-        super(AddCommand, self).__init__()
+        super(EditCommand, self).__init__()
 
         self.breakdown = False
         self.cmd = 'task'
