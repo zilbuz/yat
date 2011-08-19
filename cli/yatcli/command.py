@@ -170,8 +170,8 @@ with:
                 elif isinstance(p[2], list):
                     p[2].append(value)
                 else:
-                    raise TypeError("The last member of the argument tuple should \
-                                    be a string, a list or a callable.")
+                    raise TypeError("The last member of the argument tuple \
+                                    should be a string, a list or a callable.")
                 break
 
             # If there wasn't any match, the argument must be ill-formed
@@ -185,7 +185,7 @@ with:
     def parse_options(self, args):
         u'''Parse the args provided using self.options. It modifies self and
         returns args stripped from every argument used.'''
-        # Initialization of the attributes and shallow check of the option format
+        # Initialization of the attributes and quick check of the option format
         for o in self.options:
             if len(o) != 4:
                 raise ValueError('The options must be of the form \
@@ -208,7 +208,8 @@ with:
             if o[1] != None:
                 long_dict[o[1]] = (o[2], o[3])
 
-        re_long = re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.+)?)?$')
+        re_long = \
+                re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.+)?)?$')
         re_short= re.compile('^-(?P<options>[a-zA-Z]+)$')
 
         # We cannot use a for loop because we need to be able to make a
