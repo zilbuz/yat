@@ -26,8 +26,8 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 from collections import deque
 
-import yatcli
-from command import Command
+from yatcli import lib
+from yatcli.command import Command
 
 class DoneCommand(Command):
     u"""Change the completed status of a task.
@@ -65,6 +65,7 @@ the shell doesn't expand them.
             'regexp':   ('.*', ['regexp', None], self.regexp)
         })
 
+    #pylint: disable=E1101
     def execute(self, cmd):
         if self.regexp == []:
             regexp = None
@@ -72,7 +73,7 @@ the shell doesn't expand them.
             regexp = " ".join(self.regexp)
 
         done = cmd == u"done"
-        tasks = deque(yatcli.lib.get_tasks(ids = self.ids_to_process,
+        tasks = deque(lib.get_tasks(ids = self.ids_to_process,
                                            regexp = regexp))
         processed = set()
         while True:
@@ -84,5 +85,6 @@ the shell doesn't expand them.
             t.save()
             if self.recursive and not self.no_recursive:
                 processed.add(t)
-                tasks.extend([c for c in yatcli.lib.get_children(t)
+                tasks.extend([c for c in lib.get_children(t)
                               if c not in processed])
+    #pylint: enable=E1101
