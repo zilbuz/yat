@@ -60,6 +60,7 @@ The possible attributes for a list or a tag are:
 
     alias = [u"edit"]
 
+    #pylint: disable=W0613
     def __after_id(self, value):
         if self.cmd == 'task':
             return ['rm_tags', 'tags', 'list', 'parent',
@@ -74,6 +75,7 @@ The possible attributes for a list or a tag are:
 
     def __after_group_priority(self, value):
         return ['{0}_name'.format(self.cmd), None]
+    #pylint: enable=W0613
 
     def __init__(self):
         # We skip the AddCommand __init__()
@@ -134,6 +136,7 @@ The possible attributes for a list or a tag are:
                                self.__after_group_priority, 'priority')
         })
 
+    #pylint: disable=E1101
     def edit_content(self, obj):
         if self.content == None:
             return
@@ -145,3 +148,4 @@ The possible attributes for a list or a tag are:
 
     def get_object(self):
         return getattr(lib, 'get_{0}'.format(self.cmd))(self.id)
+    #pylint: enable=E1101
