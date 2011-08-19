@@ -26,8 +26,10 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import sys
 
-import yatcli
+from yatcli import write, Colors, lib, parse_input_date
 from yatcli.command import Command
+from yat.exceptions import WrongName, WrongId
+from yat.models import List, Tag, Task
 
 class AddCommand (Command):
     u"""Add a task, a list or a tag
@@ -104,38 +106,48 @@ Adding a tag:
         whole_task = ['tag', 'list', 'parent', 'date', 'priority', 'word', None]
 
         def type_next(value):
-            if value == 'task': return whole_task
+            u'''Determin the next potential arguments given the type of object.
+            '''
+            if value == 'task':
+                return whole_task
             return ['{0}_name'.format(value)]
 
-        self.arguments = (['type', 'tag', 'list', 'parent', 'date', 'priority', 'word'], {
+        self.arguments = (
+            ['type', 'tag', 'list', 'parent', 'date', 'priority', 'word'],
+            {
             # The first argument, 'tag', 'task' or 'list'
             'type':     ('^(?P<value>task|list|tag)$', type_next, 'cmd'),
 
             # A tag element of a task definition
-            'tag':      ('^#(?P<value>{0})$'.format(yatcli.lib.config["re.tag_name"]),
+            'tag':      ('^#(?P<value>{0})$'
+                         .format(lib.config["re.tag_name"]),
                          whole_task, self.tags_to_add),
 
             # The list element of a task definition
-            'list':     ('^>(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
+            'list':     ('^>(?P<value>{0})$'
+                         .format(lib.config['re.list_name']),
                          whole_task, 'list'),
             
-            'parent':   ('^~(?P<value>{0})$'.format(yatcli.lib.config['re.id']),
+            'parent':   ('^~(?P<value>{0})$'
+                         .format(lib.config['re.id']),
                          whole_task, 'parent'),
 
             # The priority for a task only !
-            'priority': ('^\*(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
+            'priority': ('^\*(?P<value>{0})$'
+                         .format(lib.config['re.priority']),
                          whole_task, 'priority'),
 
-            'date':     ('^\^(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
+            'date':     ('^\^(?P<value>{0})$'
+                         .format(lib.config['re.date']),
                          whole_task, 'date'),
 
             # Will be added to the content.
             'word':     ('^.*$', whole_task, self.content),
 
-            'tag_name': ('^{0}$'.format(yatcli.lib.config['re.tag_name']),
+            'tag_name': ('^{0}$'.format(lib.config['re.tag_name']),
                          ['group_priority', None], self.content),
 
-            'list_name':('^{0}$'.format(yatcli.lib.config['re.list_name']),
+            'list_name':('^{0}$'.format(lib.config['re.list_name']),
                          ['group_priority', None], self.content),
 
             'group_priority': ('^-?\d\d*$', [None], 'priority')
@@ -143,34 +155,37 @@ Adding a tag:
 
 
     def edit_content(self, obj):
+        '''Edit the content of the object.'''
         if self.content == []:
-            yatcli.output("[ERR] There is no actual content !.", 
-                    f = sys.stderr,
-                    foreground = yatcli.colors.errf, background = 
-                    yatcli.colors.errb, bold = yatcli.colors.errbold)
+            write("[ERR] There is no actual content !.",
+                  output_file = sys.stderr, color = (Colors.errf, Colors.errb),
+                  bold = Colors.errbold)
             return
         obj.content = ' '.join(self.content)
 
     def get_object(self):
+        u'''Wrapper to get an empty instance of the object created.'''
         if self.cmd == 'list':
-            return yatcli.yat.List(yatcli.lib)
+            return List(lib)
         elif self.cmd == 'tag':
-            return yatcli.yat.Tag(yatcli.lib)
+            return Tag(lib)
         elif self.cmd == 'task':
-            return yatcli.yat.Task(yatcli.lib)
+            return Task(lib)
 
     def edit_tags(self, obj):
+        '''Parse and process the tags when handling a task.'''
         new_tags = set()
-        for n in self.tags_to_add:
+        for name in self.tags_to_add:
             try:
-                new_tags.add(yatcli.lib.get_tag(n, False))
-            except:
+                new_tags.add(lib.get_tag(name, False))
+            except WrongName:
                 #If the tags don't exist, create them
-                new_tag = yatcli.yat.Tag(yatcli.lib)
-                new_tag.content = n
+                new_tag = Tag(lib)
+                new_tag.content = name
                 new_tags.add(new_tag)
         obj.tags |= new_tags
 
+    #pylint: disable=E1101
     def execute(self, cmd):
         obj = self.get_object()
         if self.cmd == 'task':
@@ -179,9 +194,9 @@ Adding a tag:
 
             #Set the list
             try:
-                obj.list = yatcli.lib.get_list(self.list, False)
-            except yatcli.yat.WrongName:
-                obj.list = yatcli.yat.List(yatcli.lib)
+                obj.list = lib.get_list(self.list, False)
+            except WrongName:
+                obj.list = List(lib)
                 obj.list.content = self.list
             except AttributeError:
                 # It means the list hasn't been specified
@@ -189,12 +204,11 @@ Adding a tag:
 
             # Set the parent
             try:
-                obj.parent = yatcli.lib.get_task(int(self.parent))
-            except yatcli.yat.WrongId:
-                yatcli.output("[ERR] The specified parent task doesn't exist.", 
-                        f = sys.stderr,
-                        foreground = yatcli.colors.errf, background = 
-                        yatcli.colors.errb, bold = yatcli.colors.errbold)
+                obj.parent = lib.get_task(int(self.parent))
+            except WrongId:
+                write("[ERR] The specified parent task doesn't exist.",
+                      output_file = sys.stderr,
+                      color = (Colors.errf, Colors.errb), bold = Colors.errbold)
                 return
             except AttributeError:
                 # The parent hasn't been specified
@@ -202,12 +216,12 @@ Adding a tag:
 
             # Set the due_date
             try:
-                obj.due_date = yatcli.parse_input_date(self.due_date)
+                obj.due_date = parse_input_date(self.due_date)
             except ValueError:
-                yatcli.output("[ERR] The due date isn't well formed. See 'yat help add'.", 
-                        f = sys.stderr,
-                        foreground = yatcli.colors.errf, background = 
-                        yatcli.colors.errb, bold = yatcli.colors.errbold)
+                write("[ERR] The due date isn't well formed. \
+                              See 'yat help add'.",
+                      output_file = sys.stderr,
+                      color = (Colors.errf, Colors.errb), bold = Colors.errbold)
                 return
             except AttributeError:
                 pass
@@ -218,4 +232,5 @@ Adding a tag:
             obj.priority = self.priority
         except AttributeError:
             pass
-        obj.save(yatcli.lib)
+        obj.save(lib)
+    #pylint: enable=E1101
