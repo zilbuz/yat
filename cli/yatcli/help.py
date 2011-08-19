@@ -59,7 +59,7 @@ the name of a command is provided, show the specific help text for this command.
         if self.cmd.alias[0] == u"help":
             if not self.detailed:
                 yatcli.output(
-                u"""{name} (Yet Another Todolist) is a very simple commandline todolist manager.
+u"""{name} (Yet Another Todolist) is a very simple commandline todolist manager.
 
 usage: {name} [options] [command] [arguments]
 
@@ -95,7 +95,8 @@ The different commands are:""".format(name = yatcli.name))
                 yatcli.output(t)
 
             yatcli.output()
-            yatcli.output(u"If no command are provided, the 'show' command is assumed.")
+            yatcli.output(u"If no command are provided, \
+                          the 'show' command is assumed.")
             yatcli.output(u"Please type \"%s help [command]\" to have" %
                     yatcli.name, linebreak = False)
             yatcli.output(u" detailed informations on a specific command.")
