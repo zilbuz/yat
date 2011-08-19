@@ -98,6 +98,8 @@ with:
     alias = []
 
     def __init__(self):
+        if not hasattr(self, 'command'):
+            self.command = ''
         if not hasattr(self, 'options'):
             self.options = []
 
@@ -113,6 +115,18 @@ with:
         self.command = cmd
         self.parse_arguments(self.parse_options(args))
         self.execute(cmd)
+
+    def __process_value(self, processor, value):
+        '''Processing the value extracted from the regexp.'''
+        if callable(processor):
+            processor(value)
+        elif isinstance(processor, str):
+            setattr(self, processor, value)
+        elif isinstance(processor, list):
+            processor.append(value)
+        else:
+            raise TypeError("The value processor should be a string, \
+                            a list or a callable.")
 
     def parse_arguments(self, args):
         u'''Parse args using self.arguments. The arguments must have been
@@ -130,10 +144,7 @@ with:
             args = args_cpy
 
         # Determine the first potential arguments
-        if callable(self.arguments[0]):
-            to_examine = self.arguments[0](self.command)
-        else:
-            to_examine = self.arguments[0]
+        to_examine = __process_potential(self.arguments[0], self.command)
 
         # Analyze the arguments
         for arg in args:
@@ -158,21 +169,10 @@ with:
                     value = arg
 
                 # Determine the next potential arguments
-                if callable(spec[1]):
-                    to_examine = spec[1](value)
-                else:
-                    to_examine = spec[1]
+                to_examine = __process_potential(spec[1], self.command)
 
-                # Processing the value extracted from the regexp
-                if callable(spec[2]):
-                    spec[2](value)
-                elif isinstance(spec[2], str):
-                    setattr(self, spec[2], value)
-                elif isinstance(spec[2], list):
-                    spec[2].append(value)
-                else:
-                    raise TypeError("The last member of the argument tuple \
-                                    should be a string, a list or a callable.")
+                # Process the value
+                self.__process_value(spec[2], value)
                 break
 
             # If there wasn't any match, the argument must be ill-formed
@@ -183,10 +183,9 @@ with:
         if None not in to_examine:
             raise yatcli.MissingArgument('Argument missing !')
 
-    def parse_options(self, args):
-        u'''Parse the args provided using self.options. It modifies self and
-        returns args stripped from every argument used.'''
-        # Initialization of the attributes and quick check of the option format
+    def init_options(self):
+        '''Initialization of the attributes and quick check of the option format
+        '''
         for opt in self.options:
             if len(opt) != 4:
                 raise ValueError('The options must be of the form \
@@ -196,6 +195,11 @@ with:
             else:
 
                 setattr(self, opt[2], None)
+
+    def parse_options(self, args):
+        u'''Parse the args provided using self.options. It modifies self and
+        returns args stripped from every argument used.'''
+        self.init_options()
 
         stripped_args = args[:]
 
@@ -211,7 +215,7 @@ with:
 
         re_long = \
                 re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.+)?)?$')
-        re_short= re.compile('^-(?P<options>[a-zA-Z]+)$')
+        re_short = re.compile('^-(?P<options>[a-zA-Z]+)$')
 
         # We cannot use a for loop because we need to be able to make a
         # jump to reach the next argument inside of the loop
@@ -242,40 +246,47 @@ with:
             # Checking if it is a cluster of short options
             res = re_short.match(arg)
             if res != None:
-                # Same reason as above : we need flexibility and complex
-                # exception management
-                letter_iter = iter([l for l in re.split('([a-zA-Z])',
-                                               res.groupdict()['options'])
-                           if len(l) == 1])
+                option = self.parse_short_options(
+                    [l for l in re.split('([a-zA-Z])',
+                                         res.groupdict()['options'])
+                     if len(l) == 1],
+                    short_dict)
 
-                #Bootstrapping the loop over the letters
-                letter = letter_iter.next()
-                while(True):
-                    option = short_dict[letter]
-
-                    #Boolean option
-                    if option[1] == None:
-                        setattr(self, option[0], True)
-                        try:
-                            letter = letter_iter.next()
-                        except StopIteration:
-                            break
-                    else:
-                    #Plain value option
-                        try:
-                            # If there is a next letter, there's a syntax error.
-                            letter = letter_iter.next()
-                            raise yatcli.BadArgument
-                        except StopIteration:
-                            try:
-                                value = arg_iter.next()
-                            except StopIteration:
-                                raise yatcli.MissingArgument
-                            setattr(self, option[0], option[1](value))
-                            stripped_args.remove(value)
-                            break
+                if option != None:
+                    try:
+                        value = arg_iter.next()
+                    except StopIteration:
+                        raise yatcli.MissingArgument
+                    setattr(self, option[0], option[1](value))
+                    stripped_args.remove(value)
                 stripped_args.remove(arg)
         return stripped_args
+
+    def parse_short_options(self, letter_list, short_dict):
+        '''Process a list of letters according to a dictionary of options.'''
+        # We need flexibility and complex exception management
+        letter_iter = iter(letter_list)
+        letter = letter_iter.next()
+        while(True):
+            option = short_dict[letter]
+
+            #Boolean option
+            if option[1] == None:
+                setattr(self, option[0], True)
+                try:
+                    letter = letter_iter.next()
+                except StopIteration:
+                    break
+            else:
+            #Plain value option
+                try:
+                    # If there is a next letter, there's a syntax error.
+                    letter = letter_iter.next()
+                    raise yatcli.BadArgument
+                except StopIteration:
+                    # We let the calling function deal with the argument.
+                    return option
+        return None
 
     def execute(self, cmd):
         u"""Method actually doing something
@@ -285,4 +296,10 @@ with:
         """
         raise NotImplementedError
 
-    pass
+def __process_potential(obj, key):
+    u'''Process an object determining the next potential arguments.'''
+    if callable(obj):
+        return obj(key)
+    if isinstance(obj, list):
+        return obj
+
