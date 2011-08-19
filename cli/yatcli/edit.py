@@ -24,7 +24,7 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import yatcli
+from yatcli import lib
 from yatcli.add import AddCommand
 
 class EditCommand(AddCommand):
@@ -62,7 +62,8 @@ The possible attributes for a list or a tag are:
 
     def __after_id(self, value):
         if self.cmd == 'task':
-            return ['rm_tags', 'tags', 'list', 'parent', 'date', 'priority', 'task_name'] 
+            return ['rm_tags', 'tags', 'list', 'parent',
+                    'date', 'priority', 'task_name'] 
         else: return ['{0}_name'.format(self.cmd), 'group_priority']
 
     def __process_rm_tags(self, value):
@@ -83,42 +84,50 @@ The possible attributes for a list or a tag are:
         self.content = None
         self.tags_to_add = []
         self.tags_to_rm = []
-        whole_task = ['tags', 'list', 'rm_tags', 'parent', 'date', 'priority', 'task_name', None]
+        whole_task = ['tags', 'list', 'rm_tags', 'parent',
+                      'date', 'priority', 'task_name', None]
         self.arguments = (['type', 'id'], {
             # The first argument, 'tag', 'task' or 'list'
             'type':     ('^(?P<value>task|list|tag)$', ['id'], 'cmd'),
 
-            'id':       ('^id=(?P<value>{0})$'.format(yatcli.lib.config["re.id"]),
+            'id':       ('^id=(?P<value>{0})$'.format(lib.config["re.id"]),
                          self.__after_id, 'id'),
 
             # A tag element of a task definition
-            'tags':      ('^add_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
+            'tags':     ('^add_tags=(?P<value>{0}(,{0})*)$'
+                          .format(lib.config["re.tag_name"]),
                          whole_task, self.__process_add_tags),
 
-            'rm_tags':      ('^remove_tags=(?P<value>{0}(,{0})*)$'.format(yatcli.lib.config["re.tag_name"]),
+            'rm_tags':  ('^remove_tags=(?P<value>{0}(,{0})*)$'
+                         .format(lib.config["re.tag_name"]),
                          whole_task, self.__process_rm_tags),
 
             # The list element of a task definition
-            'list':     ('^list=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
+            'list':     ('^list=(?P<value>{0})$'
+                         .format(lib.config['re.list_name']),
                          whole_task, 'list'),
             
-            'parent':   ('^parent=(?P<value>{0})$'.format(yatcli.lib.config['re.id']),
+            'parent':   ('^parent=(?P<value>{0})$'.format(lib.config['re.id']),
                          whole_task, 'parent'),
 
             # The priority for a task only !
-            'priority': ('^priority=(?P<value>{0})$'.format(yatcli.lib.config['re.priority']),
+            'priority': ('^priority=(?P<value>{0})$'
+                         .format(lib.config['re.priority']),
                          whole_task, 'priority'),
 
-            'date':     ('^due_date=(?P<value>{0})$'.format(yatcli.lib.config['re.date']),
+            'date':     ('^due_date=(?P<value>{0})$'
+                         .format(lib.config['re.date']),
                          whole_task, 'date'),
 
             # Will be added to the content.
             'task_name':('^task=(?P<value>.*)$', whole_task, 'content'),
 
-            'tag_name': ('^name=(?P<value>{0})$'.format(yatcli.lib.config['re.tag_name']),
+            'tag_name': ('^name=(?P<value>{0})$'
+                         .format(lib.config['re.tag_name']),
                          ['group_priority', None], 'content'),
 
-            'list_name':('^name=(?P<value>{0})$'.format(yatcli.lib.config['re.list_name']),
+            'list_name':('^name=(?P<value>{0})$'
+                         .format(lib.config['re.list_name']),
                          ['group_priority', None], 'content'),
 
             'group_priority': ('^priority=(?P<value>-?\d\d*)$',
@@ -132,7 +141,7 @@ The possible attributes for a list or a tag are:
 
     def edit_tags(self, obj):
         super(EditCommand, self).edit_tags(obj)
-        obj.tags -= set(yatcli.lib.get_tags(names=self.tags_to_rm))
+        obj.tags -= set(lib.get_tags(names=self.tags_to_rm))
 
     def get_object(self):
-        return getattr(yatcli.lib, 'get_{0}'.format(self.cmd))(self.id)
+        return getattr(lib, 'get_{0}'.format(self.cmd))(self.id)
