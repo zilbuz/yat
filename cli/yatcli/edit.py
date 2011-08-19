@@ -62,18 +62,28 @@ The possible attributes for a list or a tag are:
 
     #pylint: disable=W0613
     def __after_id(self, value):
+        u'''Called after an ID argument to determin what should be the
+        type of the following argument.
+        '''
         if self.cmd == 'task':
             return ['rm_tags', 'tags', 'list', 'parent',
                     'date', 'priority', 'task_name'] 
         else: return ['{0}_name'.format(self.cmd), 'group_priority']
 
     def __process_rm_tags(self, value):
+        u'''Parse a CSV list of tags and store them in tags_to_rm.
+        '''
         self.tags_to_rm.extend(value.split(','))
 
     def __process_add_tags(self, value):
+        u'''Parse a CSV list of tags and store them in tags_to_add.
+        '''
         self.tags_to_add.extend(value.split(','))
 
     def __after_group_priority(self, value):
+        u'''Called after an argument specifying a priority while editing a
+        group to determine what should be the type of the following argument.
+        '''
         return ['{0}_name'.format(self.cmd), None]
     #pylint: enable=W0613
 
