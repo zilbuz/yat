@@ -24,7 +24,7 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import yatcli
+from yatcli import write, aliases, name, commands
 from yatcli.command import Command
 
 class HelpCommand (Command):
@@ -47,18 +47,18 @@ the name of a command is provided, show the specific help text for this command.
 
     def __set_cmd(self, value):
         u'''Load the command specified by value.'''
-        self.cmd = yatcli.aliases[value]
+        self.cmd = aliases[value]
         self.detailed = True
 
     def execute(self, cmd):
         helptxt = self.cmd.__doc__.split('\n\n', 1)
 
         if self.detailed:
-            yatcli.output(helptxt[1].format(name = yatcli.name))
+            write(helptxt[1].format(name = name))
 
         if self.cmd.alias[0] == u"help":
             if not self.detailed:
-                yatcli.output(
+                write(
 u"""{name} (Yet Another Todolist) is a very simple commandline todolist manager.
 
 usage: {name} [options] [command] [arguments]
@@ -71,11 +71,11 @@ options:
     --version, -v
         Print the current version of yat and exit.
 
-The different commands are:""".format(name = yatcli.name))
+The different commands are:""".format(name = name))
 
             # Extract docstrings from command classes
             help_txts = []
-            for cmd in yatcli.commands.itervalues():
+            for cmd in commands.itervalues():
                 txt = u"\t" + cmd.alias[0]
                 txt += u"\t" + cmd.__doc__.split('\n', 1)[0]
                 if len(cmd.alias) > 1:
@@ -91,14 +91,14 @@ The different commands are:""".format(name = yatcli.name))
             help_txts.sort()
 
             # Print them
-            for t in help_txts:
-                yatcli.output(t)
+            for txt in help_txts:
+                write(txt)
 
-            yatcli.output()
-            yatcli.output(u"If no command are provided, \
+            write()
+            write(u"If no command are provided, \
                           the 'show' command is assumed.")
-            yatcli.output(u"Please type \"%s help [command]\" to have" %
-                    yatcli.name, linebreak = False)
-            yatcli.output(u" detailed informations on a specific command.")
+            write(u"Please type \"%s help [command]\" to have" %
+                    name, linebreak = False)
+            write(u" detailed informations on a specific command.")
 
-        yatcli.output()
+        write()
