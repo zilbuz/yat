@@ -24,7 +24,8 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-import yatcli
+from yat.legacy import analyze_db
+from yatcli import lib
 from yatcli.command import Command
 
 class MigrateCommand(Command):
@@ -50,28 +51,28 @@ database into a format suited for the new version of yat.
             self.migration = False
             return ['filename']
         elif alias == 'migrate':
-            self.files = [yatcli.lib.config['yatdir'] + '/yat.db']
+            self.files = [lib.config['yatdir'] + '/yat.db']
             return [None]
 
     def __init__(self):
         super(MigrateCommand, self).__init__()
+        self.migration = True
         self.files = []
         self.arguments = (self.__cmd_switch, {
             'filename': ('^.*$', ['filename', None], self.files)
         })
 
     def execute(self, cmd):
-        for f in self.files:
+        for file_ in self.files:
             # leg is the library associated with the DB to import.
-            leg = yatcli.yat.legacy.analyze_db(filename = f,
-                                            current_lib = yatcli.lib)
+            leg = analyze_db(filename = file_, current_lib = lib)
 
             objects = leg.get_tasks() + leg.get_lists() + leg.get_tags()
             if self.migration:
                 # When migrating, once we have all the old data, we don't want
                 # the old layout sticking around :)
                 leg.delete_tables()
-                yatcli.lib.create_tables()
-            for o in objects:
-                o.save(yatcli.lib)
+                lib.create_tables()
+            for obj in objects:
+                obj.save(lib)
 
