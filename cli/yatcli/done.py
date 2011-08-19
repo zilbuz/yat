@@ -78,13 +78,13 @@ the shell doesn't expand them.
         processed = set()
         while True:
             try:
-                t = tasks.popleft()
+                task = tasks.popleft()
             except IndexError:
                 break
-            t.completed = done
-            t.save()
+            task.completed = done
+            task.save()
             if self.recursive and not self.no_recursive:
-                processed.add(t)
-                tasks.extend([c for c in lib.get_children(t)
-                              if c not in processed])
+                processed.add(task)
+                tasks.extend([child for child in lib.get_children(task)
+                              if child not in processed])
     #pylint: enable=E1101
