@@ -25,7 +25,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import re
-import yatcli
+from yatcli import BadArgument, MissingArgument
 
 class Command(object):
     u"""Abstract class for instrospection
@@ -177,11 +177,11 @@ with:
 
             # If there wasn't any match, the argument must be ill-formed
             if match == None:
-                raise yatcli.BadArgument('Unknown argument: {0}'.format(arg))
+                raise BadArgument('Unknown argument: {0}'.format(arg))
             
         # A potential grammatical end of the command is signaled by the None key
         if None not in to_examine:
-            raise yatcli.MissingArgument('Argument missing !')
+            raise MissingArgument('Argument missing !')
 
     def init_options(self):
         '''Initialization of the attributes and quick check of the option format
@@ -238,7 +238,7 @@ with:
                     # The value is extracted directly from the regexp
                     value = res.groupdict()['value']
                     if value == None:
-                        raise yatcli.MissingArgument
+                        raise MissingArgument
                     setattr(self, option[0], option[1](value))
                 stripped_args.remove(arg)
                 continue
@@ -256,7 +256,7 @@ with:
                     try:
                         value = arg_iter.next()
                     except StopIteration:
-                        raise yatcli.MissingArgument
+                        raise MissingArgument
                     setattr(self, option[0], option[1](value))
                     stripped_args.remove(value)
                 stripped_args.remove(arg)
@@ -282,7 +282,7 @@ with:
                 try:
                     # If there is a next letter, there's a syntax error.
                     letter = letter_iter.next()
-                    raise yatcli.BadArgument
+                    raise BadArgument
                 except StopIteration:
                     # We let the calling function deal with the argument.
                     return option
