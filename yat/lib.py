@@ -540,7 +540,7 @@ class Yat(object):
             # the changed flag to False.
             t.changed = False
             self._loaded_tasks[t.id] = t
-            t.notes = self.get_notes(t)
+            t.notes = sorted(self.get_notes(t), key = lambda x: x.id)
 
             # Return only the tasks explicitly requested, not the collateral
             if t.id in id_to_return:
@@ -558,6 +558,8 @@ class Yat(object):
 
         ids ([int]):
             A list of ids corresponding to notes to fetch.
+            If the specified task is None, the ids are considered absolute. In
+            any other case, they are local to the task.
 
         contents ([str]):
             A list of exact contents to match. In that particular case, it
@@ -575,7 +577,8 @@ class Yat(object):
             extra_criteria = ('task=?', (task.id,))
 
         extract = self._extract_rows('notes', self._loaded_notes,
-                                      ids, contents, regexp, extra_criteria)
+                                     self.__get_absolute_note_ids(task, ids),
+                                     contents, regexp, extra_criteria)
 
         loaded = extract[0][:]
         for n in extract[1]:
@@ -594,6 +597,17 @@ class Yat(object):
             loaded.append(note)
 
         return loaded
+
+    @staticmethod
+    def __get_absolute_note_ids(task, ids):
+        '''When given a task and a list of local ids, return the absolute ids
+        of the notes pointed by the local ones.'''
+        if task == None:
+            return ids
+        try:
+            return [task.notes[i-1] for i in ids]
+        except IndexError:
+            raise WrongId
 
     def _add_task(self, task):
         u'''Adds a task to the DB.
