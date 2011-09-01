@@ -35,7 +35,7 @@ import sys
 
 import yat
 import yatcli
-import yatcli.help, yatcli.command, yatcli.show
+import yatcli.aid, yatcli.command, yatcli.show
 
 def init():
     u"""Initialisation specific to this commandline program."""
@@ -241,7 +241,7 @@ def main(argv):
     # Determining which command to use (default list)
     if options["help"]:
         # if -h/--help was in the arguments, print the help and exit
-        cmd = yatcli.help.HelpCommand()
+        cmd = yatcli.aid.HelpCommand()
         cmd_args = []
         cmd_alias = "help"
     else:

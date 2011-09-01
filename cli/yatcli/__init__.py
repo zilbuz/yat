@@ -42,7 +42,7 @@ import command
 import add
 import remove
 import show
-import help
+import aid
 import edit
 import done
 import clean
@@ -51,7 +51,7 @@ import migrate
 
 __all__ = [
         "command",
-        "help",
+        "aid",
         "add",
         "remove",
         "show",
