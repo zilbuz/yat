@@ -36,11 +36,12 @@ def stack_up_parents(tree):
     the ancestors of the said task on top of is, in a straight line to
     the task. The added nodes are tagged as contextual."""
     parents = tree.parent.get_list_parents()
-    def policy(t):
-        if t == tree.parent:
+    def policy(task):
+        u'''Custom chil policy.'''
+        if task == tree.parent:
             return tree
-        if t in parents:
-            l_tree = Tree(t, policy)
+        if task in parents:
+            l_tree = Tree(task, policy)
             l_tree.context = True
             return l_tree
         return None
@@ -48,7 +49,10 @@ def stack_up_parents(tree):
     tree_return.context = True
     return tree_return
 
+#pylint: disable=C0103,W0613
 def Task_significant_value(self, tree, criterion):
+    u'''Walk down the entire tree in order to find the most meaningful value.
+    '''
     if tree.context:
         if criterion[1]:
             values = [float('-inf')]
@@ -61,9 +65,9 @@ def Task_significant_value(self, tree, criterion):
             raise ValueError
     values.extend([t.significant_value(criterion) for t in tree.children])
     if criterion[1]:
-        reduce_function = lambda x,y: x if x > y else y
+        reduce_function = lambda x, y: x if x > y else y
     else:
-        reduce_function = lambda x,y: x if x < y else y
+        reduce_function = lambda x, y: x if x < y else y
     return reduce(reduce_function, values)
 
 def Task_direct_children(self):
@@ -76,14 +80,15 @@ should be part or not'''
     return Tree(task, self.child_policy)
 
 def Task_child_callback(self, tree):
+    u'''Simple identity function.'''
     return tree
 
 def Group_direct_children(self):
     u'''Select every member of the group that would be at the root of a tree
 in this group's context.'''
-    return [c for c in self.lib.get_loaded_tasks()
-            if (c != None and self.directly_related_with(c) and
-                not c.parents_in_group(self))]
+    return [task for task in self.lib.get_loaded_tasks()
+            if (task != None and self.directly_related_with(task) and
+                not task.parents_in_group(self))]
 
 def Group_child_callback(self, tree):
     u"""Appends the context tasks on top of the tree in the twisted cases :)"""
@@ -94,6 +99,8 @@ def Group_child_callback(self, tree):
     return tree
 
 def Group_significant_value(self, tree, criterion):
+    u'''The significant value of a Tree with a Group at the root is always
+    the one found on the root Group.'''
     try:
         return getattr(tree.parent, criterion[0])
     except AttributeError:
@@ -131,14 +138,18 @@ the algorithms of Group.'''
     return self in task.tags
 
 def NoGroup_significant_value(self, tree, criterion):
+    u'''Always return the value at the last extremity.'''
     if criterion[1]:
         return float("-inf")
     return float('inf')
 
 def NoTag_directly_related_with(self, task):
-    return task.tags == [] or task.tags == set()
+    u'''True when the task has no tag.'''
+    return len(task.tags) == 0
+#pylint: enable=C0103,W0613
 
 class Tree(object):
+    u'''Generic tree structure.'''
     def __init__(self, parent = None, policy = None):
         u'''The policy is a function passed along to the make_children_tree
         method in order to help select the children'''
@@ -164,8 +175,8 @@ class Tree(object):
         # Apply the policy to the children and filter the result to suppress
         # the invalid ones
         self.children = []
-        for c in direct_children:
-            tree = child_policy(c)
+        for child in direct_children:
+            tree = child_policy(child)
             if tree != None:
                 if policy == None:
                     # In case additional actions are needed to finish the work.
@@ -173,6 +184,9 @@ class Tree(object):
                 self.children.append(tree)
 
     def significant_value(self, criterion):
+        u'''Determin the significant value of the tree according the criterion.
+        WARNING: Since it can be quite heavy calculation, the values are only
+        calculated once and then stored as a cache.'''
         try:
             return self.values[criterion]
         except KeyError:
@@ -188,8 +202,8 @@ will be used.
 
 A criterion is supposed to be of the form ("attribute", reverse)
 with reverse either True or False.'''
-        for t in trees:
-            t.sort_trees(t.children, criteria)
+        for tree in trees:
+            tree.sort_trees(tree.children, criteria)
 
         while criteria != []:
             try:
@@ -254,9 +268,11 @@ Careful, the <trees> list will be modified on site.
         Tree.__subsort_trees(sublist, criteria[1:])
         trees[reference[1]:] = sublist
 
+#pylint: disable=W0604,C0103
 global __all__
 symbol_list = dir()
 regexp = re.compile('^(?P<class>[A-Z][a-zA-Z]*)_(?P<function>[a-z_]+$)')
+#pylint: enable=W0604,C0103
 for s in symbol_list:
     res = regexp.match(s)
     if res != None:
