@@ -49,7 +49,9 @@ VERSION = u"0.2b-dev"
 # Current version for the database.
 DB_VERSION = u"0.2"
 
+#pylint: disable=R0902,R0904,R0913
 class Yat(object):
+    u'''Driver to the yat database.'''
 
     @staticmethod
     def regexp(expr, item):
@@ -72,7 +74,7 @@ class Yat(object):
         u"""Constructor:
             * load the configuration file
             * open a connection with the database
-            * initialise some variables
+            * initialize some variables
         """
         # Default encoding
         self.enc = locale.getpreferredencoding()
@@ -166,25 +168,18 @@ class Yat(object):
                 self.config["re.tag_name"])
         self.config["re.list_name"] = u".*"
 
-        # Dictionary used in the sorting of the tasks
-
-        self.__operators = {}
-        self.__operators["<"] = lambda x, y: x < y
-        self.__operators[">"] = lambda x, y: x > y
-        self.__operators[">="] = lambda x, y: x >= y
-        self.__operators["<="] = lambda x, y: x <= y
-
         # Dictionaries used to avoid duplicating objects
         self._loaded_tasks = {}
         self._loaded_lists = {}
         self._loaded_tags = {}
         self._loaded_notes = {}
-        pass
 
     def free_db(self):
+        '''Unload the DB. It is especially useful for the tests.'''
         self.__sql.close()
 
     def load_db(self):
+        u'''Open the database. Automatically executed on init.'''
         self.__sql = sqlite3.connect(self._db_path)
         self.__sql.row_factory = sqlite3.Row
 
@@ -326,12 +321,12 @@ class Yat(object):
                                                   extra_criteria[0]),
                                           extra_criteria[1]).fetchall()
             copy = rows[:]
-            for r in copy:
+            for row in copy:
                 try:
-                    loaded.append(loaded_objects[int(r['id'])])
+                    loaded.append(loaded_objects[int(row['id'])])
                 except KeyError:
                     continue
-                rows.remove(r)
+                rows.remove(row)
         else:
             # To optimize the query, we have to create a new composed one
             # related to what is provided in argument. If there was no ID
@@ -397,10 +392,11 @@ class Yat(object):
                 # set if it is implemented as an unbalanced B-Tree : log(n)
                 # complexity to reach the node, and 1 to delete the object
                 set_rows = set(rows)
-                for r in rows:
+                for row in rows:
                     try:    # Try to fetch the loaded object.
-                        loaded.append(loaded_objects[int(r['id'])])
-                        set_rows.remove(r) # If it is there, the row is useless
+                        loaded.append(loaded_objects[int(row['id'])])
+                        set_rows.remove(row)
+                        # If it is there, the row is useless
                     except KeyError:
                         pass
                 rows = list(set_rows)
@@ -418,19 +414,20 @@ class Yat(object):
                     them.
         '''
         loaded = []
-        rows=[]
+        rows = []
         list_criterium = None
         lists = []
         tags = []
 
         if groups != None:
-            if ids == None: ids = []    # Otherwise, it would pull everything
-            for g in groups:
-                if issubclass(type(g), List):
-                    lists.append(g.id)
+            if ids == None:
+                ids = []    # Otherwise, it would pull everything
+            for grp in groups:
+                if issubclass(type(grp), List):
+                    lists.append(grp.id)
                     continue
-                if issubclass(type(g), Tag):
-                    tags.append(g.id)
+                if issubclass(type(grp), Tag):
+                    tags.append(grp.id)
                     continue
 
             # For the lists, use the extra_criteria parameter in order to
@@ -449,10 +446,10 @@ class Yat(object):
                     .format(', '.join(['?']*len(tags))), tags).fetchall())
 
                 set_rows = set(rows)
-                for r in rows:
+                for row in rows:
                     try:
-                        loaded.append(self._loaded_tasks[int(r['id'])])
-                        set_rows.remove(r)
+                        loaded.append(self._loaded_tasks[int(row['id'])])
+                        set_rows.remove(row)
                     except KeyError:
                         pass
                 loaded = self._get_task_objects((loaded, list(set_rows)))
@@ -481,17 +478,17 @@ class Yat(object):
         rows = extract[1]
         id_to_row = {}  # id:row
         id_to_return = set()
-        for r in rows:
-            id_to_row[int(r["id"])] = r
-            id_to_return.add(int(r['id']))
+        for row in rows:
+            id_to_row[int(row["id"])] = row
+            id_to_return.add(int(row['id']))
 
         while len(rows) > 0:
             parent_ids = []
-            for r in rows:
+            for row in rows:
                 # Gather all the parents' ids.
-                if (r['parent'] != None and
-                    r['parent'] not in self._loaded_tasks.iterkeys()):
-                    parent_ids.append(int(r['parent']))
+                if (row['parent'] != None and
+                    row['parent'] not in self._loaded_tasks.iterkeys()):
+                    parent_ids.append(int(row['parent']))
 
             ids_to_fetch = []
             for i in parent_ids:
@@ -502,8 +499,8 @@ class Yat(object):
             parent_extract = self._extract_rows('tasks', self._loaded_tasks,
                                                  ids_to_fetch, None, None)
             # We discard the tasks already loaded.
-            for r in parent_extract[1]:     # Don't care about redundancy,
-                id_to_row[int(r["id"])] = r # overwrite if needed
+            for row in parent_extract[1]:     # Don't care about redundancy,
+                id_to_row[int(row["id"])] = row # overwrite if needed
             rows = parent_extract[1]
 
         # Sorry Basile, I needed this one.
@@ -521,39 +518,39 @@ class Yat(object):
 
         # Build a complete list of all rows to be transformed into tasks,
         # and then sort it out in order to meet every dependency.
-        rows = [r for r in id_to_row.itervalues()]
+        rows = [row for row in id_to_row.itervalues()]
         rows = sorted(rows, key=distance)
 
         # The actual transformation from rows to Tasks
-        for r in rows:
-            t = Task(self)
-            t.id = int(r["id"])
-            if r['parent'] == None:
-                t.parent = None
+        for row in rows:
+            task = Task(self)
+            task.id = int(row["id"])
+            if row['parent'] == None:
+                task.parent = None
             else:   # Thanks to the careful sorting, it has to be already loaded
-                t.parent = self._loaded_tasks[int(r['parent'])]
+                task.parent = self._loaded_tasks[int(row['parent'])]
 
-            t.content = r["content"]
+            task.content = row["content"]
 
-            t.due_date = (float(r["due_date"]) if r['due_date'] != None
+            task.due_date = (float(row["due_date"]) if row['due_date'] != None
                           else float('inf'))
 
-            t.priority = int(r["priority"])
-            t.list = self.get_list(r["list"])
-            t.tags = set(self.get_tags(task=t))
-            t.completed = r["completed"]
-            t.last_modified = float(r["last_modified"])
-            t.created = float(r["created"])
+            task.priority = int(row["priority"])
+            task.list = self.get_list(row["list"])
+            task.tags = set(self.get_tags(task=task))
+            task.completed = row["completed"]
+            task.last_modified = float(row["last_modified"])
+            task.created = float(row["created"])
 
             # As usual, when pulling it from the DB we have to switch back
             # the changed flag to False.
-            t.changed = False
-            self._loaded_tasks[t.id] = t
-            t.notes = sorted(self.get_notes(t), key = lambda x: x.id)
+            task.changed = False
+            self._loaded_tasks[task.id] = task
+            task.notes = sorted(self.get_notes(task), key = lambda x: x.id)
 
             # Return only the tasks explicitly requested, not the collateral
-            if t.id in id_to_return:
-                tasks.append(t)
+            if task.id in id_to_return:
+                tasks.append(task)
         return tasks
 
     def get_notes(self, task=None, ids=None, contents=None, regexp=None):
@@ -590,13 +587,13 @@ class Yat(object):
                                      contents, regexp, extra_criteria)
 
         loaded = extract[0][:]
-        for n in extract[1]:
+        for row in extract[1]:
             note = Note(self)
-            note.id = int(n['id'])
-            note.task = self.get_task(int(n['task']))
-            note.content = n['content']
-            note.hash = n['hash_id']
-            note.created = n['created']
+            note.id = int(row['id'])
+            note.task = self.get_task(int(row['task']))
+            note.content = row['content']
+            note.hash = row['hash_id']
+            note.created = row['created']
 
             # As usual, when pulling it from the DB we have to switch back
             # the changed flag to False.
@@ -648,6 +645,7 @@ class Yat(object):
             self.__sql.commit()
 
     def _edit_task(self, task):
+        u'''Update the DB backup of a Task object.'''
         if task.id == None:
             return
         task.check_values()
@@ -669,12 +667,12 @@ class Yat(object):
                                                task.priority, task.due_date,
                                                task.list.id, task.completed,
                                                self.get_time(), task.id))
-            for t in tags_to_rm:
+            for tag in tags_to_rm:
                 self.__sql.execute(u'''delete from tagging
-                                  where tag=? and task=?''', (t.id,task.id))
-            for t in tags_to_add:
+                                  where tag=? and task=?''', (tag.id, task.id))
+            for tag in tags_to_add:
                 self.__sql.execute(u'''insert into tagging
-                                  values(?, ?)''', (t.id, task.id))
+                                  values(?, ?)''', (tag.id, task.id))
             self.__sql.commit()
         task.changed = False
 
@@ -751,6 +749,8 @@ class Yat(object):
         self._simple_removal(ids, 'tags')
 
     def _simple_removal(self, ids, table):
+        u'''Remove a list of items from a table. The items are selected by ids.
+        '''
         with self.__sql:
             self.__sql.execute(u'delete from {table} where id in ({seq})'
                                .format(table=table, seq=', '.join(['?'] *
@@ -759,28 +759,41 @@ class Yat(object):
             self.__sql.commit()
 
     def _get_groups(self, cls, nocls, loaded_objects, ids, names, regexp):
+        u'''Load groups from the DB.
+        cls:            The final class of the objects.
+        nocls:          Its negative (List => NoList)
+        loaded_objects: A dictionary matching every loaded object to its ID.
+        ids:            The IDs to load.
+        names:          The exact names of the objects to load.
+        regexp:         The regexp to compare against the content.
+        '''
         if ids != None and None in ids and None not in loaded_objects:
             loaded_objects[None] = nocls(self)
-        extract = self._extract_rows(cls._table_name, loaded_objects,
+        extract = self._extract_rows(cls.table_name, loaded_objects,
                                       ids, names, regexp)
         return self._get_group_objects(cls, loaded_objects, extract)
     
     def _get_group_objects(self, cls, loaded_objects, extract):
+        u'''Transform rows into instances of cls.'''
         groups = extract[0]
         rows = extract[1]
-        for r in rows:
-            g = cls(self)
-            g.id = int(r["id"])
-            g.content = r["content"]
-            g.priority = r["priority"]
-            g.last_modified = r["last_modified"]
-            g.created = r["created"]
-            g.changed = False
-            loaded_objects[g.id] = g
-            groups.append(g)
+        for row in rows:
+            grp = cls(self)
+            grp.id = int(row["id"])
+            grp.content = row["content"]
+            grp.priority = row["priority"]
+            grp.last_modified = row["last_modified"]
+            grp.created = row["created"]
+            grp.changed = False
+            loaded_objects[grp.id] = grp
+            groups.append(grp)
         return groups
 
     def get_tags(self, ids=None, names=None, regexp=None, task=None):
+        '''Standard getter for the tags. The first arguments are standard.
+        Task allows to load the tags associated with the given task. It is
+        used in the loading process of a task.
+        '''
         loaded = []
         if task != None:
             ids = []    # Otherwise, the second step would fetch'em all
@@ -793,12 +806,12 @@ class Yat(object):
             if rows == []:
                 # We have to load NoTag here, since there wouldn't be any
                 # request for the None id
-                self._loaded_tags[None]= NoTag(self)
+                self._loaded_tags[None] = NoTag(self)
             set_rows = set(rows)
-            for r in rows:
+            for row in rows:
                 try:
-                    loaded.append(self._loaded_tags[int(r['id'])])
-                    set_rows.remove(r)
+                    loaded.append(self._loaded_tags[int(row['id'])])
+                    set_rows.remove(row)
                 except KeyError:
                     pass
             loaded = self._get_group_objects(Tag, self._loaded_tags,
@@ -807,16 +820,22 @@ class Yat(object):
                                            ids, names, regexp)
 
     def get_loaded_lists(self):
+        u'''Self explanatory name.'''
         return [l for l in self._loaded_lists.itervalues()]
 
     def get_loaded_tags(self):
+        u'''Self explanatory name.'''
         return [l for l in self._loaded_tags.itervalues()]
 
     def get_lists(self, ids=None, names=None, regexp=None):
+        u'''Interface to get List objects from the DB. The arguments
+        are the standard ones.
+        '''
         return self._get_groups(List, NoList, self._loaded_lists, ids,
                                 names, regexp)
 
     def get_list(self, value, value_is_id=True):
+        u'''Get a single list'''
         if value == None:
             try:
                 return self._loaded_lists[None]
@@ -834,6 +853,7 @@ class Yat(object):
             raise WrongName 
 
     def get_tag(self, value, value_is_id=True):
+        u'''Get a single tag.'''
         if value == None:
             try:
                 return self._loaded_tags[None]
@@ -850,7 +870,8 @@ class Yat(object):
         except IndexError:
             raise WrongName 
 
-    def get_time(self):
+    @staticmethod
+    def get_time():
         u"""Return the current timestamp"""
         return time.time()
 
@@ -889,6 +910,7 @@ class Yat(object):
         return delete
 
     def _add_note(self, note):
+        u'''Add a new note to the DB from a Note object.'''
         note.check_values()
         with self.__sql:
             self.__sql.execute(u'''insert into notes
@@ -906,25 +928,27 @@ class Yat(object):
         note.changed = False
 
     def _edit_note(self, note):
+        u'''Update the DB backup of a Note instance.'''
         note.check_values()
         if note.id == None:
             return
-        t = self.get_time()
+        now = self.get_time()
         query = u'''update notes set content=?, parent=?, last_modified=?
             where id=?'''
-        arguments = (note.content, note.parent, t, note.id)
+        arguments = (note.content, note.parent, now, note.id)
         with self.__sql:
             self.__sql.execute(query, arguments)
-            note.last_modified = t
+            note.last_modified = now
         note.changed = False
 
-    def _add_group(self, table_name, group):
+    def _add_group(self, group):
+        u'''Save an instance of a child class of Group into the DB.'''
         group.check_values()
-        self._add_tag_or_list(table_name, group.content,
+        self._add_tag_or_list(group.table_name, group.content,
                               group.priority, group.created)
         group_row = self.__sql.execute(u'''select * from %s
                                        where content=?
-                                       ''' % table_name, (group.content,)
+                                       ''' % group.table_name, (group.content,)
                                       ).fetchone()
         group.id = int(group_row['id'])
         group.priority = group_row['priority']
@@ -932,17 +956,18 @@ class Yat(object):
         group.last_modified = group_row['last_modified']
         group.changed = False
 
-    def _edit_group(self, table_name, group):
+    def _edit_group(self, group):
+        u'''Update the DB backup of an instance of a child class of Group.'''
         group.check_values()
         if group.id == None:
             return
-        t = self.get_time()
+        now = self.get_time()
         query = u'update %s set content=?, priority=?, \
-                last_modified=? where id=?' % table_name
+                last_modified=? where id=?' % group.table_name
         with self.__sql:
             self.__sql.execute(query, (group.content, group.priority,
-                                       t, group.id))
-            group.last_modified = t
+                                       now, group.id))
+            group.last_modified = now
         group.changed = False
 
     def _add_tag_or_list(self, table, name, priority, created = 0):
@@ -953,9 +978,9 @@ class Yat(object):
         else:
             creation_time = self.get_time()
         with self.__sql:
-            c = self.__sql.execute('select count(*) as nb from %s \
+            count = self.__sql.execute('select count(*) as nb from %s \
                                     where content=?' % table, (name,))
-            if c.fetchone()[0] == 0:
+            if count.fetchone()[0] == 0:
                 self.__sql.execute('insert into %s \
                                     values(null, ?, ?, ?, ?, ?)' % table, 
                                     (name, priority, self.get_time(),
@@ -966,6 +991,8 @@ class Yat(object):
     def __compute_hash(obj):
         u'''Basile, knock yourself out !'''
         return "nohash"
+
+#pylint: enable=R0902, R0904
 
 if __name__ == "__main__":
     raise NotImplementedError
