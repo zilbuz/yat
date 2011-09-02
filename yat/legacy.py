@@ -36,12 +36,17 @@ from yat.exceptions import FileNotFound, UnknownDBVersion
 import sqlite3
 import os.path
 
-class V0_1(Yat):
-    def __init__(self, current_lib, db):
+#pylint: disable=W0221,R0904
+class V0p1(Yat):
+    u'''Driver for the databases created using yat 0.1'''
+    #pylint: disable=W0231
+    def __init__(self, current_lib, database):
         self.config = current_lib.config
 
-        self._db_path = db
+        self._db_path = database
+        #pylint: disable=C0103
         self._Yat__sql = sqlite3.connect(self._db_path)
+        #pylint: enable=C0103
         self._Yat__sql.row_factory = sqlite3.Row
         self._loaded_lists = {}
         self._loaded_tags = {}
@@ -53,7 +58,9 @@ class V0_1(Yat):
             '_add_note', '_edit_note', 'remove_tags', 'remove_tasks',
             'remove_lists', 'remove_notes'
         ]
-        for m in methods_not_implemented: setattr(self, m, self.not_implemented)
+        for method in methods_not_implemented:
+            setattr(self, method, self.not_implemented)
+    #pylint: enable=W0231
 
     def delete_tables(self):
         with self._Yat__sql:
@@ -64,16 +71,19 @@ class V0_1(Yat):
 
     # Limit the API to what is actually supported by the DB
     def get_tasks(self, ids=None, names=None, regexp=None):
-        return super(V0_1, self).get_tasks(ids=ids, names=names, regexp=regexp)
+        return super(V0p1, self).get_tasks(ids=ids, names=names, regexp=regexp)
 
     def not_implemented(self, *args):
+        u'''Used as a model for every method not implemented.'''
         raise NotImplementedError
 
+    #pylint: disable=W0613
     def get_notes(self, task=None, ids=None, names=None, regexp=None):
         return []
+    #pylint: enable=W0613
 
     def get_tags(self, ids=None, names=None, regexp=None):
-        return_value = super(V0_1, self).get_tags(ids, names, regexp)
+        return_value = super(V0p1, self).get_tags(ids, names, regexp)
         try:
             return_value.remove(NoTag(self))
         except ValueError:
@@ -85,22 +95,22 @@ class V0_1(Yat):
     def _get_task_objects(self, extract):
         tasks = extract[0]
         task_rows = extract[1]
-        for r in task_rows:
+        for row in task_rows:
             tsk = Task(self)
-            tsk.id = int(r['id'])
-            tsk.content = r["task"]
-            tsk.priority = int(r["priority"])
+            tsk.id = int(row['id'])
+            tsk.content = row["task"]
+            tsk.priority = int(row["priority"])
 
-            tsk.due_date = (float(r["due_date"]) if r['due_date'] != None
+            tsk.due_date = (float(row["due_date"]) if row['due_date'] != None
                             else float('inf'))
 
-            tsk.completed = r["completed"]
-            tsk.created = float(r["created"])
-            tsk.list = self.get_list(int(r["list"]))
+            tsk.completed = row["completed"]
+            tsk.created = float(row["created"])
+            tsk.list = self.get_list(int(row["list"]))
 
             # We have to do the tags manually because get_tags(task)
             # relies on a DB scheme that doesn't exist yet
-            tag_ids = [int(i) for i in r['tags'].split(',') if int(i) != 1]
+            tag_ids = [int(i) for i in row['tags'].split(',') if int(i) != 1]
             tsk.tags = set(self.get_tags(ids=tag_ids))
             tasks.append(tsk)
             self._loaded_tasks[tsk.id] = tsk
@@ -109,18 +119,19 @@ class V0_1(Yat):
     def _get_group_objects(self, cls, loaded_objects, extract):
         groups = extract[0]
         rows = extract[1]
-        for r in rows:
-            g = cls(self)
-            g.id = int(r["id"])
-            g.content = r["name"]
-            g.priority = r["priority"]
-            g.created = r["created"]
-            g.changed = False
+        for row in rows:
+            grp = cls(self)
+            grp.id = int(row["id"])
+            grp.content = row["name"]
+            grp.priority = row["priority"]
+            grp.created = row["created"]
+            grp.changed = False
 
-            loaded_objects[g.id] = g
-            groups.append(g)
+            loaded_objects[grp.id] = grp
+            groups.append(grp)
 
         return groups
+#pylint: enable=W0221,R0904
 
 def analyze_db(filename, current_lib=None):
     u"""Check the version of the database pointed by filename, and return the
@@ -148,7 +159,7 @@ def analyze_db(filename, current_lib=None):
 
     # Get the appropriate library
     if version == "0.1":
-        lib = V0_1(current_lib, filename)
+        lib = V0p1(current_lib, filename)
     elif version == "0.2":
         lib = Yat(db_path=filename)
     else:
