@@ -136,6 +136,8 @@ Options:
 
     #pylint: disable=W0613,R0912
     def __load_display(self, groups):
+        u"""Load all the necessary methods in order to display correctly the
+        objects."""
         done_column_top = ""
         done_column_middle = ""
         done_column_bottom = ""
@@ -146,13 +148,17 @@ Options:
 
 
         def group_header(group):
+            u"""The header displayed before listing a groups content."""
             return u"{name} (Priority: {p}, id: {id})".format(name =
                     group.content, p = group.priority, id = group.id)
 
         def notag_header(group):
+            u"""The header displayed before the tasks that are not tagged."""
             return u"Not tagged"
 
         def nolist_header(group):
+            u"""The header displayed before the tasks that are not in a list.
+            """
             return u"Not listed"
 
         def group_tree_display(group, recursion_arguments, contextual):
@@ -187,9 +193,11 @@ Options:
                 color = (color_conf[0], color_conf[1]), bold = color_conf[2])
 
         def group_display_callback(group, rec_arguments = None):
+            u"""What should be displayed after a group_display."""
             pass
 
         def tree_print(tree, recursion_arguments = None):
+            u"""The main recursion engine."""
             try:
                 next_recursion = tree.parent.tree_display(recursion_arguments,
                                                           tree.context)
@@ -200,6 +208,7 @@ Options:
             tree.parent.display_callback(next_recursion)
 
         def group_print(group):
+            u"""When listing groups, this is how they are displayed."""
             tasks = lib.get_tasks(groups=[group])
             n_tasks = len(tasks)
             n_completed = 0
@@ -210,6 +219,7 @@ Options:
                         str( n_completed) + u"/" + str(n_tasks))
 
         def task_display_callback(task, rec_arguments = None):
+            u"""Called after a task's display."""
             if rec_arguments == None or rec_arguments["print_sep"]:
                 # Print the separator
                 write(u" {done}----------{t:-<{datewidth}}------\
@@ -218,6 +228,7 @@ Options:
                     tagswidth=self.tagswidth, datewidth = self.datewidth))
 
         def task_tree_display(task, rec_arguments, contextual):
+            u"""How a task is displayed when inside a Tree (see tree_print)"""
             if (not self.show_completed) and task.completed == 1:
                 raise InterruptDisplay()
 

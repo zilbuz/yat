@@ -63,11 +63,12 @@ __all__ = [
 # All filename listed here will be loaded when using the expression
 # "from yatcli import *"
 
+#pylint: disable=C0103
 lib = None
 name = None
 commands = None
 aliases = None
-
+#pylint: enable=C0103
 class MissingArgument(Exception):
     '''Raised when an argument is missing. Doh !'''
     pass

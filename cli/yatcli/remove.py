@@ -104,6 +104,7 @@ Options:
         return False
 
     def add_id_to_remove(self, value):
+        u"""Add the specified value to the list of IDs that will be removed."""
         if (self.interactive and not
             yes_no_question(self.interactive_text(
                 self.get_obj(ids=[int(value)]))[0], default=True)):
@@ -112,6 +113,8 @@ Options:
         return
 
     def process_regexp(self):
+        u"""Process the regexp stored in self to fetch all the matching
+        objects, that part being deported in the yat module."""
         if self.regexp == []:
             return
         self.regexp = ' '.join(self.regexp)
