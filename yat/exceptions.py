@@ -27,16 +27,18 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 class IncoherentObject(Exception):
-    u'''Exception raised when trying to save an object in the DB whose internal data
-    are somehow incoherent — i.e. a Note with task == None.'''
+    u'''Exception raised when trying to save an object in the DB whose
+    internal data are somehow incoherent — i.e. a Note with task == None.'''
     pass
 
 class WrongId(Exception):
-    u"""Exception raised when trying to extract a single object using an invalid ID."""
+    u"""Exception raised when trying to extract a single object using an
+    invalid ID."""
     pass
     
 class WrongName(Exception):
-    u"""Exception raised when trying to extract a single object using an invalid name."""
+    u"""Exception raised when trying to extract a single object using an
+    invalid name."""
     pass
 
 class ExistingLock(Exception):
@@ -49,7 +51,8 @@ class WrongConfigFile(Exception):
     pass
 
 class IncoherentDBState(Exception):
-    u"""Exception raised when something doesn't add up and we don't know why, so we blame the DB"""
+    u"""Exception raised when something doesn't add up and we don't know why,
+    so we blame the DB"""
     pass
 
 class FileNotFound(Exception):

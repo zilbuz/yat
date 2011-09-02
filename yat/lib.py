@@ -105,7 +105,8 @@ class Yat(object):
         try:
             with open(config_file_path, "r") as config_file:
                 for line in config_file:
-                    if not (re.match(r'^\s*#.*$', line) or re.match(r'^\s*$', line)):
+                    if not (re.match(r'^\s*#.*$', line) or
+                            re.match(r'^\s*$', line)):
                         line = re.sub(r'\s*=\s*', "=", line, 1)
                         line = re.sub(r'\n$', r'', line)
                         opt = line.split('=', 1)
@@ -117,14 +118,16 @@ class Yat(object):
 
         # For each option, loading default if it isn't defined
         self.config["yatdir"] = self.config.get("yatdir", default_yatdir)
-        self.config["default_priority"] = self.config.get("default_priority", "1")
+        self.config["default_priority"] = \
+            self.config.get("default_priority", "1")
 
         # Default timestamp: infinite
         self.config["default_date"] = float('+inf')
 
         # Create yat directory
         if self.config["yatdir"][0] == "~":
-            self.config["yatdir"] = os.environ.get("HOME") + self.config["yatdir"][1:]
+            self.config["yatdir"] = (os.environ.get("HOME") +
+                                     self.config["yatdir"][1:])
         if not os.path.isdir(self.config["yatdir"]):
             os.makedirs(self.config["yatdir"], mode=0700)
 
@@ -156,7 +159,8 @@ class Yat(object):
         # Hidden config (regexp)
         self.config["re.id"] = u"\d*?"
         self.config["re.priority"] = u"\d"
-        self.config["re.date"] = u"(?P<x1>\d?\d)/(?P<x2>\d\d)/(?P<year>\d{4})(:(?P<hour>\d?\d)(:(?P<minute>\d\d))?(?P<apm>am|pm)?)?"
+        self.config["re.date"] = u"(?P<x1>\d?\d)/(?P<x2>\d\d)/(?P<year>\d{4})\
+            (:(?P<hour>\d?\d)(:(?P<minute>\d\d))?(?P<apm>am|pm)?)?"
         self.config["re.tag_name"] = u".*"
         self.config["re.tags_list"] = u"{0}?(,{0}?)*".format(
                 self.config["re.tag_name"])
@@ -280,8 +284,8 @@ class Yat(object):
 
     def _extract_rows(self, table_name, loaded_objects,
                        ids, names, regexp, extra_criteria = None):
-        u'''Extract the data out of the DB. It also checks whether it was already
-        loaded, in which case it replaces it by the object.
+        u'''Extract the data out of the DB. It also checks whether it was
+        already loaded, in which case it replaces it by the object.
         Arguments:
             table_name (str): 
                 The name of the table from where the data will be extracted
@@ -333,7 +337,8 @@ class Yat(object):
             # related to what is provided in argument. If there was no ID
             # provided, there's no need to test against the ids !
             # condition_string is what follows the 'where' statement.
-            # condition_arguments is what will replace all the ? in condition_string
+            # condition_arguments is what will replace all the ?
+            # in condition_string
             condition_string = ''
             condition_arguments = []
 
@@ -349,7 +354,8 @@ class Yat(object):
                 # If everything has already been loaded, there's no need to
                 # test against the ids.
                 if ids_to_load != []:
-                    condition_string = 'id in ({0})'.format(', '.join(['?']*len(ids_to_load)))
+                    condition_string = \
+                        'id in ({0})'.format(', '.join(['?']*len(ids_to_load)))
                     condition_arguments.extend(ids_to_load)
 
             if names != None and names != []:
@@ -357,8 +363,8 @@ class Yat(object):
                 if condition_string != '':
                     condition_string += ' or '
                 condition_string += 'content in ({0})'
-                condition_string = condition_string.format(', '.join(['?']*
-                                                                     len(names)))
+                condition_string = \
+                    condition_string.format(', '.join(['?'] * len(names)))
                 condition_arguments.extend(names)
 
             if regexp != None:
@@ -368,7 +374,8 @@ class Yat(object):
                 condition_arguments.append(regexp)
 
             if extra_criteria != None and condition_string != '':
-                extra_criteria = ('and ' + extra_criteria[0], list(extra_criteria[1]))
+                extra_criteria = ('and ' + extra_criteria[0],
+                                  list(extra_criteria[1]))
                 condition_string = '(' + condition_string + ')'
             elif extra_criteria == None:
                 extra_criteria = ('', [])
@@ -377,7 +384,8 @@ class Yat(object):
 
             # Prepare the request in advance
             request = (u'select * from {0} where {1} {2}'
-                       .format(table_name, condition_string, extra_criteria[0]))
+                       .format(table_name, condition_string,
+                               extra_criteria[0]))
 
 
             # Fetch the rows only if there's some conditions
@@ -385,14 +393,14 @@ class Yat(object):
             if extra_criteria[0] != '' or condition_string != '':
                 rows = self.__sql.execute(request, sql_arguments).fetchall()
 
-                # Theoretically, it might be faster to remove an object from a set
-                # if it is implemented as an unbalanced B-Tree : log(n) complexity to reach
-                # the node, and 1 to delete the object
+                # Theoretically, it might be faster to remove an object from a
+                # set if it is implemented as an unbalanced B-Tree : log(n)
+                # complexity to reach the node, and 1 to delete the object
                 set_rows = set(rows)
                 for r in rows:
                     try:    # Try to fetch the loaded object.
                         loaded.append(loaded_objects[int(r['id'])])
-                        set_rows.remove(r)  # If it is there, the row is useless
+                        set_rows.remove(r) # If it is there, the row is useless
                     except KeyError:
                         pass
                 rows = list(set_rows)
@@ -406,7 +414,8 @@ class Yat(object):
             regexp: str, a valid regular expression to compare against the 
                     content attribute.
             groups: [Group], grab all the tasks associated with these
-                    particular tags/lists. Note that it is possible to mix them.
+                    particular tags/lists. Note that it is possible to mix
+                    them.
         '''
         loaded = []
         rows=[]
@@ -493,8 +502,8 @@ class Yat(object):
             parent_extract = self._extract_rows('tasks', self._loaded_tasks,
                                                  ids_to_fetch, None, None)
             # We discard the tasks already loaded.
-            for r in parent_extract[1]:     # Don't care about redundancy, overwrite if needed
-                id_to_row[int(r["id"])] = r
+            for r in parent_extract[1]:     # Don't care about redundancy,
+                id_to_row[int(r["id"])] = r # overwrite if needed
             rows = parent_extract[1]
 
         # Sorry Basile, I needed this one.
@@ -628,9 +637,14 @@ class Yat(object):
             self.__sql.commit()
             if parent_id == None:
                 parent_id = "null"
-            task.id = self.__sql.execute('select id from tasks where created=? and content=?', (task.created, task.content)).fetchone()[0]
+            task.id = \
+                self.__sql.execute(u'''select id from tasks
+                                    where created=? and content=?
+                                    ''',
+                                    (task.created, task.content)).fetchone()[0]
             for i in task.tags:
-                self.__sql.execute('insert into tagging values(?,?)', (i.id, task.id))
+                self.__sql.execute('insert into tagging values(?,?)',
+                                   (i.id, task.id))
             self.__sql.commit()
 
     def _edit_task(self, task):
@@ -777,8 +791,8 @@ class Yat(object):
                 rows = self.__sql.execute(query, [task.id]).fetchall()
 
             if rows == []:
-                # We have to load NoTag here, since there wouldn't be any request
-                # for the None id
+                # We have to load NoTag here, since there wouldn't be any
+                # request for the None id
                 self._loaded_tags[None]= NoTag(self)
             set_rows = set(rows)
             for r in rows:
@@ -799,7 +813,8 @@ class Yat(object):
         return [l for l in self._loaded_tags.itervalues()]
 
     def get_lists(self, ids=None, names=None, regexp=None):
-        return self._get_groups(List, NoList, self._loaded_lists, ids, names, regexp)
+        return self._get_groups(List, NoList, self._loaded_lists, ids,
+                                names, regexp)
 
     def get_list(self, value, value_is_id=True):
         if value == None:
@@ -883,7 +898,8 @@ class Yat(object):
             note_row = self.__sql.execute(u'''select * from notes
                                           where task=? and
                                           created=? and content=?''',
-                                          (note.task.id, note.created, note.content)
+                                          (note.task.id, note.created,
+                                           note.content)
                                          ).fetchone()
         note.id = int(note_row["id"])
         note.last_modified = int(note_row['last_modified'])
@@ -921,9 +937,11 @@ class Yat(object):
         if group.id == None:
             return
         t = self.get_time()
-        query = u'update %s set content=?, priority=?, last_modified=? where id=?' % table_name
+        query = u'update %s set content=?, priority=?, \
+                last_modified=? where id=?' % table_name
         with self.__sql:
-            self.__sql.execute(query, (group.content, group.priority, t, group.id))
+            self.__sql.execute(query, (group.content, group.priority,
+                                       t, group.id))
             group.last_modified = t
         group.changed = False
 
@@ -935,11 +953,13 @@ class Yat(object):
         else:
             creation_time = self.get_time()
         with self.__sql:
-            c = self.__sql.execute('select count(*) as nb from %s where content=?' %
-                    table, (name,))
+            c = self.__sql.execute('select count(*) as nb from %s \
+                                    where content=?' % table, (name,))
             if c.fetchone()[0] == 0:
-                self.__sql.execute('insert into %s values(null, ?, ?, ?, ?, ?)' % table,
-                    (name, priority, self.get_time(), creation_time, "nohash"))
+                self.__sql.execute('insert into %s \
+                                    values(null, ?, ?, ?, ?, ?)' % table, 
+                                    (name, priority, self.get_time(),
+                                     creation_time, "nohash"))
                 self.__sql.commit()
 
     @staticmethod

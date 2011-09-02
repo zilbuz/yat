@@ -32,8 +32,9 @@ import re
 import new
 
 def stack_up_parents(tree):
-    u"""Static function. Given a tree with a task as root, stacks up the ancestors of the said task
-    on top of is, in a straight line to the task. The added nodes are tagged as contextual."""
+    u"""Static function. Given a tree with a task as root, stacks up
+    the ancestors of the said task on top of is, in a straight line to
+    the task. The added nodes are tagged as contextual."""
     parents = tree.parent.get_list_parents()
     def policy(t):
         if t == tree.parent:
@@ -86,8 +87,9 @@ in this group's context.'''
 
 def Group_child_callback(self, tree):
     u"""Appends the context tasks on top of the tree in the twisted cases :)"""
-    if self.directly_related_with(tree.parent) and (not tree.parent.parents_in_group(self)
-                                     and tree.parent.parent != None):
+    if (self.directly_related_with(tree.parent) and
+        (not tree.parent.parents_in_group(self)
+         and tree.parent.parent != None)):
         return stack_up_parents(tree)
     return tree
 
@@ -103,9 +105,9 @@ the algorithms of Group.'''
     return task.list == self
 
 def List_child_policy(self, task):
-    u"""This policy excludes all the tasks that aren't on the list, except for those who have a child
-    on the list, and the immediate children of a member. The nodes with a task out of the list are 
-    tagged contextual."""
+    u"""This policy excludes all the tasks that aren't on the list, except
+    for those who have a child on the list, and the immediate children of a
+    member. The nodes with a task out of the list are tagged contextual."""
     if not task.list == self and not task.parents_in_group(self):
         return None
     tree = Tree(task, self.child_policy)
@@ -117,7 +119,8 @@ def List_child_policy(self, task):
     return tree
 
 def Tag_child_policy(self, task):
-    u"""The tags are considered inherited from the parent, so no discrimination whatsoever :)"""
+    u"""The tags are considered inherited from the parent, so no discrimination
+    whatsoever :)"""
     if self.directly_related_with(task) or task.parents_in_group(self):
         return Tree(task, self.child_policy)
     return None
@@ -136,7 +139,9 @@ def NoTag_directly_related_with(self, task):
     return task.tags == [] or task.tags == set()
 
 class Tree(object):
-    def __init__(self, parent = None, policy = None):  # The policy is a function passed along to the make_children_tree method in order to help select the children
+    def __init__(self, parent = None, policy = None):
+        u'''The policy is a function passed along to the make_children_tree
+        method in order to help select the children'''
         self.parent = parent
 
         # Defines a cache used in sorting operations
@@ -148,33 +153,38 @@ class Tree(object):
         # The parent is the best placed to determine who are her children ;-)
         direct_children = parent.direct_children()
 
-        # If the Power That Be (the caller) didn't specify a policy, once again ask the parent,
-        # she supposedly knows what's best for her children, right ?
+        # If the Power That Be (the caller) didn't specify a policy, once again
+        # ask the parent, she supposedly knows what's best for her children,
+        # right ?
         if policy == None:
             child_policy = parent.child_policy
         else:
             child_policy = policy
 
-        # Apply the policy to the children and filter the result to suppress the invalid ones
+        # Apply the policy to the children and filter the result to suppress
+        # the invalid ones
         self.children = []
         for c in direct_children:
             tree = child_policy(c)
             if tree != None:
                 if policy == None:
-                    tree = parent.child_callback(tree)  # In case additional actions are needed to finish the work. 
+                    # In case additional actions are needed to finish the work.
+                    tree = parent.child_callback(tree)
                 self.children.append(tree)
 
     def significant_value(self, criterion):
         try:
             return self.values[criterion]
         except KeyError:
-            self.values[criterion] = self.parent.significant_value(self, criterion)
+            self.values[criterion] = \
+                self.parent.significant_value(self, criterion)
             return self.values[criterion]
 
     @staticmethod
     def sort_trees(trees, criteria):
         u'''Sort a list of trees according to several criteria.
-Note : if a criterion cannot be applied to the root nodes, the next one will be used.
+Note : if a criterion cannot be applied to the root nodes, the next one
+will be used.
 
 A criterion is supposed to be of the form ("attribute", reverse)
 with reverse either True or False.'''
@@ -214,9 +224,10 @@ Careful, the <trees> list will be modified on site.
                 criteria_copy = criteria[:]
                 while len(criteria_copy) > 1:
                     try:
-                        sublist.sort(key=(lambda t:
-                                          t.significant_value(criteria_copy[1])
-                                         ), reverse=criteria_copy[1][1])
+                        sublist.sort(
+                            key=(lambda t: 
+                                 t.significant_value(criteria_copy[1])),
+                            reverse=criteria_copy[1][1])
                         break
                     except ValueError:
                         criteria_copy = criteria_copy[1:]

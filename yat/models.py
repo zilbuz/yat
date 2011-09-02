@@ -144,12 +144,15 @@ The return value is always None.'''
         return retour
 
     def parents_in_group(self, group):
-        u"""Returns True if at least one parent of self is in the group, False otherwise."""
-        return self.parent != None and (group.directly_related_with(self.parent) or
-                                        self.parent.parents_in_group(group))
+        u"""Returns True if at least one parent of self is in the group,
+        False otherwise."""
+        return (self.parent != None and
+                (group.directly_related_with(self.parent) or
+                 self.parent.parents_in_group(group)))
 
     def get_list_parents(self):
-        u"""Returns a list of all the parents of self, beginning with the root ancestor."""
+        u"""Returns a list of all the parents of self, beginning with the
+        root ancestor."""
         if self.parent == None:
             return []
         list = self.parent.get_list_parents()
@@ -173,7 +176,8 @@ class Note(DBObject):
             except WrongName:
                 self.id = None
             except WrongId:
-                raise IncoherentObject('A note must be associated to an existing task.')
+                raise IncoherentObject('A note must be associated to \
+                                        an existing task.')
         if self.id == None:
             lib._add_note(self)
         elif self.changed:
@@ -227,7 +231,8 @@ class Group(DBObject):
         return None
 
 class List(Group):
-    u'''This class represent the "meta-data" of a list. It is NOT a container !'''
+    u'''This class represent the "meta-data" of a list.
+    It is NOT a container !'''
     _table_name = 'lists'
 
     def __init__(self, lib):
@@ -244,7 +249,8 @@ class List(Group):
         return self._save(lib, lib.get_list)
 
 class Tag(Group):
-    u'''This class represent the "meta-data" of a tag. It is NOT a container !'''
+    u'''This class represent the "meta-data" of a tag.
+    It is NOT a container !'''
     _table_name = 'tags'
 
     def __init__(self, lib, sql_line = None):
@@ -268,7 +274,8 @@ class NoGroup(object):
         pass
 
 class NoList(NoGroup, List):
-    # List provides unique algorithms, but here we override its polymorphism abilities
+    # List provides unique algorithms, but here we override its
+    #polymorphism abilities
     __mro__ = (NoGroup, Group, DBObject, object, List)
     __instance = None
     def __new__(cls, lib):
