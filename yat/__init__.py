@@ -27,7 +27,16 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
-from lib import *
+#pylint: disable=W0403
+from lib import Yat
 from tree import Tree
-import legacy
+from models import Task, List, Tag, NoTag, NoList, Note
+#pylint: enable=W0403
+__all__ = [
+        "lib",
+        "exceptions",
+        "legacy",
+        "models",
+        "tree"
+        ]
 
