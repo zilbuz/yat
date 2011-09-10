@@ -25,7 +25,8 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 from StringIO import StringIO
-from tempfile import SpooledTemporaryFile
+from tempfile import NamedTemporaryFile
+from subprocess import Popen
 
 from yatcli import lib, write
 from yatcli.command import Command
@@ -64,6 +65,7 @@ class AnnotateCommand (Command):
                          [None], 'task_id')
         })
 
+    @staticmethod
     def split_notes(temp_file, separator):
         u'''Given a file and the separator, split the content of the file into
         a list of string. The separator must be a whole line.'''
@@ -105,9 +107,21 @@ class AnnotateCommand (Command):
                 return
 
         # Launch an editor
+        separator = u'==================================================\n'
         if notes:
-            # TODO
-            pass
-
-        
+            with NamedTemporaryFile(delete=False) as temp_file:
+                note_it = iter(notes)
+                temp_file.write(note_it.next())
+                for note in note_it:
+                    temp_file.write(separator)
+                    temp_file.write(note)
+                temp_file.close()
+                Popen(['sensible-editor', temp_file.name])
+                modified_file = open(temp_file.name)
+                new_notes = self.split_notes(modified_file, separator)
+                modified_file.close()
+            array_ids = edit_ids.split(',')
+            for note_id, note in zip(array_ids, new_notes):
+                task.note[note_id].content = note
+            task.save()
     #pylint: enable=E1101
