@@ -24,6 +24,9 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
+from StringIO import StringIO
+from tempfile import SpooledTemporaryFile
+
 from yatcli import lib, write
 from yatcli.command import Command
 from yatcli.exceptions import WrongId
@@ -60,6 +63,21 @@ class AnnotateCommand (Command):
             'task_id':       ('^({0})$'.format(lib.config["re.id"]),
                          [None], 'task_id')
         })
+
+    def split_notes(temp_file, separator):
+        u'''Given a file and the separator, split the content of the file into
+        a list of string. The separator must be a whole line.'''
+        notes = []
+        current_note = StringIO()
+        for line in temp_file:
+            if line == separator:
+                notes.append(current_note.getvalue())
+                current_note.close()
+                current_note = StringIO()
+            else:
+                current_note.write(line)
+        notes.append(current_note.getvalue())
+        return notes
 
     #pylint: disable=E1101
     def execute(self, cmd):
