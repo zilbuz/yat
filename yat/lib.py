@@ -71,6 +71,10 @@ class Yat(object):
         return len(re.findall(regex, item)) > 0
 
     def __init__(self, config_file_path = None, db_path = None):
+        self.config_file = config_file_path
+        self.initialize(config_file_path, db_path)
+
+    def initialize(self, config_file_path = None, db_path = None):
         u"""Constructor:
             * load the configuration file
             * open a connection with the database
@@ -96,16 +100,18 @@ class Yat(object):
                 os.path.join(os.environ.get('HOME'), '.yatrc')
             default_yatdir = \
                 os.path.join(os.environ.get('HOME'), '.yat')
-        if config_file_path == None:
-            config_file_path = default_config_file_path
+        if config_file_path != None:
+            self.config_file = config_file_path
+        if self.config_file == None:
+            self.config_file = default_config_file_path
         else:
-            if not os.path.isfile(config_file_path):
-                raise WrongConfigFile, config_file_path
+            if not os.path.isfile(self.config_file):
+                raise WrongConfigFile, self.config_file
 
         # Loading configuration
         self.config = {}
         try:
-            with open(config_file_path, "r") as config_file:
+            with open(self.config_file, "r") as config_file:
                 for line in config_file:
                     if not (re.match(r'^\s*#.*$', line) or
                             re.match(r'^\s*$', line)):
@@ -134,6 +140,10 @@ class Yat(object):
             os.makedirs(self.config["yatdir"], mode=0700)
 
         # Connect to sqlite db
+        try:
+            self.free_db()
+        except AttributeError:
+            pass
         if db_path == None:
             self._db_path = self.config['yatdir'] + os.path.sep +'yat.db'
         else:
@@ -608,7 +618,7 @@ class Yat(object):
     def __get_absolute_note_ids(task, ids):
         '''When given a task and a list of local ids, return the absolute ids
         of the notes pointed by the local ones.'''
-        if task == None:
+        if task == None or ids == None:
             return ids
         try:
             return [task.notes[i-1] for i in ids]

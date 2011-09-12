@@ -36,6 +36,7 @@ import sys
 import yat
 import yatcli
 import yatcli.aid, yatcli.command, yatcli.show
+from yat.exceptions import WrongConfigFile
 
 def init():
     u"""Initialisation specific to this commandline program."""
@@ -206,8 +207,9 @@ def main(argv):
 
     # Initialisation
     try:
-        yatcli.lib = yat.Yat(options["config-file"])
-    except yat.WrongConfigFile as e:
+        if options["config-file"] not in (None, yatcli.lib.config_file):
+            yatcli.lib.initialize(options["config-file"])
+    except WrongConfigFile as e:
         yatcli.write(u"[ERR] The file you want to use as a configuration file ({0}) doesn't exist.".format(e), 
                 foreground = yatcli.Colors.errf, background = yatcli.Colors.errb, 
                 bold = yatcli.Colors.errbold, f = sys.stderr)
@@ -221,17 +223,10 @@ def main(argv):
         exit(0)
 
     # Getting the name of the program
-    yatcli.name = argv[0]
+    yatcli.set_name(argv[0])
 
-    # Getting all the commands
-    cmd_objs = []
-    for m in inspect.getmembers(sys.modules["yatcli"], inspect.ismodule):
-        c = inspect.getmembers(m[1], yatcli.is_command)
-        if c != []:
-            cmd_objs.extend(c)
-    yatcli.commands = dict(cmd_objs)
-    
-    yatcli.aliases = {}
+    #Initialize the commands dict
+    yatcli.init_commands()
 
     # Fill the aliases dictionary
     for name, cmd in yatcli.commands.iteritems():

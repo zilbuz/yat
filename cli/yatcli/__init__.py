@@ -36,17 +36,8 @@ import sys
 import yat
 import re
 
-# import all the command to load the aliases no matter what
-#pylint: disable=W0403
-import command
-import add
-import remove
-import show
-import aid
-import edit
-import done
-import clean
-import migrate
+from yat.lib import Yat
+
 #pylint: enable=W0403
 
 __all__ = [
@@ -65,11 +56,12 @@ __all__ = [
 # "from yatcli import *"
 
 #pylint: disable=C0103
-lib = None
-name = None
-commands = None
-aliases = None
+lib = Yat()
+__name = None
+commands = {}
+aliases = {}
 #pylint: enable=C0103
+
 class MissingArgument(Exception):
     '''Raised when an argument is missing. Doh !'''
     pass
@@ -138,15 +130,31 @@ class Colors:
             return bold_code + fcolor + bcolor
 #pylint: enable=W0232,R0903
 
-def is_command(obj):
-    u"""Check if the parameter is a class derived from Command, without being
-    Command"""
+def set_name(args):
+    u'''Initialize correctly the name variable to impact every instance.'''
+    global __name
+    __name = args[0]
 
-    if inspect.isclass(obj):
-        return (issubclass(obj, command.Command) and
-                not(obj is command.Command))
-    else:
-        return False
+def name():
+    u'''Name getter, since strings aren't mutable.'''
+    global __name
+    return __name
+
+def init_commands():
+    u'''Initialize the commends dict by browsing through all the submodules
+    specified in __all__.'''
+    global commands
+    from yatcli.command import Command
+    def is_command(obj):
+        return inspect.isclass(obj) and (issubclass(obj, Command) and
+                                         not (obj is Command))
+
+    for module in __all__:
+        __import__("yatcli." + module)
+        classes = \
+                inspect.getmembers(sys.modules["yatcli." + module], is_command)
+        for cls in classes:
+            commands[cls[0]] = cls[1]
 
 def write(string = u"", output_file = None, linebreak = True,
            color = None, bold = False):
