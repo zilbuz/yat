@@ -135,6 +135,10 @@ The return value is always None.'''
         self.tags -= to_remove
         self.tags |= to_add
 
+        #TODO: Do it cleanly !
+        for note in self.notes:
+            note.save(lib)
+
         if self.parent != None:
             new_parent = self.parent.save(lib)
             # It shouldn't happen, but better safe than sorry

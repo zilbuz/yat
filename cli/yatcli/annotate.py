@@ -27,11 +27,12 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 import sys
 from StringIO import StringIO
 from tempfile import NamedTemporaryFile
-from subprocess import Popen
+from subprocess import call
 
 from yatcli import lib, write, Colors
 from yatcli.command import Command
 from yat.exceptions import WrongId
+from yat.models import Note
 
 class AnnotateCommand (Command):
     u"""
@@ -94,10 +95,11 @@ class AnnotateCommand (Command):
             return
 
         # Retrieve the notes to edit
+        notes = []
         if self.edit_all:
             notes = task.notes
         elif self.edit_ids:
-            array_ids = edit_ids.split(",")
+            array_ids = [int(i) for i in self.edit_ids.split(",")]
             try:
                 notes = lib.get_notes(task = task, ids = array_ids)
             except WrongId:
@@ -109,20 +111,31 @@ class AnnotateCommand (Command):
 
         # Launch an editor
         separator = u'==================================================\n'
-        if notes:
+        if notes or not (self.edit_ids or self.edit_all):
             with NamedTemporaryFile(delete=False) as temp_file:
                 note_it = iter(notes)
-                temp_file.write(note_it.next())
-                for note in note_it:
-                    temp_file.write(separator)
-                    temp_file.write(note)
+                try:
+                    temp_file.write(note_it.next())
+                    for note in note_it:
+                        temp_file.write(separator)
+                        temp_file.write(note)
+                except StopIteration:
+                    pass
                 temp_file.close()
-                Popen(['sensible-editor', temp_file.name])
+                call(['sensible-editor', temp_file.name])
                 modified_file = open(temp_file.name)
                 new_notes = self.split_notes(modified_file, separator)
+                print new_notes
                 modified_file.close()
-            array_ids = edit_ids.split(',')
-            for note_id, note in zip(array_ids, new_notes):
-                task.note[note_id].content = note
+            if self.edit_ids or self.edit_all:
+                array_ids = self.edit_ids.split(',')
+                for note_id, note in zip(array_ids, new_notes):
+                    task.notes[int(note_id)].content = note
+            else:
+                for note in new_notes:
+                    temp_note = Note(lib)
+                    temp_note.content = note
+                    temp_note.task = task
+                    task.notes.append(temp_note)
             task.save()
     #pylint: enable=E1101
