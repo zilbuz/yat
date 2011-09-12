@@ -97,6 +97,14 @@ with:
     #Array containing the different aliases for this command
     alias = []
 
+    @staticmethod
+    def __process_potential(obj, key):
+        u'''Process an object determining the next potential arguments.'''
+        if callable(obj):
+            return obj(key)
+        if isinstance(obj, list):
+            return obj
+
     def __init__(self):
         if not hasattr(self, 'command'):
             self.command = ''
@@ -144,7 +152,7 @@ with:
             args = args_cpy
 
         # Determine the first potential arguments
-        to_examine = __process_potential(self.arguments[0], self.command)
+        to_examine = self.__process_potential(self.arguments[0], self.command)
 
         # Analyze the arguments
         for arg in args:
@@ -169,7 +177,7 @@ with:
                     value = arg
 
                 # Determine the next potential arguments
-                to_examine = __process_potential(spec[1], self.command)
+                to_examine = self.__process_potential(spec[1], self.command)
 
                 # Process the value
                 self.__process_value(spec[2], value)
@@ -295,11 +303,4 @@ with:
             -args: the rest of the command line
         """
         raise NotImplementedError
-
-def __process_potential(obj, key):
-    u'''Process an object determining the next potential arguments.'''
-    if callable(obj):
-        return obj(key)
-    if isinstance(obj, list):
-        return obj
 
