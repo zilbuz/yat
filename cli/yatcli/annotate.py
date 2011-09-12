@@ -24,13 +24,14 @@ To Public License, Version 2, as published by Sam Hocevar. See
 http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
+import sys
 from StringIO import StringIO
 from tempfile import NamedTemporaryFile
 from subprocess import Popen
 
-from yatcli import lib, write
+from yatcli import lib, write, Colors
 from yatcli.command import Command
-from yatcli.exceptions import WrongId
+from yat.exceptions import WrongId
 
 class AnnotateCommand (Command):
     u"""
@@ -47,7 +48,7 @@ class AnnotateCommand (Command):
 
     """
 
-    alias = [u"annotate, note"]
+    alias = [u"annotate", "note"]
 
     def __init__(self):
         super(AnnotateCommand, self).__init__()

@@ -51,6 +51,7 @@ import migrate
 
 __all__ = [
         "command",
+        "annotate"
         "aid",
         "add",
         "remove",
