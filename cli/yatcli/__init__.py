@@ -36,17 +36,8 @@ import sys
 import yat
 import re
 
-# import all the command to load the aliases no matter what
-#pylint: disable=W0403
-import command
-import add
-import remove
-import show
-import aid
-import edit
-import done
-import clean
-import migrate
+from yat.lib import Yat
+
 #pylint: enable=W0403
 
 __all__ = [
@@ -64,7 +55,7 @@ __all__ = [
 # "from yatcli import *"
 
 #pylint: disable=C0103
-lib = None
+lib = Yat()
 name = None
 commands = None
 aliases = None
