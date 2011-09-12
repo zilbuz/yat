@@ -42,7 +42,7 @@ from yat.lib import Yat
 
 __all__ = [
         "command",
-        "annotate"
+        "annotate",
         "aid",
         "add",
         "remove",
