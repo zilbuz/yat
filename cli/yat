@@ -223,17 +223,10 @@ def main(argv):
         exit(0)
 
     # Getting the name of the program
-    yatcli.name = argv[0]
+    yatcli.set_name(argv[0])
 
-    # Getting all the commands
-    cmd_objs = []
-    for m in inspect.getmembers(sys.modules["yatcli"], inspect.ismodule):
-        c = inspect.getmembers(m[1], yatcli.is_command)
-        if c != []:
-            cmd_objs.extend(c)
-    yatcli.commands = dict(cmd_objs)
-    
-    yatcli.aliases = {}
+    #Initialize the commands dict
+    yatcli.init_commands()
 
     # Fill the aliases dictionary
     for name, cmd in yatcli.commands.iteritems():

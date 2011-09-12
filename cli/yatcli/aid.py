@@ -54,7 +54,7 @@ the name of a command is provided, show the specific help text for this command.
         helptxt = self.cmd.__doc__.split('\n\n', 1)
 
         if self.detailed:
-            write(helptxt[1].format(name = name))
+            write(helptxt[1].format(name = name()))
 
         if self.cmd.alias[0] == u"help":
             if not self.detailed:
@@ -71,7 +71,7 @@ options:
     --version, -v
         Print the current version of yat and exit.
 
-The different commands are:""".format(name = name))
+The different commands are:""".format(name = name()))
 
             # Extract docstrings from command classes
             help_txts = []
@@ -98,7 +98,7 @@ The different commands are:""".format(name = name))
             write(u"If no command are provided, \
                           the 'show' command is assumed.")
             write(u"Please type \"%s help [command]\" to have" %
-                    name, linebreak = False)
+                    name(), linebreak = False)
             write(u" detailed informations on a specific command.")
 
         write()
