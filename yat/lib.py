@@ -347,7 +347,7 @@ class Yat(object):
             condition_string = ''
             condition_arguments = []
 
-            if ids != None:
+            if ids != None and extra_criteria == None:
                 # First, remove from the list what has already been loaded.
                 ids_to_load = []
                 for i in ids:
@@ -362,6 +362,8 @@ class Yat(object):
                     condition_string = \
                         'id in ({0})'.format(', '.join(['?']*len(ids_to_load)))
                     condition_arguments.extend(ids_to_load)
+            else:
+                ids_to_load = ids
 
             if names != None and names != []:
                 # If there's already a condition
@@ -385,7 +387,7 @@ class Yat(object):
             elif extra_criteria == None:
                 extra_criteria = ('', [])
             # Don't forget the extra arguments !
-            sql_arguments = condition_arguments + extra_criteria[1]
+            sql_arguments = condition_arguments + list(extra_criteria[1])
 
             # Prepare the request in advance
             request = (u'select * from {0} where {1} {2}'
