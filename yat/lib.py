@@ -948,9 +948,9 @@ class Yat(object):
         if note.id == None:
             return
         now = self.get_time()
-        query = u'''update notes set content=?, parent=?, last_modified=?
+        query = u'''update notes set content=?, task=?, last_modified=?
             where id=?'''
-        arguments = (note.content, note.parent, now, note.id)
+        arguments = (note.content, note.task.id, now, note.id)
         with self.__sql:
             self.__sql.execute(query, arguments)
             note.last_modified = now
