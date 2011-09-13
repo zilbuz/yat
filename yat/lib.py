@@ -396,7 +396,10 @@ class Yat(object):
             # Fetch the rows only if there's some conditions
             rows = []
             if extra_criteria[0] != '' or condition_string != '':
-                rows = self.__sql.execute(request, sql_arguments).fetchall()
+                try:
+                    rows = self.__sql.execute(request, sql_arguments).fetchall()
+                except sqlite3.InterfaceError as sql_exception:
+                    raise sql_exception
 
                 # Theoretically, it might be faster to remove an object from a
                 # set if it is implemented as an unbalanced B-Tree : log(n)
