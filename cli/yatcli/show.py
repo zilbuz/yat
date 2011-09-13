@@ -72,8 +72,8 @@ Options:
 
             # 38 is an arbitrary value that seems to work well...
             if self.width < (38 + self.datewidth + done_width) :
-                write("The terminal is too small \
-                              to print the list correctly")
+                write("The terminal is too small" +
+                      " to print the list correctly")
                 return
             else:
                 allowable = self.width - (20 + self.datewidth + done_width)
@@ -102,7 +102,7 @@ Options:
             write(u"<" + cmd[0:-1] +
                   u" name> (id: <id>) - <tasks completed>/<tasks>:",
                   color = (color_conf[0], color_conf[1]), bold = color_conf[2])
-            
+
             if cmd == u'lists':
                 groups = set(lib.get_lists())
             else:
@@ -174,23 +174,24 @@ Options:
 
             # Print header, depending on show_completed
             color_conf = lib.config["cli.color_header"]
-            write(u" {done}__________{t:_<{datewidth}}\
-                  ______{t:_<{textwidth}}_{t:_<{tagswidth}} ".format( 
-                done=done_column_top, t="_", textwidth=self.textwidth,
-                tagswidth=self.tagswidth, datewidth=self.datewidth), 
-                color = (color_conf[0], color_conf[1]), bold = color_conf[2])
-            write(u"{done}|Priority |{date:^{datewidth}}| Id| \
-                  {task:<{textwidth}}|{tags:<{tagswidth}}|".format(
-                      done=done_column_middle, date = "Due date",
-                      datewidth = self.datewidth, task = "Task",
-                      textwidth = self.textwidth, tags = " Tags",
-                      tagswidth = self.tagswidth),
+            write((u" {done}__________{t:_<{datewidth}}" +
+                   u"______{t:_<{textwidth}}_{t:_<{tagswidth}} ")
+                  .format(done=done_column_top, t="_", textwidth=self.textwidth,
+                          tagswidth=self.tagswidth, datewidth=self.datewidth),
                   color = (color_conf[0], color_conf[1]), bold = color_conf[2])
-            write(u" {done}----------{t:-<{datewidth}}------\
-                  {t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-                done=done_column_bottom, t="-", textwidth=self.textwidth,
-                tagswidth=self.tagswidth, datewidth=self.datewidth),
-                color = (color_conf[0], color_conf[1]), bold = color_conf[2])
+            write((u"{done}|Priority |{date:^{datewidth}}| Id| " +
+                   u"{task:<{textwidth}}|{tags:<{tagswidth}}|")
+                  .format( done=done_column_middle, date = "Due date",
+                          datewidth = self.datewidth, task = "Task",
+                          textwidth = self.textwidth, tags = " Tags",
+                          tagswidth = self.tagswidth),
+                  color = (color_conf[0], color_conf[1]), bold = color_conf[2])
+            write((u" {done}----------{t:-<{datewidth}}------" +
+                   u"{t:-<{textwidth}}-{t:-<{tagswidth}} ")
+                  .format(done=done_column_bottom, t="-",
+                          textwidth=self.textwidth, tagswidth=self.tagswidth,
+                          datewidth=self.datewidth),
+                  color = (color_conf[0], color_conf[1]), bold = color_conf[2])
 
         def group_display_callback(group, rec_arguments = None):
             u"""What should be displayed after a group_display."""
@@ -222,10 +223,12 @@ Options:
             u"""Called after a task's display."""
             if rec_arguments == None or rec_arguments["print_sep"]:
                 # Print the separator
-                write(u" {done}----------{t:-<{datewidth}}------\
-                      {t:-<{textwidth}}-{t:-<{tagswidth}} ".format( 
-                    done = done_column_bottom, t="-", textwidth=self.textwidth,
-                    tagswidth=self.tagswidth, datewidth = self.datewidth))
+                write((u" {done}----------{t:-<{datewidth}}------" +
+                       u"{t:-<{textwidth}}-{t:-<{tagswidth}} ")
+                      .format(done = done_column_bottom, t = "-",
+                              textwidth = self.textwidth,
+                              tagswidth = self.tagswidth,
+                              datewidth = self.datewidth))
 
         def task_tree_display(task, rec_arguments, contextual):
             u"""How a task is displayed when inside a Tree (see tree_print)"""
@@ -271,16 +274,16 @@ Options:
                 color_name = "cli.color_priority" + str(task.priority)
             color_conf = lib.config[color_name]
 
-            write(u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:\
-                  ^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                      done = done_column, p = task.priority,
-                      date = date_column, id = task.id,
-                      pref = arguments['prefix'],
-                      pref_width = len(arguments['prefix']),
-                      task = string.pop(0),
-                      textwidth = self.textwidth - len(arguments['prefix']),
-                      tags = tags.pop(0), tagswidth = self.tagswidth,
-                      datewidth = self.datewidth),
+            write((u"{done}|{p:^9}|{date:^{datewidth}}|{id:^3}| {pref:" +
+                   u"^{pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|")
+                  .format(done = done_column, p = task.priority,
+                          date = date_column, id = task.id,
+                          pref = arguments['prefix'],
+                          pref_width = len(arguments['prefix']),
+                          task = string.pop(0),
+                          textwidth = self.textwidth - len(arguments['prefix']),
+                          tags = tags.pop(0), tagswidth = self.tagswidth,
+                          datewidth = self.datewidth),
                   color = (color_conf[0], color_conf[1]), bold = color_conf[2])
 
             # Blanking the prefix
@@ -299,16 +302,16 @@ Options:
                 else:
                     line_tag = u""
                 write(
-                    u"{done}|         |{t: <{datewidth}}|   | {pref:^{\
-                    pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|".format(
-                        done = done_column_middle, task = line_task,
-                        textwidth = self.textwidth - len(blank_prefix),
-                        tags = line_tag, pref = blank_prefix,
-                        pref_width = len(blank_prefix),
-                        tagswidth = self.tagswidth, t = " ",
-                        datewidth = self.datewidth),
+                    (u"{done}|         |{t: <{datewidth}}|   | {pref:^{" +
+                     "pref_width}}{task:<{textwidth}}|{tags:{tagswidth}}|")
+                    .format(done = done_column_middle, task = line_task,
+                            textwidth = self.textwidth - len(blank_prefix),
+                            tags = line_tag, pref = blank_prefix,
+                            pref_width = len(blank_prefix),
+                            tagswidth = self.tagswidth, t = " ",
+                            datewidth = self.datewidth),
                     color = (color_conf[0], color_conf[1]),
-                    bold = color_conf[2])
+                    lbold = color_conf[2])
 
             # Print the nodes of the root
             arguments['prefix'] = blank_prefix + "* "
