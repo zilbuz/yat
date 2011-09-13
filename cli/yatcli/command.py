@@ -116,6 +116,8 @@ with:
 
         if not hasattr(self, 'breakdown'):
             self.breakdown = False
+
+        self.__processed_options = set()
     # If self.breakdown is set to True, every argument will be divided into
     # words, ignoring the quotation marks.'''
 
@@ -186,7 +188,7 @@ with:
             # If there wasn't any match, the argument must be ill-formed
             if match == None:
                 raise BadArgument('Unknown argument: {0}'.format(arg))
-            
+
         # A potential grammatical end of the command is signaled by the None key
         if None not in to_examine:
             raise MissingArgument('Argument missing !')
@@ -195,7 +197,7 @@ with:
         '''Initialization of the attributes and quick check of the option format
         '''
         for opt in self.options:
-            if len(opt) != 4:
+            if len(opt) not in range(4,7):
                 raise ValueError('The options must be of the form \
                                  (short, long, attribute, type)')
             if opt[3] == None:
@@ -217,9 +219,9 @@ with:
         long_dict = {}
         for opt in self.options:
             if opt[0] != None:
-                short_dict[opt[0][0]] = (opt[2], opt[3])
+                short_dict[opt[0][0]] = opt
             if opt[1] != None:
-                long_dict[opt[1]] = (opt[2], opt[3])
+                long_dict[opt[1]] = opt
 
         re_long = \
                 re.compile('^--(?P<name>([a-z][-a-z0-9]+))(=(?P<value>.+)?)?$')
@@ -238,17 +240,20 @@ with:
             res = re_long.match(arg)
             if res != None:
                 option = long_dict[res.groupdict()['name']]
-                
+
                 # boolean option
-                if option[1] == None:
-                    setattr(self, option[0], True)
+                self.__check_conflicts(option)
+                if option[3] == None:
+                    setattr(self, option[2], True)
                 else:
                     # The value is extracted directly from the regexp
                     value = res.groupdict()['value']
                     if value == None:
                         raise MissingArgument
-                    setattr(self, option[0], option[1](value))
+                    setattr(self, option[2], option[3](value))
                 stripped_args.remove(arg)
+                self.__processed_options.add(option[0])
+                self.__processed_options.add(option[1])
                 continue
 
             # Checking if it is a cluster of short options
@@ -265,10 +270,20 @@ with:
                         value = arg_iter.next()
                     except StopIteration:
                         raise MissingArgument
-                    setattr(self, option[0], option[1](value))
+                    setattr(self, option[2], option[3](value))
+                    self.__processed_options.add(option[0])
+                    self.__processed_options.add(option[1])
                     stripped_args.remove(value)
                 stripped_args.remove(arg)
         return stripped_args
+
+    def __check_conflicts(self, option):
+        u'''Check if the option conflicts with any option already processed.'''
+        if len(option) < 5:
+            return
+        for key in option[4]:
+            if key in self.__processed_options:
+                raise BadArgument
 
     def parse_short_options(self, letter_list, short_dict):
         '''Process a list of letters according to a dictionary of options.'''
@@ -277,10 +292,13 @@ with:
         letter = letter_iter.next()
         while(True):
             option = short_dict[letter]
+            self.__check_conflicts(option)
 
             #Boolean option
-            if option[1] == None:
-                setattr(self, option[0], True)
+            if option[3] == None:
+                setattr(self, option[2], True)
+                self.__processed_options.add(option[0])
+                self.__processed_options.add(option[1])
                 try:
                     letter = letter_iter.next()
                 except StopIteration:
