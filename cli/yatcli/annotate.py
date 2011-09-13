@@ -125,7 +125,7 @@ class AnnotateCommand (Command):
             if self.edit_ids or self.edit_all:
                 array_ids = self.edit_ids.split(',')
                 for note_id, note in zip(array_ids, new_notes):
-                    task.notes[int(note_id)].content = note
+                    task.notes[int(note_id)-1].content = note
             else:
                 for note in new_notes:
                     temp_note = Note(lib)
