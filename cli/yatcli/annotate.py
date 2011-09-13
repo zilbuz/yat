@@ -113,19 +113,14 @@ class AnnotateCommand (Command):
         separator = u'==================================================\n'
         if notes or not (self.edit_ids or self.edit_all):
             with NamedTemporaryFile(delete=False) as temp_file:
-                note_it = iter(notes)
-                try:
-                    temp_file.write(note_it.next())
-                    for note in note_it:
+                for note in notes:
+                    if note != notes[0]:
                         temp_file.write(separator)
-                        temp_file.write(note)
-                except StopIteration:
-                    pass
+                    temp_file.write(note.content)
                 temp_file.close()
                 call(['sensible-editor', temp_file.name])
                 modified_file = open(temp_file.name)
                 new_notes = self.split_notes(modified_file, separator)
-                print new_notes
                 modified_file.close()
             if self.edit_ids or self.edit_all:
                 array_ids = self.edit_ids.split(',')
