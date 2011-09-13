@@ -621,7 +621,7 @@ class Yat(object):
         if task == None or ids == None:
             return ids
         try:
-            return [task.notes[i-1] for i in ids]
+            return [task.notes[i-1].id for i in ids]
         except IndexError:
             raise WrongId
 
