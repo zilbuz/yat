@@ -617,7 +617,7 @@ class Yat(object):
             self._loaded_notes[note.id] = note
             loaded.append(note)
 
-        return loaded
+        return sorted(loaded, key = lambda x : x.id)
 
     @staticmethod
     def __get_absolute_note_ids(task, ids):
