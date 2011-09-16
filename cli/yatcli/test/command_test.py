@@ -60,6 +60,14 @@ class TestBoolOptions():
         assert self.cmd.test == True
         assert self.cmd.test2 == True
 
+    def test_conflicts(self):
+        self.cmd.options.append(('t', 'third', 'test3', None, ['f']))
+        self.cmd.options.append(('f', 'fourth', 'test4', None, ['third']))
+        assert_raise(BadArgument, self.func, ['-tf'])
+        assert_raise(BadArgument, self.func, ['-ft'])
+        assert_raise(BadArgument, self.func, ['--third', '-f'])
+        assert_raise(BadArgument, self.func, ['--fourth', '-t'])
+
 class TestValueOptions():
     def setup_method(self, method):
         self.cmd = command.Command()
