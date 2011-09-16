@@ -17,8 +17,11 @@ class BuildDoc(Command):
 
     def initialize_options(self):
         self.build_dir = None
-        self.src_dir = (os.getcwd().split(os.path.sep) +
-                        sys.argv[0].split(os.path.sep))
+        if os.name == 'nt':
+            self.src_dir = sys.argv[0].split(os.path.sep)
+        else:
+            self.src_dir = (os.getcwd().split(os.path.sep) +
+                            sys.argv[0].split(os.path.sep))
         self.src_dir.pop()
 
     def finalize_options(self):
@@ -102,8 +105,11 @@ class Test(Command):
     def initialize_options(self):
         self.build_lib = None
         self.build_scripts = None
-        self.source_dir = \
-            os.getcwd().split(os.path.sep) + sys.argv[0].split(os.path.sep)
+        if os.name == 'nt':
+            self.source_dir = sys.argv[0].split(os.path.sep)
+        else:
+            self.source_dir = os.getcwd().split(os.path.sep) + \
+                sys.argv[0].split(os.path.sep)
         self.source_dir.pop()
         if self.source_dir[-1] == '.':
             self.source_dir.pop()
