@@ -37,21 +37,21 @@ from yat.exceptions import UnknownDBVersion, FileNotFound
 from yatest import assert_raise, src, SQLTools as tools
 
 def setup_module():
-    TestV0_1.v0_1_path = src()+os.path.sep+'v0.1.db'
-    TestV0_1.base_path = src()+os.path.sep+'base.db'
-    tools.exec_sql([src()+os.path.sep+'v0.1.sql'], TestV0_1.v0_1_path)
-    tools.exec_sql([src()+os.path.sep+'base.sql'], TestV0_1.base_path)
-    TestV0_1.lib = Yat(config_file_path=src()+os.path.sep+'v0.1.yatrc',
-                   db_path=TestV0_1.base_path)
-    TestV0_1.leg = legacy.V0_1(TestV0_1.lib, TestV0_1.v0_1_path)
+    TestV0p1.v0_1_path = src()+os.path.sep+'v0.1.db'
+    TestV0p1.base_path = src()+os.path.sep+'base.db'
+    tools.exec_sql([src()+os.path.sep+'v0.1.sql'], TestV0p1.v0_1_path)
+    tools.exec_sql([src()+os.path.sep+'base.sql'], TestV0p1.base_path)
+    TestV0p1.lib = Yat(config_file_path=src()+os.path.sep+'v0.1.yatrc',
+                   db_path=TestV0p1.base_path)
+    TestV0p1.leg = legacy.V0p1(TestV0p1.lib, TestV0p1.v0_1_path)
 
 def teardown_module():
-    TestV0_1.leg.free_db()
-    TestV0_1.lib.free_db()
-    tools.restore_previous_db(TestV0_1.v0_1_path)
-    tools.restore_previous_db(TestV0_1.base_path)
+    TestV0p1.leg.free_db()
+    TestV0p1.lib.free_db()
+    tools.restore_previous_db(TestV0p1.v0_1_path)
+    tools.restore_previous_db(TestV0p1.base_path)
 
-class TestV0_1():
+class TestV0p1():
     @classmethod
     def reset(cls):
         cls.leg.free_db()
@@ -135,22 +135,22 @@ class TestV0_1():
         assert self.leg.get_notes() == []
 
 def test_analyze_db():
-    TestV0_1.reset()
+    TestV0p1.reset()
     future_path = src()+os.path.sep+'future.db'
     tools.exec_sql([src()+os.path.sep+'future.sql'], future_path)
 
 
     assert_raise(UnknownDBVersion, legacy.analyze_db,
-                 future_path, TestV0_1.lib)
+                 future_path, TestV0p1.lib)
     assert_raise(FileNotFound, legacy.analyze_db,
-                 'bogus_path_to_nowhere', TestV0_1.lib)
+                 'bogus_path_to_nowhere', TestV0p1.lib)
 
-    leg = legacy.analyze_db(TestV0_1.v0_1_path,
-                            TestV0_1.lib)
-    assert type(leg) == legacy.V0_1
+    leg = legacy.analyze_db(TestV0p1.v0_1_path,
+                            TestV0p1.lib)
+    assert type(leg) == legacy.V0p1
     leg.free_db()
 
-    leg = legacy.analyze_db(TestV0_1.base_path, TestV0_1.lib)
+    leg = legacy.analyze_db(TestV0p1.base_path, TestV0p1.lib)
     assert type(leg) == Yat
     leg.free_db()
 
