@@ -182,6 +182,6 @@ class TestTree():
         assert sorted.children[0].parent.id == 2
         assert sorted.children[1].parent.id == 4
 
-        sorted = [tree.Tree(lib.get_task(8)), tree.Tree(lib.get_task(11))]
+        sorted = [tree.Tree(lib.get_task(13)), tree.Tree(lib.get_task(11))]
         tree.Tree.sort_trees(sorted, criteria)
-        assert sorted[0].parent.id == 11
+        assert sorted[0].parent.id == 13

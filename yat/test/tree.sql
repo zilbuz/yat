@@ -43,6 +43,7 @@ INSERT INTO "tasks" VALUES(9,'task9',8,1,NULL,NULL,0,1311248582.539,1311248582.5
 INSERT INTO "tasks" VALUES(10,'task10',9,1,NULL,NULL,0,1311248582.539,1311248582.539,'nohash');
 INSERT INTO "tasks" VALUES(11,'task11',7,1,NULL,2,0,1311248582.539,1311248582.539,'nohash');
 INSERT INTO "tasks" VALUES(12,'task12',11,1,NULL,NULL,0,1311248582.539,1311248582.539,'nohash');
+INSERT INTO "tasks" VALUES(13,'atask13',7,1,NULL,2,0,1211348961.432,1201236487.432, 'nohash');
 CREATE TABLE notes (
                     id integer primary key,
                     content text,
