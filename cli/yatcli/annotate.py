@@ -25,6 +25,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 """
 
 import sys
+import os
 from StringIO import StringIO
 from tempfile import NamedTemporaryFile
 from subprocess import call
@@ -66,6 +67,7 @@ class AnnotateCommand (Command):
             'task_id':       ('^({0})$'.format(lib.config["re.id"]),
                          [None], 'task_id')
         })
+        self.encodings = [u'utf8', u'windows-1252', u'latin9']
 
     @staticmethod
     def split_notes(temp_file, separator):
@@ -83,19 +85,26 @@ class AnnotateCommand (Command):
         notes.append(current_note.getvalue())
         return notes
 
-    #pylint: disable=E1101
-    def execute(self, cmd):
-        # Get the task
+    def to_unicode(self, string):
+        u'''
+        Translates an 8-bytes string into a unicode string even
+        on Windows despite its brokenness.
+        '''
         try:
-            task = lib.get_task(self.task_id)
-        except WrongId:
-            write("[ERR] The specified task doesn't exist",
-                output_file = sys.stderr,
-                color = (Colors.errf, Colors.errb), bold = Colors.errbold)
-            return
+            #try the default decoding. Usually works
+            return unicode(string)
+        except UnicodeDecodeError as error:
+            #If not, try the usual suspects.
+            for enc in self.encodings:
+                try:
+                    return unicode(string, enc)
+                except UnicodeDecodeError:
+                    continue
+            raise error
 
-        # Retrieve the notes to edit
-        notes = []
+    #pylint: disable=E1101
+    def fetch_notes(self, task):
+        u'''Retrieve the notes to edit.'''
         if self.edit_all:
             notes = task.notes
         elif self.edit_ids:
@@ -107,29 +116,60 @@ class AnnotateCommand (Command):
                 write("[ERR] At least one of the ids doesn't exist",
                     output_file = sys.stderr,
                     color = (Colors.errf, Colors.errb), bold = Colors.errbold)
-                return
+                exit()
+        return notes
+
+    def execute(self, cmd):
+        # Get the task
+        try:
+            task = lib.get_task(self.task_id)
+        except WrongId:
+            write("[ERR] The specified task doesn't exist",
+                output_file = sys.stderr,
+                color = (Colors.errf, Colors.errb), bold = Colors.errbold)
+            return
+
+        notes = self.fetch_notes(task)
 
         # Launch an editor
         separator = u'==================================================\n'
         if notes or not (self.edit_ids or self.edit_all):
             with NamedTemporaryFile(delete=False) as temp_file:
+                # Write the notes fetched earlier
                 for note in notes:
                     if note != notes[0]:
                         temp_file.write(separator)
                     temp_file.write(note.content)
                 temp_file.close()
-                call(['sensible-editor', temp_file.name])
+
+                # Launch the editor
+                if os.name == 'nt':
+                    exec_name = 'notepad.exe'
+                else:
+                    exec_name = 'sensible-editor'
+                call([exec_name, temp_file.name])
+
+                # Get the modifications.
                 modified_file = open(temp_file.name)
                 new_notes = self.split_notes(modified_file, separator)
                 modified_file.close()
-            if self.edit_ids or self.edit_all:
+
+            # In case of an edition, replace the content of the notes fetched
+            # by the new ones.
+            if self.edit_ids:
                 array_ids = self.edit_ids.split(',')
-                for note_id, note in zip(array_ids, new_notes):
-                    task.notes[int(note_id)-1].content = note
+                for note_id, content in zip(array_ids, new_notes):
+                    task.notes[int(note_id)-1].content = \
+                        self.to_unicode(content)
+            elif self.edit_all:
+                for note, content in zip(self.notes, new_notes):
+                    note.content = self.to_unicode(content)
+
+            # Just append the new notes to the existing ones.
             else:
                 for note in new_notes:
                     temp_note = Note(lib)
-                    temp_note.content = note
+                    temp_note.content = self.to_unicode(note)
                     temp_note.task = task
                     task.notes.append(temp_note)
             task.save()
