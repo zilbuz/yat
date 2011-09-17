@@ -57,7 +57,7 @@ class AnnotateCommand (Command):
         super(AnnotateCommand, self).__init__()
 
         self.options = [
-            ('e', 'edit', 'edit_ids', str),
+            ('e', 'edit', 'ids_to_edit', self.__analyze_ids),
             ('a', 'all', 'edit_all', None),
             ('d', 'delete', 'delete_ids', str),
             ('C', 'clear', 'clear', None),
@@ -69,6 +69,22 @@ class AnnotateCommand (Command):
                          [None], 'task_id')
         })
         self.encodings = [u'windows-1252', u'utf8', u'latin9']
+        self.separator = \
+            u'==================================================' + os.linesep
+
+    @staticmethod
+    def __analyze_ids(csv_ids):
+        u'''Split a string containing IDs separated by commas into a proper
+        list of IDs (as int !)'''
+        return [int(i) for i in csv_ids.split(',')]
+
+    @staticmethod
+    def __add_trailing_new_line(string):
+        u'''If the last character the argument string is not a new line,
+        just add one.'''
+        if string[-1] not in ['\n', '\r']:
+            return string + os.linesep
+        return string
 
     def split_notes(self, temp_file, separator):
         u'''Given a file and the separator, split the content of the file into
@@ -78,21 +94,15 @@ class AnnotateCommand (Command):
         for line in temp_file:
             if self.to_unicode(line.strip()) == separator.strip():
                 content = current_note.getvalue()
-                length = len(os.linesep)
-                if len(content) > length:
-                    if content[-1] != '\n':
-                        content = content + os.linesep
-                    notes.append(content)
+                if len(content) > 0:
+                    notes.append(self.__add_trailing_new_line(content))
                 current_note.close()
                 current_note = StringIO()
             else:
                 current_note.write(line)
         content = current_note.getvalue()
-        length = len(os.linesep)
-        if len(content) > length:
-            if content[-1] != '\n':
-                content = content + os.linesep
-            notes.append(content)
+        if len(content) > 0:
+            notes.append(self.__add_trailing_new_line(content))
         return notes
 
     def to_unicode(self, string):
@@ -132,10 +142,9 @@ class AnnotateCommand (Command):
         u'''Retrieve the notes to edit.'''
         if self.edit_all:
             notes = task.notes
-        elif self.edit_ids:
-            array_ids = [int(i) for i in self.edit_ids.split(",")]
+        elif self.ids_to_edit:
             try:
-                notes = lib.get_notes(task = task, ids = array_ids)
+                notes = lib.get_notes(task = task, ids = self.ids_to_edit)
             except WrongId:
                 # TODO : which id ?
                 write("[ERR] At least one of the ids doesn't exist",
@@ -145,6 +154,17 @@ class AnnotateCommand (Command):
         else:
             notes = []
         return notes
+
+    def write_notes(self, opened_file, notes):
+        u'''Write the notes into an opened file-like object.'''
+        for note in notes:
+            if note != notes[0]:
+                opened_file.write(self.separator)
+            if os.name == 'nt':
+                to_write = re.sub('(?<!\r)\n', os.linesep, note.content)
+            else:
+                to_write = note.content
+            opened_file.write(self.to_8bytes(to_write))
 
     def execute(self, cmd):
         # Get the task
@@ -159,19 +179,11 @@ class AnnotateCommand (Command):
         notes = self.fetch_notes(task)
 
         # Launch an editor
-        separator = u'==================================================' + \
-            os.linesep
-        if notes or not (self.edit_ids or self.edit_all):
+        if notes or not (self.ids_to_edit or self.edit_all):
             with NamedTemporaryFile(delete=False) as temp_file:
                 # Write the notes fetched earlier
-                for note in notes:
-                    if note != notes[0]:
-                        temp_file.write(separator)
-                    if os.name == 'nt':
-                        to_write = re.sub('(?<!\r)\n', os.linesep, note.content)
-                    else:
-                        to_write = note.content
-                    temp_file.write(self.to_8bytes(to_write))
+                self.write_notes(temp_file, notes)
+                
                 temp_file.close()
 
                 # Launch the editor
@@ -183,15 +195,14 @@ class AnnotateCommand (Command):
 
                 # Get the modifications.
                 modified_file = open(temp_file.name)
-                new_notes = self.split_notes(modified_file, separator)
+                new_notes = self.split_notes(modified_file, self.separator)
                 modified_file.close()
                 os.remove(temp_file.name)
 
             # In case of an edition, replace the content of the notes fetched
             # by the new ones.
-            if self.edit_ids:
-                array_ids = self.edit_ids.split(',')
-                for note_id, content in zip(array_ids, new_notes):
+            if self.ids_to_edit:
+                for note_id, content in zip(self.ids_to_edit, new_notes):
                     task.notes[int(note_id)-1].content = \
                         self.to_unicode(content)
             elif self.edit_all:
