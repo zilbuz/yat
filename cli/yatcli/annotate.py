@@ -57,9 +57,11 @@ class AnnotateCommand (Command):
         super(AnnotateCommand, self).__init__()
 
         self.options = [
-            ('e', 'edit', 'ids_to_edit', self.__analyze_ids, ['a', 'd', 'C', 'm']),
+            ('e', 'edit', 'ids_to_edit',
+             self.__analyze_ids, ['a', 'd', 'C', 'm']),
             ('a', 'all', 'edit_all', None, ['e', 'd', 'C', 'm']),
-            ('d', 'delete', 'delete_ids', str, ['a', 'e', 'C', 'm']),
+            ('d', 'delete', 'ids_to_destroy',
+             self.__analyze_ids, ['a', 'e', 'C', 'm']),
             ('C', 'clear', 'clear', None, ['a', 'd', 'e', 'm']),
             ('m', 'message', 'message', str, ['a', 'd', 'C', 'e'])
         ]
@@ -137,7 +139,7 @@ class AnnotateCommand (Command):
                     continue
             raise error
 
-    #pylint: disable=E1101
+    #pylint: disable=E1101,W0201
     def fetch_notes(self, task):
         u'''Retrieve the notes to edit.'''
         if self.edit_all:
@@ -166,6 +168,28 @@ class AnnotateCommand (Command):
                 to_write = note.content
             opened_file.write(self.to_8bytes(to_write))
 
+    def launch_editor(self, notes):
+        u'''Fire a text editor and extracts the content of the notes from it.
+        '''
+        with NamedTemporaryFile(delete=False) as temp_file:
+            # Write the notes fetched earlier
+            self.write_notes(temp_file, notes)
+            temp_file.close()
+
+            # Launch the editor
+            if os.name == 'nt':
+                exec_name = 'notepad.exe'
+            else:
+                exec_name = 'sensible-editor'
+            call([exec_name, temp_file.name])
+
+            # Get the modifications.
+            modified_file = open(temp_file.name)
+            new_notes = self.split_notes(modified_file, self.separator)
+            modified_file.close()
+            os.remove(temp_file.name)
+        return new_notes
+
     def execute(self, cmd):
         # Get the task
         try:
@@ -175,47 +199,43 @@ class AnnotateCommand (Command):
                 output_file = sys.stderr,
                 color = (Colors.errf, Colors.errb), bold = Colors.errbold)
             return
-        if
 
-        notes = self.fetch_notes(task)
+        # When clearing, juste use the same mechanism but on all the notes.
+        if self.clear:
+            self.ids_to_destroy = range(1, len(task.notes)+1)
 
-        # Launch an editor
-        if notes or not (self.ids_to_edit or self.edit_all):
-            with NamedTemporaryFile(delete=False) as temp_file:
-                # Write the notes fetched earlier
-                self.write_notes(temp_file, notes)
-                
-                temp_file.close()
+        # Generic mechanism to destroy the notes.
+        if self.ids_to_destroy:
+            notes = []
 
-                # Launch the editor
-                if os.name == 'nt':
-                    exec_name = 'notepad.exe'
-                else:
-                    exec_name = 'sensible-editor'
-                call([exec_name, temp_file.name])
+            # It is sorted to always remain within the boundaries of the list.
+            for i in sorted(self.ids_to_destroy, reverse = True):
+                notes.append(task.notes.pop(i-1))
+            lib.remove_notes([note.id for note in notes])
+            task.save(lib)  # Not sure it is useful, but in doubt...
+            return
 
-                # Get the modifications.
-                modified_file = open(temp_file.name)
-                new_notes = self.split_notes(modified_file, self.separator)
-                modified_file.close()
-                os.remove(temp_file.name)
+        if self.message:
+            new_content = [self.message]
+        else:
+            new_content = self.launch_editor(self.fetch_notes(task))
 
-            # In case of an edition, replace the content of the notes fetched
-            # by the new ones.
-            if self.ids_to_edit:
-                for note_id, content in zip(self.ids_to_edit, new_notes):
-                    task.notes[int(note_id)-1].content = \
-                        self.to_unicode(content)
-            elif self.edit_all:
-                for note, content in zip(task.notes, new_notes):
-                    note.content = self.to_unicode(content)
+        # In case of an edition, replace the content of the notes fetched
+        # by the new ones.
+        if self.ids_to_edit:
+            for note_id, content in zip(self.ids_to_edit, new_content):
+                task.notes[int(note_id)-1].content = \
+                    self.to_unicode(content)
+        elif self.edit_all:
+            for note, content in zip(task.notes, new_content):
+                note.content = self.to_unicode(content)
 
-            # Just append the new notes to the existing ones.
-            else:
-                for note in new_notes:
-                    temp_note = Note(lib)
-                    temp_note.content = self.to_unicode(note)
-                    temp_note.task = task
-                    task.notes.append(temp_note)
-            task.save()
-    #pylint: enable=E1101
+        # Just append the new notes to the existing ones.
+        else:
+            for note in new_content:
+                temp_note = Note(lib)
+                temp_note.content = self.to_unicode(note)
+                temp_note.task = task
+                task.notes.append(temp_note)
+        task.save()
+    #pylint: enable=E1101,W0201
