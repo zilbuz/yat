@@ -1,5 +1,27 @@
 #!/usr/bin/env python
+u"""
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+                   Version 2, December 2004 
 
+ Copyright (C) 2010, 2011 
+    Basile Desloges <basile.desloges@gmail.com>
+    Simon Chopin <chopin.simon@gmail.com>
+
+ Everyone is permitted to copy and distribute verbatim or modified 
+ copies of this license document, and changing it is allowed as long 
+ as the name is changed. 
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
+
+  0. You just DO WHAT THE FUCK YOU WANT TO. 
+
+This program is free software. It comes without any warranty, to
+the extent permitted by applicable law. You can redistribute it
+and/or modify it under the terms of the Do What The Fuck You Want
+To Public License, Version 2, as published by Sam Hocevar. See
+http://sam.zoy.org/wtfpl/COPYING for more details.
+"""
 from distutils.core import setup
 from distutils.command.build import build
 from distutils.command.install import install
@@ -10,8 +32,9 @@ from docutils.writers import manpage
 import os
 import sys
 import subprocess
-
+#pylint: disable=W0201,R0904
 class BuildDoc(Command):
+    u'''Builds the documentation. Crazy, right ?'''
     description = "Build the documentation."
     user_options = [('build-dir=', 'b', 'directory for documentation')]
 
@@ -64,6 +87,8 @@ class BuildDoc(Command):
                          writer = manpage.Writer())
 
 class InstallDoc(Command):
+    u'''Install the documentation in the proper place, that is, if there's any.
+    '''
     description = 'Install the documentation.'
     user_options = [('build-dir=', 'b', 'build directory for documentation'),
                     ('install-prefix=', 'i', 'installation prefix')]
@@ -99,6 +124,7 @@ class InstallDoc(Command):
             self.copy_tree(man_origin_dir, man_install_dir)
 
 class Test(Command):
+    u'''Run the unit test suite.'''
     description = 'Run a bunch of tests'
     user_options = []
 
@@ -135,6 +161,8 @@ class Test(Command):
                          '--cov', self.build_lib, src])
 
 class Pylint(Command):
+    u'''Run pylint on the sources for those of us that still use archaic
+    dev tools like vim...'''
     description = 'Run PyLint on the sources.'
     user_options = []
 
@@ -154,10 +182,10 @@ class Pylint(Command):
             src:                    ['yat'],
             src+os.path.sep+'cli':  ['yatcli']
                    }
-        exec_name='pylint'
+        exec_name = 'pylint'
         paths_sep = ':'
         if os.name == 'nt':
-            exec_name='pylint.bat'
+            exec_name = 'pylint.bat'
             paths_sep = ';'
         os.putenv('PYTHONPATH', paths_sep.join(sources.keys()))
         working_dir = os.getcwd()
@@ -191,4 +219,4 @@ setup(name='yat',
       scripts=['cli/yat'],
       data_files=[('/etc/', ['etc/yat.yatrc'])]
      )
-
+#pylint: enable=w0201,R0904
