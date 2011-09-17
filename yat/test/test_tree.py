@@ -177,11 +177,14 @@ class TestTree():
         global lib
         criteria = [('foo', True), ('priority', True),
                     ('content', False), ('bar',False)]
-        sorted = tree.Tree(lib.get_task(1))
-        tree.Tree.sort_trees([sorted], criteria)
-        assert sorted.children[0].parent.id == 2
-        assert sorted.children[1].parent.id == 4
 
-        sorted = [tree.Tree(lib.get_task(13)), tree.Tree(lib.get_task(11))]
-        tree.Tree.sort_trees(sorted, criteria)
-        assert sorted[0].parent.id == 13
+        sorted_trees = tree.Tree(lib.get_task(1))
+        tree.Tree.sort_trees([sorted_trees], criteria)
+        assert sorted_trees.children[0].parent.id == 2
+        assert sorted_trees.children[1].parent.id == 4
+
+        sorted_trees = [tree.Tree(lib.get_task(13)), \
+	    tree.Tree(lib.get_task(11))]
+        tree.Tree.sort_trees(sorted_trees, criteria)
+        assert sorted_trees[0].parent.id == 13
+
