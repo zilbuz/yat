@@ -26,6 +26,7 @@ http://sam.zoy.org/wtfpl/COPYING for more details.
 
 import sys
 import os
+import re
 from StringIO import StringIO
 from tempfile import NamedTemporaryFile
 from subprocess import call
@@ -67,22 +68,31 @@ class AnnotateCommand (Command):
             'task_id':       ('^({0})$'.format(lib.config["re.id"]),
                          [None], 'task_id')
         })
-        self.encodings = [u'utf8', u'windows-1252', u'latin9']
+        self.encodings = [u'windows-1252', u'utf8', u'latin9']
 
-    @staticmethod
-    def split_notes(temp_file, separator):
+    def split_notes(self, temp_file, separator):
         u'''Given a file and the separator, split the content of the file into
         a list of string. The separator must be a whole line.'''
         notes = []
         current_note = StringIO()
         for line in temp_file:
-            if line == separator:
-                notes.append(current_note.getvalue())
+            if self.to_unicode(line.strip()) == separator.strip():
+                content = current_note.getvalue()
+                length = len(os.linesep)
+                if len(content) > length:
+                    if content[-1] != '\n':
+                        content = content + os.linesep
+                    notes.append(content)
                 current_note.close()
                 current_note = StringIO()
             else:
                 current_note.write(line)
-        notes.append(current_note.getvalue())
+        content = current_note.getvalue()
+        length = len(os.linesep)
+        if len(content) > length:
+            if content[-1] != '\n':
+                content = content + os.linesep
+            notes.append(content)
         return notes
 
     def to_unicode(self, string):
@@ -102,6 +112,21 @@ class AnnotateCommand (Command):
                     continue
             raise error
 
+    def to_8bytes(self, unicode_string):
+        u'''Return an 8-byte string from a unicode one. It tries the default
+        encoding first, and then switch to the usual suspects if needed.'''
+        try:
+            #try the default encoding. Usually works
+            return unicode_string.encode()
+        except UnicodeEncodeError as error:
+            #If not, try the usual suspects.
+            for enc in self.encodings:
+                try:
+                    return unicode_string.encode(enc)
+                except UnicodeDecodeError:
+                    continue
+            raise error
+
     #pylint: disable=E1101
     def fetch_notes(self, task):
         u'''Retrieve the notes to edit.'''
@@ -117,6 +142,8 @@ class AnnotateCommand (Command):
                     output_file = sys.stderr,
                     color = (Colors.errf, Colors.errb), bold = Colors.errbold)
                 exit()
+        else:
+            notes = []
         return notes
 
     def execute(self, cmd):
@@ -132,14 +159,19 @@ class AnnotateCommand (Command):
         notes = self.fetch_notes(task)
 
         # Launch an editor
-        separator = u'==================================================\n'
+        separator = u'==================================================' + \
+            os.linesep
         if notes or not (self.edit_ids or self.edit_all):
             with NamedTemporaryFile(delete=False) as temp_file:
                 # Write the notes fetched earlier
                 for note in notes:
                     if note != notes[0]:
                         temp_file.write(separator)
-                    temp_file.write(note.content)
+                    if os.name == 'nt':
+                        to_write = re.sub('(?<!\r)\n', os.linesep, note.content)
+                    else:
+                        to_write = note.content
+                    temp_file.write(self.to_8bytes(to_write))
                 temp_file.close()
 
                 # Launch the editor
@@ -163,7 +195,7 @@ class AnnotateCommand (Command):
                     task.notes[int(note_id)-1].content = \
                         self.to_unicode(content)
             elif self.edit_all:
-                for note, content in zip(self.notes, new_notes):
+                for note, content in zip(task.notes, new_notes):
                     note.content = self.to_unicode(content)
 
             # Just append the new notes to the existing ones.
