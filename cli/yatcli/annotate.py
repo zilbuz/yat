@@ -153,6 +153,7 @@ class AnnotateCommand (Command):
                 modified_file = open(temp_file.name)
                 new_notes = self.split_notes(modified_file, separator)
                 modified_file.close()
+                os.remove(temp_file.name)
 
             # In case of an edition, replace the content of the notes fetched
             # by the new ones.
