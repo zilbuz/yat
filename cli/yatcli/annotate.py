@@ -57,11 +57,11 @@ class AnnotateCommand (Command):
         super(AnnotateCommand, self).__init__()
 
         self.options = [
-            ('e', 'edit', 'ids_to_edit', self.__analyze_ids),
-            ('a', 'all', 'edit_all', None),
-            ('d', 'delete', 'delete_ids', str),
-            ('C', 'clear', 'clear', None),
-            ('m', 'message', 'message', str)
+            ('e', 'edit', 'ids_to_edit', self.__analyze_ids, ['a', 'd', 'C', 'm']),
+            ('a', 'all', 'edit_all', None, ['e', 'd', 'C', 'm']),
+            ('d', 'delete', 'delete_ids', str, ['a', 'e', 'C', 'm']),
+            ('C', 'clear', 'clear', None, ['a', 'd', 'e', 'm']),
+            ('m', 'message', 'message', str, ['a', 'd', 'C', 'e'])
         ]
         
         self.arguments = (['task_id'], {
@@ -175,6 +175,7 @@ class AnnotateCommand (Command):
                 output_file = sys.stderr,
                 color = (Colors.errf, Colors.errb), bold = Colors.errbold)
             return
+        if
 
         notes = self.fetch_notes(task)
 
